@@ -46,10 +46,20 @@ repository = "https://github.com/google-gemini/genai-processors"
 
 [project.optional-dependencies]
 # Dependencies of processors in contrib. To avoid dependency bloat we do not
-# include them in the main dependency list. But they can be installed with
+# include them in the main dependency list. We create a group for each
+# processor and a main `contrib` group that includes all of them.
+
+# Specific dependency for the PydanticValidator processor
+pydantic = [
+    "pydantic>=2.0",
+]
+
+# A combined group to install all contrib dependencies at once
 # `pip install -e .[contrib]`
 contrib = [
+    "genai_processors[pydantic]",
 ]
+
 # Development deps (unittest, linting, formating,...)
 # Installed through `pip install -e .[dev]`
 dev = [
@@ -78,4 +88,3 @@ name = "genai_processors"
 dir = "."
 [tool.flit.sdist]
 exclude = ["tests/", "tests/*"]
-
