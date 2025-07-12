@@ -26,8 +26,8 @@ To install the dependencies for this script, run:
 pip install --upgrade pyaudio genai-processors google-genai termcolor
 ```
 
-Before running this script, ensure the `GOOGLE_API_KEY` environment
-variable is set to the api-key you obtained from Google AI Studio.
+Before running this script, ensure the `GOOGLE_API_KEY` and `GOOGLE_PROJECT_ID`
+environment variables are set to the api-key you obtained from Google AI Studio.
 
 Important: **Use headphones**. This script uses the system default audio
 input and output, which often won't include echo cancellation. So to prevent
@@ -74,7 +74,7 @@ INSTRUCTION_PARTS = [
     ' explain interesting facts related to what you see and hear, predict what'
     ' could happen, judge some actions or reactions, etc. Respond to the'
     ' user in a few sentences maximum: keep it short and engaging. Avoid'
-    ' long monologues. You can use Google search to add extra inforamtion to'
+    ' long monologues. You can use Google search to add extra information to'
     ' the user questions or to come up with interesting news or facts.'
 ]
 

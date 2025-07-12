@@ -32,7 +32,7 @@ Before running this script, ensure the `GOOGLE_API_KEY` environment
 variable is set to the api-key you obtained from Google AI Studio.
 
 Usage:
-  python3 trip_request_cli.py
+  python3 trip_request_cli_ollama.py
 """
 import asyncio
 from collections.abc import AsyncIterable

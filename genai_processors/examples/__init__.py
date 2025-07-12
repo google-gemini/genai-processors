@@ -14,9 +14,9 @@
 # ==============================================================================
 """Examples are in the root of the git repository, see the parent folder.
 
-To make examples easily discoverable we need them to be in the parent foler. But
-when doing local development with `PYTHONPATH=.`Python will look for them here.
-This magic tell Python where the examples packages are really located.
+To make examples easily discoverable we need them to be in the parent folder.
+But when doing local development with `PYTHONPATH=.`Python will look for them
+here. This magic tells Python where the examples packages are really located.
 """
 
 import importlib
