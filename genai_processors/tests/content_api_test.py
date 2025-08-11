@@ -82,6 +82,10 @@ class ProcessorPartTest(parameterized.TestCase):
     self.assertEqual(part.part.inline_data.data, bytes_data)
     self.assertEqual(part.part.inline_data.mime_type, mimetype)
 
+  def test_eq_part_and_non_part(self):
+    part = content_api.ProcessorPart('foo')
+    self.assertNotEqual(part, object())
+
 
 class ProcessorContentTest(parameterized.TestCase):
 
@@ -399,6 +403,9 @@ class ProcessorContentTest(parameterized.TestCase):
     with self.assertRaises(Exception):
       content_api.ProcessorPart.from_dict(data=invalid_data)
 
+  def test_eq_content_and_non_content(self):
+    content = content_api.ProcessorContent('foo')
+    self.assertNotEqual(content, object())
 
 if __name__ == '__main__':
   absltest.main()

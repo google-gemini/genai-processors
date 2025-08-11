@@ -146,7 +146,9 @@ class ProcessorPart:
         f' mimetype={self.mimetype!r}{optional_args})'
     )
 
-  def __eq__(self, other: 'ProcessorPart') -> bool:
+  def __eq__(self, other: Any) -> bool:
+    if not isinstance(other, ProcessorPart):
+      return False
     return (
         self._part == other._part
         and self._role.lower() == other._role.lower()
@@ -536,16 +538,13 @@ class ProcessorContent:
     result += other
     return result
 
-  def __eq__(self, other: 'ProcessorContent') -> bool:
-    try:
-      for lhs, rhs in zip(self, other, strict=True):
-        if lhs != rhs:
-          return False
-      return True
-    except AttributeError:
+  def __eq__(self, other: Any) -> bool:
+    if not isinstance(other, ProcessorContent):
       return False
-    except ValueError:
-      return False
+    for lhs, rhs in zip(self, other, strict=True):
+      if lhs != rhs:
+        return False
+    return True
 
   def items(self) -> Iterator[tuple[str, ProcessorPart]]:
     """Yields tuples of mime_type and part.
