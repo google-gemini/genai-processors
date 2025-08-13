@@ -46,21 +46,21 @@ ProcessorPart(
     {'text': 'hi'}, mimetype='text/plain',
     substream_name='input_transcription',
     metadata={'is_final': False},
-    role='USER'
+    role='user'
 )
 ProcessorPart(
     {'text': 'hi there'},
     `mimetype='text/plain',
     substream_name='input_transcription',
     metadata={'is_final': False},
-    role='USER'
+    role='user'
 )
 ProcessorPart(
     {'text': 'hi'},
     mimetype='text/plain',
     substream_name='input_transcription',
     metadata={'is_final': False},
-    role='USER'
+    role='user'
 )
 # Endpointing detected the end of speech. All audio parts between this part
 # and the previous SPEECH_ACTIVITY_BEGIN are the ones corresponding to the
@@ -76,7 +76,7 @@ ProcessorPart(
     mimetype='text/plain',
     substream_name='input_transcription',
     metadata={'is_final': True},
-    role='USER'
+    role='user'
 )
 ```
 """

@@ -2,6 +2,7 @@ import asyncio
 from typing import Iterable
 import unittest
 
+from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
 from genai_processors import context as context_lib
@@ -219,4 +220,4 @@ class TestRateLimitStreamingAudio(
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

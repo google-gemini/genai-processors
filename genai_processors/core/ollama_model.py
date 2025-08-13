@@ -38,6 +38,7 @@ from genai_processors import content_api
 from genai_processors import mime_types
 from genai_processors import processor
 from genai_processors import tool_utils
+from genai_processors.core import constrained_decoding
 from google.genai import types as genai_types
 import httpx
 from pydantic import json_schema
@@ -115,6 +116,7 @@ class OllamaModel(processor.Processor):
       host: str | None = None,
       generate_content_config: GenerateContentConfig | None = None,
       keep_alive: float | str | None = None,
+      stream_json: bool = False,
   ):
     """Initializes the Ollama model.
 
@@ -127,6 +129,10 @@ class OllamaModel(processor.Processor):
         * A number in seconds
         * A negative number to keep the model loaded in memory
         * 0 to unload it immediately after generating a response
+      stream_json: By default, the processor will buffer JSON parts from the
+        model and parse them into the `generate_content_config`'s response
+        schema. Set this to True to stream raw JSON parts from the model
+        instead.
 
     Returns:
       A `Processor` that calls the Ollama API in turn-based fashion.
@@ -138,8 +144,10 @@ class OllamaModel(processor.Processor):
     self._format = None
     self._strip_quotes = False
     self._keep_alive = keep_alive
+    self._parser = None
 
     if tools := generate_content_config.get('tools'):
+      tools: list[genai_types.Tool] = tools
       tool_utils.raise_for_gemini_server_side_tools(tools)
       self._tools = []
       for tool in tools:
@@ -187,6 +195,13 @@ class OllamaModel(processor.Processor):
       ).json_schema.model_dump(mode='json', exclude_unset=True)
     elif generate_content_config.get('response_json_schema'):
       self._format = generate_content_config['response_json_schema']
+    schema = None
+    if generate_content_config:
+      schema = generate_content_config.get('response_schema')
+
+    # If schema is present, set up the structured output parser.
+    if schema and not stream_json:
+      self._parser = constrained_decoding.StructuredOutputParser(schema)
 
     # Populate system instructions.
     self._system_instruction = []
@@ -204,9 +219,10 @@ class OllamaModel(processor.Processor):
     if generate_content_config.get('stop_sequences'):
       self._options['stop'] = generate_content_config['stop_sequences']
 
-  async def call(
+  async def _generate_from_api(
       self, content: AsyncIterable[content_api.ProcessorPartTypes]
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    """Internal method to call the Ollama API and stream results."""
     messages = []
     async for part in content:
       messages.append(_to_ollama_message(part, default_role='user'))
@@ -242,9 +258,7 @@ class OllamaModel(processor.Processor):
         if message.get('content'):
           if self._strip_quotes:
             message['content'] = message['content'].replace('"', '')
-          yield content_api.ProcessorPart(
-              message['content'], role=message['role'].upper()
-          )
+          yield content_api.ProcessorPart(message['content'], role='model')
         if tool_calls := message.get('tool_calls'):
           for tool_call in tool_calls:
             yield processor.ProcessorPart.from_function_call(
@@ -253,8 +267,19 @@ class OllamaModel(processor.Processor):
             )
         for image in message.get('images', ()):
           yield content_api.ProcessorPart(
-              image, mimetype='image/*', role=message.role.upper()
+              image, mimetype='image/*', role='model'
           )
+
+  async def call(
+      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    api_stream = self._generate_from_api(content)
+    if self._parser:
+      async for part in self._parser(api_stream):
+        yield part
+    else:
+      async for part in api_stream:
+        yield part
 
 
 def _to_ollama_message(
@@ -262,7 +287,11 @@ def _to_ollama_message(
 ) -> dict[str, Any]:
   """Returns Ollama message JSON."""
   # Gemini API uses upper case for roles, while Ollama uses lower case.
-  message: dict[str, Any] = {'role': part.role.lower() or default_role.lower()}
+  role = part.role.lower() or default_role
+  if role == 'model':
+    role = 'assistant'
+
+  message: dict[str, Any] = {'role': role}
 
   if part.function_call:
     message.setdefault('tool_calls', []).append({
@@ -273,7 +302,7 @@ def _to_ollama_message(
   elif part.function_response:
     message['role'] = 'tool'
     message['content'] = json.dumps(part.function_response.response)
-    message['name']: part.function_response.name
+    message['name'] = part.function_response.name
     return message
   elif content_api.is_text(part.mimetype):
     message['content'] = part.text

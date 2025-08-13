@@ -179,13 +179,13 @@ class AIStudioConnection:
             base64.b64decode(part.base64data),
             mimetype=part.mime_type,
             substream_name='realtime',
-            role='USER',
+            role='user',
         )
       elif part.is_mic_off():
         yield content_api.ProcessorPart(
             '',
             substream_name='realtime',
-            role='USER',
+            role='user',
             metadata={'audio_stream_end': True},
         )
       elif part.is_reset_command():

@@ -112,18 +112,9 @@ Your JSON:
   async def call(
       self, content: AsyncIterable[ProcessorPart]
   ) -> AsyncIterable[ProcessorPart]:
-    json_parts = []
+    topics = []
     async for content_part in self._pipeline(content):
-      json_parts.append(content_part)
-
-    json_res = json.loads(content_api.as_text(json_parts))
-    topics = [
-        interfaces.Topic(
-            topic=t.get('topic'),
-            relationship_to_user_content=t.get('relationship_to_user_content'),
-        )
-        for t in json_res
-    ]
+      topics.append(content_part.get_dataclass(interfaces.Topic))
 
     yield processor.status(f'Generated {len(topics)} topics to research!')
     for i, t in enumerate(topics):

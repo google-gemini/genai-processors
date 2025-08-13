@@ -80,13 +80,13 @@ def to_parts(
           value = v['text']
         yield content_api.ProcessorPart(
             value=value,
-            role='MODEL',
+            role='model',
             substream_name=k,
         )
       else:
         yield content_api.ProcessorPart(
             value='',
-            role='MODEL',
+            role='model',
             metadata={k: v},
         )
   if msg.tool_call:
@@ -95,7 +95,7 @@ def to_parts(
       yield content_api.ProcessorPart.from_function_call(
           name=function_call.name,
           args=function_call.args,
-          role='MODEL',
+          role='model',
           metadata={'id': function_call.id},
       )
   if msg.tool_call_cancellation and msg.tool_call_cancellation.ids:
@@ -106,21 +106,21 @@ def to_parts(
   if msg.usage_metadata:
     yield content_api.ProcessorPart(
         value='',
-        role='MODEL',
+        role='model',
         metadata={'usage_metadata': msg.usage_metadata.to_json_dict()},
     )
 
   if msg.go_away:
     yield content_api.ProcessorPart(
         value='',
-        role='MODEL',
+        role='model',
         metadata={'go_away': msg.go_away.to_json_dict()},
     )
 
   if msg.session_resumption_update:
     yield content_api.ProcessorPart(
         value='',
-        role='MODEL',
+        role='model',
         metadata={
             'session_resumption_update': (
                 msg.session_resumption_update.to_json_dict()

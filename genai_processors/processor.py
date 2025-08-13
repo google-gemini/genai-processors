@@ -19,12 +19,14 @@ from __future__ import annotations
 import abc
 import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Sequence
+import contextvars
 import functools
 import inspect
 import types
 import typing
 from typing import Any, ParamSpec, Protocol, Self, TypeAlias, overload
 
+from genai_processors import cache_base
 from genai_processors import content_api
 from genai_processors import context as context_lib
 from genai_processors import map_processor
@@ -69,9 +71,11 @@ def _key_prefix(
 
 
 def _combined_key_prefix(
-    fn_list: Sequence[ProcessorFn | PartProcessorFn],
+    processor_list: Sequence[
+        Processor | PartProcessor | ProcessorFn | PartProcessorFn
+    ],
 ) -> str:
-  return ','.join(map(_key_prefix, fn_list))
+  return ','.join(map(_key_prefix, processor_list))
 
 
 async def _normalize_part_stream(
@@ -205,13 +209,9 @@ class Processor(abc.ABC):
     Returns:
       The chain of this process with `other`.
     """
-    if isinstance(other, PartProcessor):
-      return _ChainProcessor([self.call, other.to_processor().call])
-    elif isinstance(other, _ChainProcessor):
-      return _ChainProcessor([self.call] + other._processor_list)
-    else:
-      other: Processor = other  # Make pytype happy.
-      return _ChainProcessor([self.call, other.call])
+    if isinstance(other, _ChainProcessor):
+      return _ChainProcessor([self] + other._processors)
+    return _ChainProcessor([self, other])
 
 
 @typing.runtime_checkable
@@ -326,14 +326,12 @@ class PartProcessor(abc.ABC):
     Returns:
       The chain of this process with `other`.
     """
-    if isinstance(other, _ChainPartProcessor):
-      return _ChainPartProcessor([self] + other._processor_list)
-    elif isinstance(other, _ChainProcessor):
-      return _ChainProcessor([self.to_processor().call] + other._processor_list)
-    elif isinstance(other, Processor):
-      return _ChainProcessor([self.to_processor().call, other])
-    else:
+    if isinstance(other, PartProcessor):
+      if isinstance(other, _ChainPartProcessor):
+        return _ChainPartProcessor([self] + other._processor_list)
       return _ChainPartProcessor([self, other])
+
+    return _ChainProcessor([self, other])
 
   def __floordiv__(self, other: Self | Processor) -> PartProcessor | Processor:
     """Make `other` be computed in parallel to this processor.
@@ -659,13 +657,7 @@ class _ChainPartProcessor(PartProcessor):
           *self._processor_list,
           other,
       ])
-    other: Processor = other  # Make pytype happy.
-    if isinstance(other, _ChainProcessor):
-      return _ChainProcessor([self.to_processor().call, *other._processor_list])
-    elif not self._processor_list:
-      return _ChainProcessor([other.call])
-    else:
-      return _ChainProcessor([self.to_processor().call, other.call])
+    return _ChainProcessor([self, other])
 
   def match(self, part: ProcessorPart) -> bool:
     return any(p.match(part) for p in self._processor_list)
@@ -712,22 +704,42 @@ class _ProcessorWrapper(Processor):
 
 
 class _ChainProcessor(Processor):
-  """Chain of processors."""
+  """Chain of processors that fuses consecutive PartProcessors."""
 
   def __init__(
       self,
-      processor_list: Sequence[ProcessorFn],
+      processor_list: Sequence[Processor | PartProcessor],
   ):
-    self._processor_list = list(processor_list)
+    fused_processors: list[Processor | PartProcessor] = []
+    for p in processor_list:
+      if (
+          isinstance(p, PartProcessor)
+          and fused_processors
+          and isinstance(fused_processors[-1], PartProcessor)
+      ):
+        fused_processors[-1] = fused_processors[-1] + p
+      else:
+        fused_processors.append(p)
+    self._processors = fused_processors
 
-  def __add__(self, other: Processor | PartProcessor) -> Processor:
-    if isinstance(other, _ChainProcessor):
-      return _ChainProcessor(self._processor_list + other._processor_list)
-    elif isinstance(other, _ChainPartProcessor) and not other._processor_list:
-      return _ChainProcessor(self._processor_list)
-    elif isinstance(other, PartProcessor):
-      return _ChainProcessor([*self._processor_list, other.to_processor().call])
-    return _ChainProcessor([*self._processor_list, other.call])
+    self._processor_list: list[ProcessorFn] = []
+    for p in self._processors:
+      if isinstance(p, PartProcessor):
+        self._processor_list.append(p.to_processor().call)
+      else:
+        self._processor_list.append(p.call)
+
+    self._task_name = (
+        f'_ChainProcessor({_key_prefix(self._processors[0])}...)'
+        if self._processors
+        else '_ChainProcessor(empty)'
+    )
+
+  def __add__(self, other: Processor | PartProcessor) -> _ChainProcessor:
+    other_list = (
+        other._processors if isinstance(other, _ChainProcessor) else [other]
+    )
+    return _ChainProcessor(self._processors + other_list)
 
   async def call(
       self, content: AsyncIterable[ProcessorPart]
@@ -737,10 +749,9 @@ class _ChainProcessor(Processor):
       async for part in content:
         yield part
       return
-    task_name = f'_ChainProcessor({_key_prefix(self._processor_list[0])}...)'
-    async for result in _chain_processors(self._processor_list, task_name)(
-        content
-    ):
+    async for result in _chain_processors(
+        self._processor_list, self._task_name
+    )(content):
       yield result
 
   @functools.cached_property
@@ -825,7 +836,10 @@ class _CaptureReservedSubstreams(PartProcessor):
     if context_lib.is_reserved_substream(part.substream_name):
       await self._queue.put(part)
       return
-    async for part in _normalize_part_stream(self._part_processor_fn(part)):
+    processed_stream: AsyncIterable[ProcessorPart] = _normalize_part_stream(
+        self._part_processor_fn(part)
+    )
+    async for part in processed_stream:
       if context_lib.is_reserved_substream(part.substream_name):
         await self._queue.put(part)
       else:
@@ -1183,13 +1197,12 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
 
 
 def yield_exceptions_as_parts(
-    func: Callable[
-        [PartProcessor, ProcessorPart], AsyncIterable[ProcessorPartTypes]
-    ],
-) -> Callable[
-    [PartProcessor, ProcessorPart], AsyncIterable[ProcessorPartTypes]
-]:
-  """Decorates `PartProcessor.call` to yield exceptions instead of raising them.
+    func: Callable[_ProcessorParamSpec, AsyncIterable[ProcessorPartTypes]],
+) -> Callable[_ProcessorParamSpec, AsyncIterable[ProcessorPartTypes]]:
+  """Decorates a `call` method to yield exceptions instead of raising them.
+
+  This decorator can be applied to the `call` method of both `Processor` and
+  `PartProcessor` classes.
 
     For the Processor pipeline to succeed each processor in it needs to succeed,
     and if there are many of them the probability of failure increases
@@ -1198,8 +1211,10 @@ def yield_exceptions_as_parts(
     To mitigate that we may want to let the model work with the partial results
     by interpreting exceptions as valid results.
 
-    This decorator wraps the `PartProcessor.call` method in a try...except
-    block. If the method raises an exception it is yielded as a special `status`
+    This decorator wraps the `PartProcessor.call` or `Processor.call` method in
+    a try...except block.
+
+    If the method raises an exception it is yielded as a special `status`
     `ProcessorPart` that the next processors in the pipeline can interpret.
 
     To be model-friendly, we format the exception as a text/x-exception part
@@ -1225,11 +1240,9 @@ def yield_exceptions_as_parts(
   """
 
   @functools.wraps(func)
-  async def wrapper(
-      self: 'PartProcessor', part: ProcessorPart
-  ) -> AsyncIterable[ProcessorPartTypes]:
+  async def wrapper(*args, **kwargs) -> AsyncIterable[ProcessorPartTypes]:
     try:
-      async for item in func(self, part):
+      async for item in func(*args, **kwargs):
         yield item
     except Exception as e:  # pylint: disable=broad-except
       yield ProcessorPart(
@@ -1245,3 +1258,84 @@ def yield_exceptions_as_parts(
       )
 
   return wrapper
+
+
+_PROCESSOR_PART_CACHE: contextvars.ContextVar[cache_base.CacheBase | None] = (
+    contextvars.ContextVar('processor_part_cache', default=None)
+)
+
+
+class CachedPartProcessor(PartProcessor):
+  """A PartProcessor that wraps another PartProcessor with a cache.
+
+  For each incoming part it will write the output to the cache. If the same
+  part is encountered again, the cached result will be used. As PartProcessors
+  handle each part independently, we can cache each part independently too while
+  preserving correct order, streaming behavior and correctly propagating errors
+  on a cache miss.
+
+  The cache to use is bound to a contextvars context and can be set via
+  CachedPartProcessor.set_cache classmethod. This way servers can instantiate
+  processor chain in a constructor but still have separate caches for each
+  request, avoiding cross-talk between users.
+  """
+
+  def __init__(
+      self,
+      part_processor: PartProcessor,
+      *,
+      key_prefix: str | None = None,
+      default_cache: cache_base.CacheBase | None = None,
+  ):
+    """Initializes the caching wrapper.
+
+    Args:
+      part_processor: The PartProcessor instance to wrap.
+      key_prefix: Optional custom prefix for the cache key. If None, defaults to
+        the key_prefix of the `part_processor_to_cache`.
+      default_cache: The cache to use if one is not set in the context with
+        .set_cache.
+    """
+    self._wrapped_processor = part_processor
+    self.key_prefix = key_prefix or part_processor.key_prefix
+    self._default_cache = default_cache
+
+  @classmethod
+  def set_cache(cls, part_cache: cache_base.CacheBase) -> None:
+    """Update thread-local cache to be used.
+
+    All CachedPartProcessor within the current contextvars context will use this
+    cache to store and retrieve results.
+
+    Args:
+      part_cache: Cache to use.
+    """
+    _PROCESSOR_PART_CACHE.set(part_cache)
+
+  def match(self, part: ProcessorPart) -> bool:
+    """Matches if the underlying processor matches."""
+    return self._wrapped_processor.match(part)
+
+  async def call(
+      self, part: ProcessorPart
+  ) -> AsyncIterable[ProcessorPartTypes]:
+    part_cache = _PROCESSOR_PART_CACHE.get(self._default_cache)
+
+    if part_cache is not None:
+      part_cache = part_cache.with_key_prefix(self.key_prefix)
+      cached_result = await part_cache.lookup(part)
+
+      if isinstance(cached_result, ProcessorContent):
+        for p in cached_result.all_parts:
+          yield p
+        return
+
+      results_for_caching = []
+      async for p in self._wrapped_processor(part):
+        results_for_caching.append(p)
+        yield p
+
+      create_task(part_cache.put(part, results_for_caching))
+    else:
+      async for p in self._wrapped_processor(part):
+        yield p

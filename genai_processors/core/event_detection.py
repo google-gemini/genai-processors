@@ -85,12 +85,12 @@ output_dict = {
     ('*', EventState.EVENT_1): ProcessorPart(
         text='event_1 is detected',
         role='USER',
-        end_of_turn=True,
+        metadata={'turn_complete': True},
     ),
     (EventState.EVENT_1, EventSate.EVENT_2): ProcessorPart(
         text='event_2 is detected',
         role='USER',
-        end_of_turn=True,
+        metadata={'turn_complete': True},
     ),
     # No output for this transition.
     (EventState.EVENT_2, EventState.EVENT_1): None,

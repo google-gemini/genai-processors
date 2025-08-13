@@ -10,7 +10,7 @@ We recommend checking the following CLI examples first:
     Live processor with google search as a tool. It is a full client-side
     implementation of a Live processor that demonstrates the streaming and
     orchestration capabilities of GenAI Processors. It uses
-    [realtime.py](https://github.com/google-gemini/genai-processors/blob/main/core/realtime.py)
+    [realtime.py](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/realtime.py)
     to transform any text-based LLM (or processor) into a Live agent.
 
 *   The [Live CLI](live_simple_cli.py) is a full multimodal Live processor

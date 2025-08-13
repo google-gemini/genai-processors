@@ -56,7 +56,7 @@ The Research Agent follows a structured pipeline:
     *   Each researched `Topic` part is transformed into a human-readable
         Markdown string, summarizing the topic, its relation to the original
         query, and the research findings. The verbalization done with a
-        [Jinja2 template processor](https://github.com/google-gemini/genai-processors/blob/main/core/jinja_template.py).
+        [Jinja2 template processor](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/jinja_template.py).
 5.  **Synthesis (within `ResearchAgent`)**:
     *   All verbalized research texts are collected.
     *   A final `GenaiModel` is prompted (using `prompts.SYNTHESIS_PREAMBLE`) to

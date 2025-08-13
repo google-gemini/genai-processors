@@ -56,6 +56,7 @@ from collections.abc import AsyncIterable
 from typing import Any
 from genai_processors import content_api
 from genai_processors import processor
+from genai_processors.core import constrained_decoding
 from google.genai import client
 from google.genai import types as genai_types
 
@@ -94,6 +95,7 @@ class GenaiModel(processor.Processor):
       http_options: (
           genai_types.HttpOptions | genai_types.HttpOptionsDict | None
       ) = None,
+      stream_json: bool = False,
   ):
     """Initializes the GenaiModel.
 
@@ -107,6 +109,10 @@ class GenaiModel(processor.Processor):
       http_options: Http options to use for the client. These options will be
         applied to all requests made by the client. Example usage: `client =
         genai.Client(http_options=types.HttpOptions(api_version='v1'))`.
+      stream_json: By default, if a `response_schema` is present in the
+        `generate_content_config`, this processor will buffer the model's JSON
+        output and parse it into dataclass/enum instances. Set this to True to
+        disable this behavior and stream the raw JSON text instead.
 
     Returns:
       A `Processor` that calls the Genai API in turn-based fashion.
@@ -139,13 +145,38 @@ class GenaiModel(processor.Processor):
     )
     self._model_name = model_name
     self._generate_content_config = generate_content_config
+    self._parser = None
 
-  async def call(
+    schema = None
+    if generate_content_config:
+      if isinstance(generate_content_config, genai_types.GenerateContentConfig):
+        if hasattr(generate_content_config, 'response_schema'):
+          schema = generate_content_config.response_schema
+      elif isinstance(generate_content_config, dict):
+        schema = generate_content_config.get('response_schema')
+
+    # If schema is present and the user has not opted for raw JSON streaming,
+    # set up the JSON decoding processor.
+    if schema and not stream_json:
+      self._parser = constrained_decoding.StructuredOutputParser(schema)
+
+  async def _generate_from_api(
       self, content: AsyncIterable[content_api.ProcessorPartTypes]
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    """Internal method to call the GenAI API and stream results."""
+    turn = genai_types.Content(parts=[])
     contents = []
     async for content_part in content:
-      contents.append(content_api.to_genai_part(content_part))
+      content_part = content_api.ProcessorPart(content_part)
+      if turn.role and content_part.role != turn.role:
+        contents.append(turn)
+        turn = genai_types.Content(parts=[])
+
+      turn.role = content_part.role or 'user'
+      turn.parts.append(content_api.to_genai_part(content_part))  # pylint: disable=attribute-error
+
+    if turn.role:
+      contents.append(turn)
 
     if not contents:
       return
@@ -165,3 +196,15 @@ class GenaiModel(processor.Processor):
                 metadata=genai_response_to_metadata(res),
                 role=content.role or 'model',
             )
+
+  async def call(
+      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    api_stream = self._generate_from_api(content)
+
+    if self._parser:
+      async for part in self._parser(api_stream):
+        yield part
+    else:
+      async for part in api_stream:
+        yield part

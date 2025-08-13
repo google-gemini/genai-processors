@@ -4,6 +4,7 @@ import time
 import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from absl.testing import parameterized
 import cv2
 from genai_processors import content_api
@@ -54,14 +55,14 @@ class VideoInTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
       )
       video_in = video.VideoIn(substream_name=substream_name)
       output = await streams.gather_stream(video_in(input_stream))
-      self.assertEqual(len(output), 3)
+      self.assertLen(output, 3)
       self.assertEqual(output[0], content_api.ProcessorPart('hello'))
       self.assertEqual(output[2], content_api.ProcessorPart('world'))
       # Compare all fields of the image part but not the image bytes. Just check
       # that the image bytes are not empty.
       self.assertEqual(output[1].mimetype, 'image/jpeg')
       self.assertEqual(output[1].substream_name, substream_name)
-      self.assertEqual(output[1].role, 'USER')
+      self.assertEqual(output[1].role, 'user')
       self.assertIsInstance(output[1].part.inline_data.data, bytes)
       self.assertGreater(len(output[1].part.inline_data.data), 500)
 
@@ -86,4 +87,4 @@ class VideoInTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

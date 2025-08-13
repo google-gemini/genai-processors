@@ -1,15 +1,15 @@
 import concurrent.futures
 import time
-import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors.core import pdf
 from PIL import Image
 
 
-class PDFExtractTest(unittest.TestCase):
+class PDFExtractTest(absltest.TestCase):
 
   def setUp(self):
     super().setUp()
@@ -23,7 +23,7 @@ class PDFExtractTest(unittest.TestCase):
         self.pdf_processor.to_processor(), [part]
     )
 
-    self.assertEqual(len(processed_parts), 1)
+    self.assertLen(processed_parts, 1)
     self.assertEqual(processed_parts[0], part)
 
   @mock.patch('pypdfium2.PdfDocument')
@@ -31,7 +31,7 @@ class PDFExtractTest(unittest.TestCase):
     """Test that PDF parts with no images are processed correctly."""
     mock_page = mock.Mock()
     mock_page.get_objects.return_value = []
-    mock_page.get_textpage.return_value.get_text_range.return_value = (
+    mock_page.get_textpage.return_value.get_text_bounded.return_value = (
         'page text'
     )
     mock_pdf_document.return_value.__iter__.return_value = [mock_page]
@@ -62,7 +62,7 @@ class PDFExtractTest(unittest.TestCase):
     """Test that PDF parts with images are processed correctly."""
     mock_page = mock.Mock()
     mock_page.get_objects.return_value = [mock.Mock()]
-    mock_page.get_textpage.return_value.get_text_range.return_value = (
+    mock_page.get_textpage.return_value.get_text_bounded.return_value = (
         'page text'
     )
     mock_page.render.return_value.to_pil.return_value = Image.new(
@@ -102,7 +102,7 @@ class PDFExtractTest(unittest.TestCase):
     """Test that multiple PDF parts processed correctly in parallel."""
     mock_page = mock.Mock()
     mock_page.get_objects.return_value = []
-    mock_page.get_textpage.return_value.get_text_range.return_value = (
+    mock_page.get_textpage.return_value.get_text_bounded.return_value = (
         'page text'
     )
 
@@ -144,4 +144,4 @@ class PDFExtractTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

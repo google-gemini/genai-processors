@@ -96,7 +96,7 @@ class PDFExtract(processor.PartProcessor):
         content += f'---- Screenshot for PAGE {i + 1} ----\n\n'
         content += content_api.ProcessorPart(screenshot_pil)
       content += f'--- PAGE {i + 1} ----\n\n'
-      all_text_on_page = page.get_textpage().get_text_range()
+      all_text_on_page = page.get_textpage().get_text_bounded()
       content += all_text_on_page
       page.close()
 

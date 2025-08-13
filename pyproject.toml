@@ -35,7 +35,7 @@ dependencies = [
     "pdfrw>=0.4",
     "Pillow>=9.0.0",
     "termcolor>=3.0.0",
-    "pypdfium2>=4.30.1",
+    "pypdfium2>=4.30.0",
     "xxhash>=3.0.0",
 ]
 
@@ -50,6 +50,8 @@ repository = "https://github.com/google-gemini/genai-processors"
 # include them in the main dependency list. But they can be installed with
 # `pip install -e .[contrib]`
 contrib = [
+    "langchain-core>=0.3.68",
+    "langchain-google-genai>=2.1.7",
 ]
 # Development deps (unittest, linting, formating,...)
 # Installed through `pip install -e .[dev]`
@@ -58,7 +60,7 @@ dev = [
     "pytest-xdist",
     "pylint>=2.6.0",
     "pyink",
-    "flake8"
+    "flake8",
 ]
 
 [tool.pyink]

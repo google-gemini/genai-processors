@@ -1,8 +1,8 @@
 import asyncio
 from collections.abc import AsyncIterable
-import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from genai_processors import content_api
 from genai_processors import context as context_lib
 from genai_processors import processor
@@ -76,7 +76,7 @@ class FakeSpeechClient:
     return iterate_requests()
 
 
-class SpeechToTextTest(unittest.TestCase):
+class SpeechToTextTest(absltest.TestCase):
 
   def test_empty_stream(self):
     fake_client = FakeSpeechClient(
@@ -92,8 +92,8 @@ class SpeechToTextTest(unittest.TestCase):
       mock_client_class.return_value = fake_client
       stt = speech_to_text.SpeechToText(project_id='unused')
       parts = processor.apply_sync(stt, [])
-      self.assertEqual(len(parts), 0)
-      self.assertEqual(len(fake_client.input_stream), 1)
+      self.assertEmpty(parts)
+      self.assertLen(fake_client.input_stream, 1)
       self.assertEqual(
           fake_client.input_stream,
           [
@@ -313,8 +313,8 @@ class SpeechToTextTest(unittest.TestCase):
           return buffer
 
       parts = asyncio.run(run())
-      self.assertEqual(len(parts), 0)
-      self.assertEqual(len(fake_client.input_stream), 3)
+      self.assertEmpty(parts)
+      self.assertLen(fake_client.input_stream, 3)
       # First request is the config.
       self.assertEqual(
           fake_client.input_stream[0],
@@ -489,4 +489,4 @@ class SpeechToTextTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

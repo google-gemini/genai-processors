@@ -1,5 +1,10 @@
+import asyncio
 import dataclasses
+import re
+from typing import Sequence
 import unittest
+
+from absl.testing import absltest
 from absl.testing import parameterized
 import dataclasses_json
 from genai_processors import content_api
@@ -38,6 +43,19 @@ class MatchProcessorTest(parameterized.TestCase):
     output = processor.apply_sync(extractor, input_content)
     actual = content_api.ProcessorContent(output)
     self.assertEqual(actual.as_text(substream_name='event'), '[event: query]')
+    self.assertEqual(actual.as_text(substream_name=''), 'before  after')
+
+  def test_extract_with_compiled_pattern_and_flags(self):
+    compiled_pattern = re.compile(r'\[event:(.*?)\]', re.IGNORECASE)
+    extractor = text.MatchProcessor(
+        pattern=compiled_pattern,
+        substream_output='event',
+    )
+    # Input has mixed case that would fail without re.IGNORECASE.
+    input_content = ['before ', '[EVENT: query]', ' after']
+    output = processor.apply_sync(extractor, input_content)
+    actual = content_api.ProcessorContent(output)
+    self.assertEqual(actual.as_text(substream_name='event'), '[EVENT: query]')
     self.assertEqual(actual.as_text(substream_name=''), 'before  after')
 
   @parameterized.named_parameters(
@@ -82,7 +100,7 @@ class MatchProcessorTest(parameterized.TestCase):
         substream_output='event',
     )
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 4)
+    self.assertLen(output, 4)
     actual = content_api.ProcessorContent(output)
     self.assertEqual(
         actual.as_text(substream_name='event'), '[event: query1][event: query2]'
@@ -141,7 +159,7 @@ class MatchProcessorTest(parameterized.TestCase):
         substream_output='event',
     )
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 7)
+    self.assertLen(output, 7)
     actual = content_api.ProcessorContent(output)
     self.assertEqual(
         actual.as_text(substream_name='event'), '[event: query1][event: query2]'
@@ -158,7 +176,7 @@ class MatchProcessorTest(parameterized.TestCase):
         ['[event: query1][event: query2][event: query3]']
     )
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 3)
+    self.assertLen(output, 3)
     for i in range(3):
       self.assertEqual(
           output[i],
@@ -188,7 +206,7 @@ class MatchProcessorTest(parameterized.TestCase):
         'text post regex',
     ])
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 4)
+    self.assertLen(output, 4)
     self.assertEqual(
         output[2],
         content_api.ProcessorPart(
@@ -229,7 +247,7 @@ class MatchProcessorTest(parameterized.TestCase):
     output = processor.apply_sync(extractor, input_content)
     actual = content_api.ProcessorContent(output)
     self.assertEqual(actual.as_text(substream_name=''), '\n \n')
-    self.assertEqual(len(output), 8)
+    self.assertLen(output, 8)
     self.assertEqual(
         output[5],
         content_api.ProcessorPart(
@@ -250,7 +268,7 @@ class MatchProcessorTest(parameterized.TestCase):
         """```start\nagent_3()\nagent_4()```\n""",
     ])
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 5)
+    self.assertLen(output, 5)
     actual = content_api.ProcessorContent(output)
     self.assertEqual(
         actual.as_text(substream_name='block'),
@@ -298,7 +316,7 @@ class MatchProcessorTest(parameterized.TestCase):
         content_api.ProcessorPart(b'c', mimetype='image/png'),
     ]
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 5)
+    self.assertLen(output, 5)
     self.assertEqual(
         output,
         [
@@ -336,7 +354,7 @@ class MatchProcessorTest(parameterized.TestCase):
         content_api.ProcessorPart('text_c]', substream_name='input'),
     ]
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 6)
+    self.assertLen(output, 6)
     self.assertEqual(
         output,
         [
@@ -375,7 +393,7 @@ class MatchProcessorTest(parameterized.TestCase):
         content_api.ProcessorPart('text_c]', substream_name='input'),
     ]
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), len(input_content) + 1)
+    self.assertLen(output, len(input_content) + 1)
     self.assertEqual(
         output,
         input_content
@@ -434,7 +452,7 @@ class MatchProcessorTest(parameterized.TestCase):
         'postfix',
     ])
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(len(output), 7)
+    self.assertLen(output, 7)
     self.assertEqual(
         output[2],
         content_api.ProcessorPart(
@@ -464,7 +482,9 @@ class GithubUrl:
   url: str
 
 
-class UrlExtractorTest(parameterized.TestCase):
+class UrlExtractorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
 
   def test_extracts_url(self):
     extractor = text.UrlExtractor(
@@ -492,9 +512,149 @@ class UrlExtractorTest(parameterized.TestCase):
   def test_mismatching_schemes(self):
     with self.assertRaises(ValueError):
       text.UrlExtractor(
-          {'https://youtube.': YouTubeUrl, 'http://github.com': GithubUrl}
+          {'https://youtube.': YouTubeUrl, 'ftp://domain.com': GithubUrl}
       )
+
+  def test_http_and_https_mix(self):
+    # No exception is raised.
+    text.UrlExtractor(
+        {'https://youtube.': YouTubeUrl, 'http://github.com': GithubUrl}
+    )
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='single_url_with_surrounding_text',
+          input_parts=[
+              content_api.ProcessorPart(
+                  "Go to https://example.com, it's great."
+              )
+          ],
+          expected_parts=[
+              content_api.ProcessorPart('Go to '),
+              content_api.ProcessorPart.from_dataclass(
+                  dataclass=text.FetchRequest(url='https://example.com')
+              ),
+              content_api.ProcessorPart(", it's great."),
+          ],
+      ),
+      dict(
+          testcase_name='multiple_urls_in_one_part',
+          input_parts=[
+              content_api.ProcessorPart(
+                  'See http://a.com and https://b.org today.'
+              )
+          ],
+          expected_parts=[
+              content_api.ProcessorPart('See '),
+              content_api.ProcessorPart.from_dataclass(
+                  dataclass=text.FetchRequest(url='http://a.com')
+              ),
+              content_api.ProcessorPart(' and '),
+              content_api.ProcessorPart.from_dataclass(
+                  dataclass=text.FetchRequest(url='https://b.org')
+              ),
+              content_api.ProcessorPart(' today.'),
+          ],
+      ),
+      dict(
+          testcase_name='no_urls',
+          input_parts=[content_api.ProcessorPart('This is just plain text.')],
+          expected_parts=[
+              content_api.ProcessorPart('This is just plain text.')
+          ],
+      ),
+      dict(
+          testcase_name='non_text_parts_are_passed_through',
+          input_parts=[
+              content_api.ProcessorPart('Text before, '),
+              content_api.ProcessorPart(b'bytes', mimetype='image/png'),
+              content_api.ProcessorPart(' text after.'),
+          ],
+          expected_parts=[
+              content_api.ProcessorPart('Text before, '),
+              content_api.ProcessorPart(b'bytes', mimetype='image/png'),
+              content_api.ProcessorPart(' text after.'),
+          ],
+      ),
+      dict(
+          testcase_name='url_is_entire_part',
+          input_parts=[content_api.ProcessorPart('https://example.com')],
+          expected_parts=[
+              content_api.ProcessorPart.from_dataclass(
+                  dataclass=text.FetchRequest(url='https://example.com')
+              )
+          ],
+      ),
+      dict(
+          testcase_name='url_at_start_of_part',
+          input_parts=[
+              content_api.ProcessorPart('https://example.com is a site.')
+          ],
+          expected_parts=[
+              content_api.ProcessorPart.from_dataclass(
+                  dataclass=text.FetchRequest(url='https://example.com')
+              ),
+              content_api.ProcessorPart(' is a site.'),
+          ],
+      ),
+      dict(
+          testcase_name='url_with_parentheses',
+          input_parts=[
+              content_api.ProcessorPart(
+                  'See https://en.wikipedia.org/wiki/Text_(disambiguation) for'
+                  ' details.'
+              )
+          ],
+          expected_parts=[
+              content_api.ProcessorPart('See '),
+              content_api.ProcessorPart.from_dataclass(
+                  dataclass=text.FetchRequest(
+                      url='https://en.wikipedia.org/wiki/Text_(disambiguation)'
+                  )
+              ),
+              content_api.ProcessorPart(' for details.'),
+          ],
+      ),
+  )
+  async def test_url_extraction(
+      self,
+      input_parts: Sequence[content_api.ProcessorPart],
+      expected_parts: Sequence[content_api.ProcessorPart],
+  ):
+    extractor = text.UrlExtractor()
+    input_stream = processor.stream_content(input_parts)
+
+    results = []
+    async for output_part in extractor(input_stream):
+      results.append(output_part)
+
+    self.assertLen(results, len(expected_parts))
+
+    for i, (actual, expected) in enumerate(zip(results, expected_parts)):
+      with self.subTest(f'part_{i}'):
+        self.assertEqual(actual.mimetype, expected.mimetype)
+        if content_api.is_dataclass(actual.mimetype, text.FetchRequest):
+          self.assertEqual(
+              actual.get_dataclass(text.FetchRequest),
+              expected.get_dataclass(text.FetchRequest),
+          )
+        elif content_api.is_text(actual.mimetype):
+          self.assertEqual(actual.text, expected.text)
+        else:
+          self.assertEqual(actual.bytes, expected.bytes)
+
+  async def test_streaming(self):
+    extractor = text.UrlExtractor()
+
+    async def one_hello():
+      yield content_api.ProcessorPart('Hello', metadata={'turn_complete': True})
+      await asyncio.sleep(300)
+
+    async for part in extractor(one_hello()):
+      # Test that we got one part despite the input stream not being complete.
+      self.assertEqual(part.text, 'Hello')
+      break
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

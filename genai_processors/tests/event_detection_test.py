@@ -5,6 +5,7 @@ import io
 import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from genai_processors import content_api
 from genai_processors import streams
 from genai_processors.core import event_detection
@@ -288,4 +289,4 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

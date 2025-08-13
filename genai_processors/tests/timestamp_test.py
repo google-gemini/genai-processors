@@ -1,6 +1,7 @@
 """Tests for the timestamp processor."""
 
 import unittest
+from absl.testing import absltest
 from genai_processors import content_api
 from genai_processors import streams
 from genai_processors.core import timestamp
@@ -71,4 +72,4 @@ class TimestampTest(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

@@ -83,7 +83,7 @@ async def PyAudioIn(
         audio_stream.read, AUDIO_OUT_CHUNK_SIZE, **kwargs
     )
     yield ProcessorPart(
-        data, mimetype=mimetype, substream_name=substream_name, role='USER'
+        data, mimetype=mimetype, substream_name=substream_name, role='user'
     )
 
 

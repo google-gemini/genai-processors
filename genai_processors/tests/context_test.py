@@ -1,6 +1,7 @@
 import asyncio
 import unittest
 
+from absl.testing import absltest
 from genai_processors import context
 
 
@@ -77,4 +78,4 @@ class ContextTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

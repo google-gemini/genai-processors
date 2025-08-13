@@ -3,6 +3,7 @@ from collections.abc import AsyncIterable
 import time
 import unittest
 
+from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
 from genai_processors import processor
@@ -250,4 +251,4 @@ class PartSwitchProcessorTest(
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

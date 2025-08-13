@@ -808,7 +808,7 @@ class LiveCommentator(processor.Processor):
         logging.debug('%s - generation_complete', time.perf_counter())
         yield processor.ProcessorPart(
             '',
-            role='MODEL',
+            role='model',
             metadata={'generation_complete': True},
         )
         if self._commentator.state != State.OFF:
@@ -840,7 +840,7 @@ class LiveCommentator(processor.Processor):
         if self._commentator.state == State.USER_IS_TALKING:
           logging.debug('%s - Turn interrupted - user', time.perf_counter())
           yield content_api.ProcessorPart(
-              '', role='MODEL', metadata={'interrupted': True}
+              '', role='model', metadata={'interrupted': True}
           )
         else:
           logging.debug(
@@ -876,7 +876,7 @@ class LiveCommentator(processor.Processor):
               time.perf_counter(),
           )
           yield content_api.ProcessorPart(
-              '', role='MODEL', metadata={'interrupted': True}
+              '', role='model', metadata={'interrupted': True}
           )
         self._commentator.update(
             Action.STREAM_MEDIA_PART, part.part.inline_data
@@ -930,23 +930,23 @@ def create_live_commentator(
           ('*', EventTypes.DETECTION): [
               content_api.ProcessorPart(
                   'start commentating',
-                  role='USER',
+                  role='user',
                   substream_name='realtime',
-                  metadata={'end_of_turn': True},
+                  metadata={'turn_complete': True},
               )
           ],
           (EventTypes.DETECTION, EventTypes.NO_DETECTION): [
               content_api.ProcessorPart(
                   'stop commentating',
-                  role='USER',
+                  role='user',
                   substream_name='realtime',
-                  metadata={'end_of_turn': True},
+                  metadata={'turn_complete': True},
               )
           ],
           (EventTypes.DETECTION, EventTypes.INTERRUPTION): [
               content_api.ProcessorPart(
                   '',
-                  role='USER',
+                  role='user',
                   # Setting up a substream name here will ensure this part will
                   # not be sent to the Live API.
                   substream_name='event_detection',

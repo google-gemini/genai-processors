@@ -37,7 +37,7 @@ class JinjaTemplate(processor.Processor):
   p = jinja_template.JinjaTemplate(
       template_str='Hello {{ name }}, answer this question: {{ content }}',
       content_varname='content',
-      role=content_api.Roles.USER,
+      role='user',
       name='World',
   )
   output = processor.apply_sync(

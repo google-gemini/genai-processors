@@ -66,7 +66,7 @@ User question: {USER_PROMPT}'''
 )
 
 p_genai = genai_model.GenaiModel(
-    model_name='gemini-2.5-flash-preview-05-20',
+    model_name='gemini-2.5-flash',
     api_key=GOOGLE_API_KEY
 )
 
@@ -106,7 +106,7 @@ User question: {USER_PROMPT}'''
 )
 
 p_genai = genai_model.GenaiModel(
-    model_name='gemini-2.5-flash-preview-05-20',
+    model_name='gemini-2.5-flash',
     api_key=GOOGLE_API_KEY
 )
 
@@ -145,7 +145,7 @@ User question: {USER_PROMPT}'''
 )
 
 p_genai = genai_model.GenaiModel(
-    model_name='gemini-2.5-flash-preview-05-20',
+    model_name='gemini-2.5-flash',
     api_key=GOOGLE_API_KEY
 )
 

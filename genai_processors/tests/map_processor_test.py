@@ -5,6 +5,7 @@ import time
 import unittest
 
 from absl import logging
+from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import map_processor
 from genai_processors import streams
@@ -201,7 +202,7 @@ class MapProcessorTest(parameterized.TestCase):
         ),
         content,
     )
-    self.assertEqual(len(output), len(content) * 2)  # pylint: disable=g-generic-assert
+    self.assertLen(output, len(content) * 2)
     self.assertEqual(execution_order, [2, 2, 2, 1, 1, 1])
 
   def test_parallel_with_part_processor(self):
@@ -392,4 +393,4 @@ class GCMapProcessorTest(parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

@@ -1,6 +1,7 @@
 import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from genai_processors import content_api
 from genai_processors import streams
 from genai_processors.core import live_model
@@ -55,10 +56,10 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
           model_name='test_model_name',
       )
       content = [
-          content_api.ProcessorPart('test_content_1', role='USER'),
+          content_api.ProcessorPart('test_content_1', role='user'),
           content_api.ProcessorPart(
               'test_content_2',
-              role='MODEL',
+              role='model',
               metadata={'turn_complete': False},
           ),
       ]
@@ -68,11 +69,11 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
 
       client_connection.send_client_content.assert_has_calls([
           mock.call(
-              turns=genai_types.Content(parts=[content[0]], role='USER'),
+              turns=genai_types.Content(parts=[content[0]], role='user'),
               turn_complete=True,
           ),
           mock.call(
-              turns=genai_types.Content(parts=[content[1]], role='MODEL'),
+              turns=genai_types.Content(parts=[content[1]], role='model'),
               turn_complete=False,
           ),
       ])
@@ -165,38 +166,38 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
       expected = [
           content_api.ProcessorPart(
               value=b'test_content',
-              role='MODEL',
+              role='model',
               mimetype='audio/wav',
           ),
           content_api.ProcessorPart(
               value='',
-              role='MODEL',
+              role='model',
               metadata={
                   'turn_complete': True,
               },
           ),
           content_api.ProcessorPart(
               value='',
-              role='MODEL',
+              role='model',
               metadata={
                   'interrupted': True,
               },
           ),
           content_api.ProcessorPart(
               value='',
-              role='MODEL',
+              role='model',
               metadata={
                   'generation_complete': True,
               },
           ),
           content_api.ProcessorPart(
               value='transcription_in',
-              role='MODEL',
+              role='model',
               substream_name='input_transcription',
           ),
           content_api.ProcessorPart(
               value='transcription_out',
-              role='MODEL',
+              role='model',
               substream_name='output_transcription',
           ),
       ]
@@ -245,14 +246,14 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
                   name='fn_1', args={'x': '1', 'y': 2}
               ),
               metadata={'id': '1'},
-              role='MODEL',
+              role='model',
           ),
           content_api.ProcessorPart(
               value=genai_types.Part.from_function_call(
                   name='fn_2', args={'x': '2', 'y': 2}
               ),
               metadata={'id': '2'},
-              role='MODEL',
+              role='model',
           ),
       ]
       self.assertEqual(output_content, expected)
@@ -316,7 +317,7 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
       expected = [
           content_api.ProcessorPart(
               value='',
-              role='MODEL',
+              role='model',
               metadata={'usage_metadata': {'total_token_count': 10}},
           ),
       ]
@@ -351,7 +352,7 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
       expected = [
           content_api.ProcessorPart(
               value='',
-              role='MODEL',
+              role='model',
               metadata={
                   'session_resumption_update': {
                       'new_handle': 'test_handle',
@@ -388,7 +389,7 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
       expected = [
           content_api.ProcessorPart(
               value='',
-              role='MODEL',
+              role='model',
               metadata={'go_away': {'time_left': '10'}},
           ),
       ]
@@ -417,4 +418,4 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

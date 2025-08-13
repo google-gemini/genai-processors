@@ -74,15 +74,12 @@ class TripRequest:
 
 # A processor can be easily defined as a function with a dedicated decorator.
 # This is the recommended way to define stateless processors.
-@processor.processor_function
+@processor.part_processor_function
 async def process_json_output(
-    content: AsyncIterable[content_api.ProcessorPart],
+    part: content_api.ProcessorPart,
 ) -> AsyncIterable[content_api.ProcessorPart]:
   """Process the json output of a GenAI model."""
-  json_content = content_api.ProcessorContent()
-  async for part in content:
-    json_content += part
-  trip_request = TripRequest.from_json(json_content.as_text())
+  trip_request = part.get_dataclass(TripRequest)
   if trip_request.error:
     yield content_api.ProcessorPart(
         trip_request.error,
@@ -160,7 +157,7 @@ async def run_trip_request() -> None:
       .default(processor.passthrough())
   )
 
-  print('Enter a trip request. Use ctrl+D to quit:')
+  print('Enter a trip request. Use ctrl+D to quit.')
   print(
       'NOTE: there is no history, rewrite your request from scratch each time.'
   )

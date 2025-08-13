@@ -2,6 +2,7 @@ import asyncio
 import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from genai_processors import cache
 from genai_processors import content_api
 
@@ -99,11 +100,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     cache2 = cache1.with_key_prefix('p_')
 
     self.assertIsNot(cache1, cache2)
-    self.assertIsNot(
-        cache1._cache, cache2._cache
-    )  # Important: they have different TTLCache instances
     self.assertIsInstance(cache2, cache.InMemoryCache)
-    self.assertEqual(cache1._max_items, cache2._max_items)
 
     query = ProcessorContent(['shared_query'])
     await cache1.put(query, ProcessorContent(['value1']))
@@ -197,4 +194,4 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

@@ -1,10 +1,13 @@
 import asyncio
 from collections.abc import AsyncIterable
+import time
 import traceback
 from typing import Sequence, cast
 import unittest
 
+from absl.testing import absltest
 from absl.testing import parameterized
+from genai_processors import cache
 from genai_processors import content_api
 from genai_processors import mime_types
 from genai_processors import processor
@@ -31,7 +34,7 @@ async def _check_is_part(
     yield part
 
 
-class ProcessorPipelineTest(unittest.TestCase):
+class ProcessorPipelineTest(parameterized.TestCase):
 
   def test_sets_debug_substream_name(self):
     result = processor.debug('text')
@@ -256,7 +259,7 @@ class ProcessorPipelineTest(unittest.TestCase):
     result = processor.apply_sync(processor.passthrough(), 'foo')
     self.assertEqual(content_api.as_text(result), 'foo')
     # And the sring has not been split in-to per-letter parts.
-    self.assertEqual(len(result), 1)
+    self.assertLen(result, 1)
 
 
 class PartProcessorTest(unittest.TestCase):
@@ -524,6 +527,26 @@ class ProcessorChainMixTest(TestWithProcessors):
     self.expected_1_2_twice = get_processor_parts(
         ['2', '2', '1', '1', '2', '2', '0', '0']
     )
+
+  @staticmethod
+  @processor.processor_function
+  async def _noop(
+      content: AsyncIterable[content_api.ProcessorPart],
+  ) -> AsyncIterable[content_api.ProcessorPart]:
+    async for part in content:
+      yield part
+
+  class _Slowpoke(processor.PartProcessor):
+
+    def __init__(self, slow_part: str):
+      self._slow_part = slow_part
+
+    async def call(
+        self, part: content_api.ProcessorPart
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      if part.text == self._slow_part:
+        await asyncio.sleep(0.1)
+      yield part
 
   def test_processor_plus_processor(self):
 
@@ -887,8 +910,103 @@ class ProcessorChainMixTest(TestWithProcessors):
     self.assertEqual(content, get_processor_parts(['2', '1', '2', '011']))
     self.assertEqual(task_count, 2)
 
+  def test_chain_processor_run_in_parallel(self):
+    numbers = [str(i) for i in range(100)]
 
-class ParallelProcessorsTest(TestWithProcessors):
+    p = sum((self._Slowpoke(n) for n in numbers), self._noop)
+
+    start = time.time()
+    self.assertEqual(
+        content_api.as_text(processor.apply_sync(p, numbers)), ''.join(numbers)
+    )
+    end = time.time()
+    self.assertLess(end - start, 5)
+
+  def test_minimal_fusion_case(self):
+    p = self._noop + self._Slowpoke('0') + self._Slowpoke('1')
+    inputs = get_processor_parts(['0', '1'])
+
+    start = time.time()
+    processor.apply_sync(p, inputs)
+    end = time.time()
+
+    # Should take ~0.1s (for one of the Slowpokes), not 0.2s.
+    self.assertLess(end - start, 0.15)
+
+  def test_mixed_chain_fusion_is_broken_by_processor(self):
+    """Tests Processor + PP + PP + Processor + PP runs in correct stages."""
+    # S1 and S2 should fuse.
+    # The second noop breaks the chain.
+    # S3 is a new stage.
+    # Stage 1: fused(S1, S2) runs concurrently (~0.1s)
+    # Stage 2: S3 runs (~0.1s)
+    # Total time should be ~0.2s, proving two separate concurrent stages.
+    p = (
+        self._noop
+        + self._Slowpoke('1')
+        + self._Slowpoke('2')
+        + self._noop
+        + self._Slowpoke('3')
+    )
+    inputs = get_processor_parts(['1', '2', '3'])
+
+    start = time.time()
+    processor.apply_sync(p, inputs)
+    end = time.time()
+
+    # Execution time should be > 0.15s (more than one stage) but < 0.5s (not
+    # fully sequential).
+    self.assertGreater(end - start, 0.15)
+    self.assertLess(end - start, 0.5)
+
+  def test_chain_starts_with_part_processor(self):
+    """Tests that a PartProcessor followed by a Processor chains correctly."""
+    p = self.insert_1 + self.twice
+    inputs = get_processor_parts(['0'])
+    result = processor.apply_sync(p, inputs)
+    self.assertEqual(result, get_processor_parts(['1', '1', '0', '0']))
+
+  def test_chain_part_processor_flattens_correctly(self):
+    """Tests that `_ChainPartProcessor` + `PartProcessor` flattens the list."""
+
+    @processor.part_processor_function
+    async def proc_a(
+        p: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      yield p
+
+    @processor.part_processor_function
+    async def proc_b(
+        p: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      yield p
+
+    @processor.part_processor_function
+    async def proc_c(
+        p: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      yield p
+
+    # Step 1: `a + b` creates a _ChainPartProcessor
+    chain_ab = proc_a + proc_b
+    self.assertIsInstance(chain_ab, processor._ChainPartProcessor)
+    self.assertEqual(len(chain_ab._processor_list), 2)
+
+    # Step 2: `(a + b) + c` should result in a flattened chain
+    chain_abc = chain_ab + proc_c
+    self.assertIsInstance(chain_abc, processor._ChainPartProcessor)
+
+    self.assertEqual(len(chain_abc._processor_list), 3)
+    self.assertIs(chain_abc._processor_list[0], proc_a)
+    self.assertIs(chain_abc._processor_list[1], proc_b)
+    self.assertIs(chain_abc._processor_list[2], proc_c)
+
+    inputs = [content_api.ProcessorPart('test')]
+    content = processor.apply_sync(chain_abc, inputs)
+    self.assertEqual(content, inputs)
+
+
+class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
 
   def test_parallel_processors(self):
     inputs = [content_api.ProcessorPart('1')]
@@ -1104,7 +1222,7 @@ class ParallelProcessorsTest(TestWithProcessors):
         )
     )
     result = processor.apply_sync(p, [content_api.ProcessorPart('0')])
-    self.assertEqual(len(result), 10)
+    self.assertLen(result, 10)
     # The first results should be the status or debug streams before the sleep.
     for i in range(3):
       self.assertIn(result[i].substream_name, ['status', 'debug'])
@@ -1180,7 +1298,7 @@ class ParallelProcessorsTest(TestWithProcessors):
     # processed by them. The // operator implementation ensures that no part is
     # returned then. That's why match is true for the parallel
     # processor but not for the add_one processors.
-    self.assertEqual(len(content), 0)
+    self.assertEmpty(content)
     self.assertEqual(task_count, 0)
 
 
@@ -1267,17 +1385,17 @@ class YieldExceptionsAsPartsTest(
     results = await processor.apply_async(failing_processor, parts)
 
     # We expect three parts back: 'a', 'c', and one error part for 'b'.
-    self.assertEqual(len(results), 3)  # pylint: disable=g-generic-assert
+    self.assertLen(results, 3)
 
     error_parts = [p for p in results if mime_types.is_exception(p.mimetype)]
     successful_parts = [
         p for p in results if not mime_types.is_exception(p.mimetype)
     ]
 
-    self.assertEqual(len(successful_parts), 2)
+    self.assertLen(successful_parts, 2)
     self.assertEqual({p.text for p in successful_parts}, {'a', 'c'})  # pylint: disable=g-generic-assert
 
-    self.assertEqual(len(error_parts), 1)  # pylint: disable=g-generic-assert
+    self.assertLen(error_parts, 1)
     error_part = error_parts[0]
 
     self.assertEqual(error_part.substream_name, processor.STATUS_STREAM)
@@ -1306,10 +1424,149 @@ class YieldExceptionsAsPartsTest(
     parts = get_processor_parts(['a', 'b'])
     results = await processor.apply_async(doubling_processor, parts)
 
-    self.assertEqual(len(results), 4)  # pylint: disable=g-generic-assert
+    self.assertLen(results, 4)
     result_texts = sorted([p.text for p in results])
     self.assertEqual(result_texts, ['a', 'a', 'b', 'b'])
 
 
+class CachedPartProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
+  """Tests for the generic CachedPartProcessor wrapper."""
+
+  async def test_cache_hit_and_miss_flow(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.part_processor_function
+    async def trackable_processor(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      call_tracker()
+      yield f'processed:{part.text}'
+
+    cache_instance = cache.InMemoryCache()
+    cached_p = processor.CachedPartProcessor(
+        trackable_processor, default_cache=cache_instance
+    )
+
+    # First call (cache miss)
+    result = await streams.gather_stream(
+        cached_p(content_api.ProcessorPart('A'))
+    )
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    call_tracker.assert_called_once()
+
+    # Give some time for the background cache-put task to complete.
+    await asyncio.sleep(0.01)
+
+    # Second call (cache hit)
+    result = await streams.gather_stream(
+        cached_p(content_api.ProcessorPart('A'))
+    )
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    # Call tracker has not been called a second time.
+    call_tracker.assert_called_once()
+
+  async def test_does_not_cache_on_error(self):
+    """Tests that if the wrapped processor fails, the result is not cached."""
+    call_tracker = unittest.mock.Mock()
+
+    @processor.part_processor_function
+    async def failing_processor(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      call_tracker()
+      raise ValueError('Something went wrong')
+      # This yield is unreachable, but satisfies the type checker
+      # that this is a generator function.
+      yield part  # pylint: disable=unreachable
+
+    cache_instance = cache.InMemoryCache()
+    cached_p = processor.CachedPartProcessor(
+        failing_processor, default_cache=cache_instance
+    )
+    input_part = content_api.ProcessorPart('B')
+
+    # First call, should fail by raising the exception.
+    with self.assertRaises(ValueError):
+      await streams.gather_stream(cached_p(input_part))
+    call_tracker.assert_called_once()
+
+    # Second call, should be a cache miss and call the processor again,
+    # failing a second time.
+    with self.assertRaises(ValueError):
+      await streams.gather_stream(cached_p(input_part))
+    self.assertEqual(call_tracker.call_count, 2)
+
+  async def test_cache_keys_are_isolated_by_processor(self):
+    """Tests that two different processors don't share cache entries."""
+    tracker1 = unittest.mock.Mock()
+    tracker2 = unittest.mock.Mock()
+
+    @processor.part_processor_function
+    async def processor1(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      tracker1()
+      yield content_api.ProcessorPart(f'p1:{part.text}')
+
+    @processor.part_processor_function
+    async def processor2(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      tracker2()
+      yield content_api.ProcessorPart(f'p2:{part.text}')
+
+    # Use the SAME cache instance for both cached processors.
+    shared_cache = cache.InMemoryCache()
+    cached_p1 = processor.CachedPartProcessor(
+        processor1, default_cache=shared_cache
+    )
+    cached_p2 = processor.CachedPartProcessor(
+        processor2, default_cache=shared_cache
+    )
+
+    input_part = content_api.ProcessorPart('C')
+
+    # Call the first processor. It should be a miss.
+    await streams.gather_stream(cached_p1(input_part))
+    tracker1.assert_called_once()
+    tracker2.assert_not_called()
+
+    # Call the second processor with the SAME input part.
+    # It should also be a miss because its key prefix is different.
+    await streams.gather_stream(cached_p2(input_part))
+    tracker1.assert_called_once()  # Should not have been called again.
+    tracker2.assert_called_once()  # Should be called for the first time.
+
+  async def test_does_not_cache_empty_results(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.part_processor_function
+    async def empty_processor(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      call_tracker()
+      # We need to simulate the case where no parts are yielded,
+      # while satisfying the type checker.
+      if False:  # pylint: disable=using-constant-test
+        yield part  # pylint: disable=unreachable
+
+    cache_instance = cache.InMemoryCache()
+    cached_p = processor.CachedPartProcessor(
+        empty_processor, default_cache=cache_instance
+    )
+    input_part = content_api.ProcessorPart('no_cache')
+
+    results1 = await streams.gather_stream(cached_p(input_part))
+    call_tracker.assert_called_once()
+    self.assertEmpty(results1)
+
+    # Check empty results are not cached.
+    results2 = await streams.gather_stream(cached_p(input_part))
+    self.assertEqual(call_tracker.call_count, 2)
+    self.assertEmpty(results2)
+
+
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

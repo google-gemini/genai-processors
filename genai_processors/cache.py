@@ -14,30 +14,24 @@
 # ==============================================================================
 """Low-level `ProcessorContent` caching implementation for processors.
 
-NOTE: This module is a work-in-progress, which contains the low-level
-implementation that will be leveraged by caching processors.
-
-DO NOT USE DIRECTLY as the interface may change.
+Please don't use Caches directly, but instead wrap your processors with
+processor.CachedPartProcessor.
 """
 
-import abc
 import asyncio
 from collections.abc import Callable
 import json
+from typing import Optional
 
 import cachetools
+from genai_processors import cache_base
 from genai_processors import content_api
 from typing_extensions import override
 import xxhash
 
 
-# Using CacheMiss = object() as a sentinel value doesn't play nicely with typing
-class CacheMiss:
-  """Sentinel value to represent a cache miss."""
-
-
-CacheMissT = type[CacheMiss]
-
+CacheMiss = cache_base.CacheMiss
+CacheMissT = cache_base.CacheMissT
 ProcessorContentTypes = content_api.ProcessorContentTypes
 ProcessorContent = content_api.ProcessorContent
 
@@ -81,37 +75,34 @@ def _deserialize_content(data_bytes: bytes) -> ProcessorContent:
   ])
 
 
-class CacheBase(abc.ABC):
-  """Abstract base class for a cache for ProcessorContent."""
-
-  @abc.abstractmethod
-  async def lookup(
-      self, query: ProcessorContentTypes
-  ) -> ProcessorContent | CacheMissT:
-    """Looks up a ProcessorContent-like value in the cache for a given query."""
-
-  @abc.abstractmethod
-  async def put(
-      self, query: ProcessorContentTypes, value: ProcessorContentTypes
-  ) -> None:
-    """Puts a ProcessorContent value into the cache for a given query."""
-
-  @abc.abstractmethod
-  async def remove(self, query: ProcessorContentTypes) -> None:
-    """Removes a value from the cache for a given query."""
-
-  @abc.abstractmethod
-  def with_key_prefix(self, prefix: str) -> 'CacheBase':
-    """Creates a new Cache instance where generated string keys are prefixed."""
-
-
-class InMemoryCache(CacheBase):
+class InMemoryCache(cache_base.CacheBase):
   """An in-memory cache with TTL and size limits, specifically for caching `ProcessorContent`."""
+
+  @override
+  def __init__(
+      self,
+      *,
+      ttl_hours: float = 12,
+      max_items: int = 1000,
+      hash_fn: Callable[[ProcessorContentTypes], str | None] | None = None,
+  ):
+    ...
+
+  @override
+  def __init__(
+      self,
+      *,
+      base: 'InMemoryCache',
+      hash_fn: Callable[[ProcessorContentTypes], str | None] | None = None,
+  ):
+    ...
 
   def __init__(
       self,
+      *,
       ttl_hours: float = 12,
       max_items: int = 1000,
+      base: Optional['InMemoryCache'] = None,
       hash_fn: Callable[[ProcessorContentTypes], str | None] | None = None,
   ):
     """Initializes the InMemoryCache for ProcessorContent.
@@ -132,13 +123,14 @@ class InMemoryCache(CacheBase):
     self._serialize_fn = _serialize_content
     self._deserialize_fn = _deserialize_content
 
-    ttl_seconds = ttl_hours * 3600
-    self._cache = cachetools.TTLCache(
-        maxsize=max_items,
-        ttl=ttl_seconds if ttl_seconds > 0 else float('inf'),
-    )
-    self._ttl_hours = ttl_hours
-    self._max_items = max_items
+    if base:
+      self._cache = base._cache
+    else:
+      ttl_seconds = ttl_hours * 3600
+      self._cache = cachetools.TTLCache(
+          maxsize=max_items,
+          ttl=ttl_seconds if ttl_seconds > 0 else float('inf'),
+      )
 
   @override
   def with_key_prefix(self, prefix: str) -> 'InMemoryCache':
@@ -160,8 +152,7 @@ class InMemoryCache(CacheBase):
       return f'{prefix}{key}' if key is not None else None
 
     return InMemoryCache(
-        ttl_hours=self._ttl_hours,
-        max_items=self._max_items,
+        base=self,
         hash_fn=prefixed_hash_fn,
     )
 
@@ -207,7 +198,9 @@ class InMemoryCache(CacheBase):
     if query_key is None:
       return
 
-    data_to_cache_bytes = await asyncio.to_thread(self._serialize_fn, value)
+    data_to_cache_bytes = await asyncio.to_thread(
+        self._serialize_fn, content_api.ProcessorContent(value)
+    )
     self._cache[query_key] = data_to_cache_bytes
 
   async def _remove_by_string_key(self, string_key: str) -> None:

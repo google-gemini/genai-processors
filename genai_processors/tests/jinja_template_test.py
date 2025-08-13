@@ -1,6 +1,7 @@
 import dataclasses
 import unittest
 
+from absl.testing import absltest
 import dataclasses_json
 from genai_processors import content_api
 from genai_processors import processor
@@ -204,4 +205,4 @@ class RenderDataClassTest(unittest.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

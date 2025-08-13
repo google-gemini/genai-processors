@@ -14,9 +14,9 @@
 # ==============================================================================
 """Tests for Google Drive processors."""
 
-import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
 from genai_processors import processor
@@ -75,7 +75,7 @@ class DocsProcessorTest(GoogleDriveProcessorTestBase):
     self.mock_files.export.assert_called_once_with(
         fileId=FAKE_DOC_ID, mimeType='application/pdf'
     )
-    self.assertEqual(len(output), 2)
+    self.assertLen(output, 2)
     self.assertEqual(output[0].text, 'Document:\n\n')
     self.assertEqual(output[1].mimetype, 'application/pdf')
     self.assertEqual(output[1].bytes, FAKE_PDF_BYTES)
@@ -176,7 +176,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
     self.mock_spreadsheets.get.assert_called_once_with(
         spreadsheetId=request.spreadsheet_id, includeGridData=True, ranges=None
     )
-    self.assertEqual(len(output), len(expected_outputs))
+    self.assertLen(output, len(expected_outputs))
     for part, (expected_text, expected_mimetype) in zip(
         output, expected_outputs
     ):
@@ -195,7 +195,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
 
     output = processor.apply_sync(p, [req_part])
 
-    self.assertEqual(len(output), 1)
+    self.assertLen(output, 1)
     self.assertEqual(output[0].text, 'Failed to parse sheet data.')
 
 
@@ -281,7 +281,7 @@ class SlidesProcessorTest(GoogleDriveProcessorTestBase):
         len(expected_getpage_calls), self.mock_pdf_reader.getPage.call_count
     )
 
-    self.assertEqual(len(output), len(expected_outputs) * 2)
+    self.assertLen(output, len(expected_outputs) * 2)
     for i, (expected_text, expected_bytes) in enumerate(expected_outputs):
       self.assertEqual(output[i * 2].text, expected_text)
       self.assertEqual(output[i * 2 + 1].mimetype, 'application/pdf')
@@ -289,4 +289,4 @@ class SlidesProcessorTest(GoogleDriveProcessorTestBase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

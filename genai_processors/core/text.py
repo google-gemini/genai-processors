@@ -16,8 +16,11 @@
 
 import asyncio
 from collections.abc import AsyncIterable, Callable
+import dataclasses
 import re
-from typing import Type
+from typing import Mapping, Type
+
+import dataclasses_json
 from genai_processors import content_api
 from genai_processors import processor
 
@@ -83,7 +86,7 @@ class MatchProcessor(processor.Processor):
   def __init__(
       self,
       *,
-      pattern: str,
+      pattern: str | re.Pattern[str],
       word_start: str | None = None,
       substream_input: str = '',
       substream_output: str = '',
@@ -126,8 +129,9 @@ class MatchProcessor(processor.Processor):
       pattern: pattern to match a text to extract into a part. When
         `remove_from_input_stream` is True, the matched text will be removed
         from the stream and will be replaced by a single extracted part. The
-        parts before and after this match will be returned as is. Note that
-        re.DOTALL is used to match newlines.
+        parts before and after this match will be returned as is. Note that by
+        default, re.DOTALL is used to match newlines. To override this behavior,
+        pass a re.Pattern object instead.
       word_start: text to match the start of the text that needs to be captured.
         `word_start` is not a regular expression but a plain string that will be
         matched exactly. `word_start` should be a substring of the pattern and
@@ -148,10 +152,13 @@ class MatchProcessor(processor.Processor):
       transform: A transformation to be applied to the matched Parts.
     """
     self._word_start = word_start
-    self._pattern = re.compile(pattern, re.DOTALL)
+    if isinstance(pattern, str):
+      self._pattern = re.compile(pattern, re.DOTALL)
+    else:
+      self._pattern = pattern
     self._substream_input = substream_input
     self._substream_output = substream_output
-    self._flush_fn = flush_fn or (lambda _: False)
+    self._flush_fn = flush_fn or content_api.is_end_of_turn
     self._remove_from_input_stream = remove_from_input_stream
     if transform:
       self._transform = transform
@@ -294,8 +301,20 @@ class MatchProcessor(processor.Processor):
       )
 
 
+@dataclasses_json.dataclass_json
+@dataclasses.dataclass(frozen=True)
+class FetchRequest:
+  """Dataclass to represent a request to fetch a document by a URL."""
+
+  url: str
+
+
 class UrlExtractor(MatchProcessor):
   """Replaces encountered text URLs with strongly typed Parts.
+
+  Also see core/web.py for the infrastructure to fetch the extracted URLs.
+  Alternatively see core/github.py for a processor that provides a tailored
+  handling for github URLs.
 
   In some scenarios it is useful to replace URLs mentioned in the prompt with
   the content they point to. In many cases it can be handled by tool calls, but
@@ -307,27 +326,29 @@ class UrlExtractor(MatchProcessor):
   special MIME type to avoid fetching them unintentionally. And a separate
   processor should decide which URLs should be processed.
 
-  This processor turns each URL in the prompt text in-to that Part with a
-  special MIME type. Define a dataclass for each URL:
+  Usage:
+    In the basic case use UrlExtractor() without arguments and handle
+    FetchRequest parts produced. Alternatively you can define separate
+    dataclasses for specific URL prefixes:
 
-    @dataclasses_json.dataclass_json
-    @dataclasses.dataclass(frozen=True)
-    class YouTubeUrl:
-      url: str
+      @dataclasses_json.dataclass_json
+      @dataclasses.dataclass(frozen=True)
+      class YouTubeUrl:
+        url: str
 
-  And then tell UrlExtractor to extract them:
+    And then tell UrlExtractor to extract them:
 
-    UrlExtractor({
-        'https://youtube.': YouTubeUrl,
-        'https://github.com': GithubUrl
-    })
+      UrlExtractor({
+          'https://youtube.': YouTubeUrl,
+          'https://github.com': GithubUrl
+      })
 
-  Note that all URLs must have the same scheme to allow efficient matching.
+    Note that all URLs must have the same scheme to allow efficient matching.
   """
 
   def __init__(
       self,
-      urls: dict[str, Type],  # pylint: disable=g-bare-generic
+      urls: Mapping[str, Type] | None = None,  # pylint: disable=g-bare-generic
       *,
       substream_input: str = '',
       substream_output: str = '',
@@ -339,15 +360,23 @@ class UrlExtractor(MatchProcessor):
       substream_input: name of the substream to use for the input part.
       substream_output: name of the substream to use for the extracted part.
     """
-    scheme = None
+    if urls is None:
+      urls = {'http://': FetchRequest, 'https://': FetchRequest}
+
+    schemes = set()
     for prefix in urls.keys():
-      next_scheme = prefix.split(':')[0]
-      if scheme and scheme != next_scheme:
-        raise ValueError(
-            'All URL prefixes must have the same scheme e.g. https. Got'
-            f' {scheme!r} and {next_scheme!r}'
-        )
-      scheme = next_scheme
+      scheme = prefix.split(':')[0]
+      if scheme == 'https':
+        # Allow mixing http and https URLs.
+        # This works because http is a prefix of https.
+        scheme = 'http'
+      schemes.add(scheme)
+
+    if len(schemes) != 1:
+      raise ValueError(
+          'All URL prefixes must have the same scheme e.g. https. Got'
+          f' {schemes!r}'
+      )
 
     def transform(part: content_api.ProcessorPart):
       for prefix, dataclass in urls.items():
@@ -359,10 +388,13 @@ class UrlExtractor(MatchProcessor):
           )
 
     super().__init__(
-        pattern='('
-        + '|'.join(urls.keys())
-        + ")[0-9a-zA-Z$\\-_\\.\\+!*'\\(\\);/\\?:@=&]*",
-        word_start=scheme,
+        pattern=re.compile(
+            '('
+            + '|'.join(urls.keys())
+            + r')([^\s<>"\'\u200B]*[^\s<>"\'\u200B\.\,])?',
+            re.IGNORECASE,
+        ),
+        word_start=next(iter(schemes)),
         substream_input=substream_input,
         substream_output=substream_output,
         remove_from_input_stream=True,
@@ -378,6 +410,7 @@ async def terminal_input(
   while True:
     try:
       yield await asyncio.to_thread(input, prompt)
+      yield content_api.ProcessorPart.end_of_turn()
     except EOFError:
       # Exit on ctrl+D.
       return

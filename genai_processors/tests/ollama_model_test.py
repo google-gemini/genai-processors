@@ -1,15 +1,26 @@
+import dataclasses
 import enum
 import http
 import json
-import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from absl.testing import parameterized
+import dataclasses_json
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors.core import ollama_model
 from google.genai import types as genai_types
 import httpx
+
+
+@dataclasses_json.dataclass_json
+@dataclasses.dataclass(frozen=True)
+class MyData:
+  """A test dataclass for JSON parsing."""
+
+  name: str
+  value: int
 
 
 class OkEnum(enum.StrEnum):
@@ -164,7 +175,7 @@ class OllamaProcessorTest(parameterized.TestCase):
       conversation = ['What is the weather in Boston?']
 
       output = processor.apply_sync(model, conversation)
-      self.assertEqual(len(output), 1)  # pylint: disable=g-generic-assert
+      self.assertLen(output, 1)
       self.assertEqual(
           output[0],
           content_api.ProcessorPart.from_function_call(
@@ -185,6 +196,67 @@ class OllamaProcessorTest(parameterized.TestCase):
           content_api.as_text(output), 'The weather in Boston is 72 and sunny.'
       )
 
+  def test_json_parsing_by_default(self):
+
+    def request_handler(request: httpx.Request):
+      del request  # Unused.
+      response_data = {
+          'message': {
+              'role': 'assistant',
+              'content': '{"name": "test", "value": 123}',
+          },
+          'done': True,
+      }
+      return httpx.Response(
+          http.HTTPStatus.OK, content=json.dumps(response_data).encode('utf-8')
+      )
+
+    mock_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(request_handler)
+    )
+
+    with mock.patch.object(httpx, 'AsyncClient', return_value=mock_client):
+      model = ollama_model.OllamaModel(
+          model_name='gemma3',
+          generate_content_config={'response_schema': MyData},
+      )
+      output = processor.apply_sync(model, ['some prompt'])
+
+      self.assertLen(output, 1)
+      self.assertEqual(
+          output[0].get_dataclass(MyData), MyData(name='test', value=123)
+      )
+
+  def test_stream_json_true_bypasses_parsing(self):
+
+    def request_handler(request: httpx.Request):
+      del request  # Unused.
+      response_stream = (
+          '{"message": {"content": "{\\"name\\": "}, "done": false}\n'
+          '{"message": {"content": "\\"test\\", "}, "done": false}\n'
+          '{"message": {"content": "\\"value\\": 123}"}, "done": true}\n'
+      )
+      return httpx.Response(
+          http.HTTPStatus.OK, content=response_stream.encode('utf-8')
+      )
+
+    mock_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(request_handler)
+    )
+
+    with mock.patch.object(httpx, 'AsyncClient', return_value=mock_client):
+      # Call the model with stream_json=True to bypass parsing.
+      model = ollama_model.OllamaModel(
+          model_name='gemma3',
+          generate_content_config={'response_schema': MyData},
+          stream_json=True,
+      )
+      output = processor.apply_sync(model, ['some prompt'])
+
+      self.assertEqual(
+          content_api.as_text(output), '{"name": "test", "value": 123}'
+      )
+
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

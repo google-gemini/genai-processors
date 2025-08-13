@@ -47,7 +47,7 @@ def _get_single_camera_frame(
   img = PIL.Image.fromarray(frame_rgb)  # Now using RGB frame
   img.format = 'JPEG'
 
-  return ProcessorPart(img, substream_name=substream_name, role='USER')
+  return ProcessorPart(img, substream_name=substream_name, role='user')
 
 
 def _get_single_screen_frame(substream_name: str) -> ProcessorPart:
@@ -63,7 +63,7 @@ def _get_single_screen_frame(substream_name: str) -> ProcessorPart:
   img = PIL.Image.frombuffer('RGB', i.size, i.rgb)
   img.format = 'JPEG'
 
-  return ProcessorPart(img, substream_name=substream_name, role='USER')
+  return ProcessorPart(img, substream_name=substream_name, role='user')
 
 
 @processor.source()

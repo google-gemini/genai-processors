@@ -1,7 +1,7 @@
 import http
-import unittest
 from unittest import mock
 
+from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
 from genai_processors import processor
@@ -49,4 +49,4 @@ class GithubProcessorTest(parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

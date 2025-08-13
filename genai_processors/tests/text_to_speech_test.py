@@ -2,6 +2,8 @@ from collections.abc import AsyncIterable
 import unittest
 from unittest import mock
 
+from absl.testing import absltest
+from absl.testing import parameterized
 from genai_processors import content_api
 from genai_processors import streams
 from genai_processors.core import text_to_speech
@@ -48,7 +50,9 @@ class FakeSpeechClient:
     return iterate_requests()
 
 
-class TextToSpeechTest(unittest.IsolatedAsyncioTestCase):
+class TextToSpeechTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
 
   async def test_text_to_speech_success(self):
     """Tests successful audio generation from text."""
@@ -80,7 +84,7 @@ class TextToSpeechTest(unittest.IsolatedAsyncioTestCase):
               ),
           ],
       )
-      self.assertEqual(len(fake_client.input_stream), 3)  # config + 2 inputs
+      self.assertLen(fake_client.input_stream, 3)
       self.assertIsNotNone(fake_client.input_stream[0].streaming_config)
       self.assertEqual(
           fake_client.input_stream[1].input.text,
@@ -109,7 +113,7 @@ class TextToSpeechTest(unittest.IsolatedAsyncioTestCase):
       )
       self.assertEqual(output_content, input_content)
 
-      self.assertEqual(len(fake_client.input_stream), 1)  # config
+      self.assertLen(fake_client.input_stream, 1)
       self.assertIsNotNone(fake_client.input_stream[0].streaming_config)
 
   async def test_text_to_speech_empty_text(self):
@@ -128,8 +132,8 @@ class TextToSpeechTest(unittest.IsolatedAsyncioTestCase):
       output_content = await streams.gather_stream(
           tts_processor.call(streams.stream_content(input_content))
       )
-      self.assertEqual(len(output_content), 0)
-      self.assertEqual(len(fake_client.input_stream), 1)  # config
+      self.assertEmpty(output_content)
+      self.assertLen(fake_client.input_stream, 1)
       self.assertIsNotNone(fake_client.input_stream[0].streaming_config)
 
   async def test_text_to_speech_with_exception(self):
@@ -183,4 +187,4 @@ class TextToSpeechTest(unittest.IsolatedAsyncioTestCase):
 
 
 if __name__ == '__main__':
-  unittest.main()
+  absltest.main()

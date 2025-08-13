@@ -42,28 +42,23 @@ python3 ./realtime_simple_cli.py
 ```
 """
 
-
-import argparse
 import asyncio
 import os
+from typing import Sequence
 
-from absl import logging
+from absl import app
 from genai_processors import content_api
 from genai_processors import context
 from genai_processors import processor
 from genai_processors.core import audio_io
-from genai_processors.core import genai_model
 from genai_processors.core import rate_limit_audio
 from genai_processors.core import realtime
 from genai_processors.core import speech_to_text
 from genai_processors.core import text
 from genai_processors.core import text_to_speech
-from google.genai import types as genai_types
+from genai_processors.examples import models
 import pyaudio
 import termcolor
-
-# You need to define the API key in the environment variables.
-API_KEY = os.environ['GOOGLE_API_KEY']
 
 # You need to define the project id in the environment variables.
 GOOGLE_PROJECT_ID = os.environ['GOOGLE_PROJECT_ID']
@@ -122,18 +117,8 @@ async def run_conversation() -> None:
   # Main model that will be used to generate the response. Note that filter
   # before the genai model that will remove the audio parts and will make sure
   # only text is sent to the model.
-  genai_processor = _filter_parts + genai_model.GenaiModel(
-      api_key=API_KEY,
-      model_name='gemini-2.0-flash-lite',
-      generate_content_config=genai_types.GenerateContentConfig(
-          system_instruction=INSTRUCTION_PARTS,
-          response_modalities=['TEXT'],
-          # Adds google search as a tool. This is not needed for the model to
-          # work but it is useful to ask questions that can be answered by
-          # google search.
-          tools=[genai_types.Tool(google_search=genai_types.GoogleSearch())],
-      ),
-      http_options=genai_types.HttpOptions(api_version='v1alpha'),
+  genai_processor = _filter_parts + models.turn_based_model(
+      system_instruction=INSTRUCTION_PARTS
   )
 
   # TTS processor that will be used to convert the text response to audio. Note
@@ -156,7 +141,7 @@ async def run_conversation() -> None:
   # mic -> speech to text -> text conversation -> text to speech -> play audio
   conversation_agent = (
       input_processor
-      + realtime.LiveModelProcessor(turn_processor=genai_processor + tts)
+      + realtime.LiveProcessor(turn_processor=genai_processor + tts)
       + play_output
   )
 
@@ -178,25 +163,15 @@ async def run_conversation() -> None:
     )
 
 
-if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-  parser.add_argument(
-      '--debug',
-      type=bool,
-      default=False,
-      help='Enable debug logging.',
-  )
-  args = parser.parse_args()
-  if not API_KEY:
-    raise ValueError(
-        'API key is not set. Define a GOOGLE_API_KEY environment variable with'
-        ' a key obtained from AI Studio.'
-    )
+def main(argv: Sequence[str]):
+  del argv  # Unused.
   if not GOOGLE_PROJECT_ID:
     raise ValueError(
         'Project ID is not set. Define a GOOGLE_PROJECT_ID environment variable'
         ' obtained from your Cloud project.'
     )
-  if args.debug:
-    logging.set_verbosity(logging.DEBUG)
   asyncio.run(run_conversation())
+
+
+if __name__ == '__main__':
+  app.run(main)
