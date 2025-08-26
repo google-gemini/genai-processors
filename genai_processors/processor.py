@@ -1323,7 +1323,8 @@ class CachedPartProcessor(PartProcessor):
 
     if part_cache is not None:
       part_cache = part_cache.with_key_prefix(self.key_prefix)
-      cached_result = await part_cache.lookup(part)
+      key = part_cache.hash_fn(part)
+      cached_result = await part_cache.lookup(part, key=key)
 
       if isinstance(cached_result, ProcessorContent):
         for p in cached_result.all_parts:
@@ -1335,7 +1336,7 @@ class CachedPartProcessor(PartProcessor):
         results_for_caching.append(p)
         yield p
 
-      create_task(part_cache.put(part, results_for_caching))
+      create_task(part_cache.put(key=key, value=results_for_caching))
     else:
       async for p in self._wrapped_processor(part):
         yield p

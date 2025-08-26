@@ -136,6 +136,12 @@ class InMemoryCache(cache_base.CacheBase):
           ttl=ttl_seconds if ttl_seconds > 0 else float('inf'),
       )
 
+  @property
+  @override
+  def hash_fn(self) -> Callable[[ProcessorContentTypes], str | None]:
+    """Returns the function used to convert a query into a lookup key."""
+    return self._hash_fn
+
   @override
   def with_key_prefix(self, prefix: str) -> 'InMemoryCache':
     """Creates a new InMemoryCache instance with its hash function wrapped to prepend the given prefix to generated string keys.
@@ -162,9 +168,12 @@ class InMemoryCache(cache_base.CacheBase):
 
   @override
   async def lookup(
-      self, query: ProcessorContentTypes
+      self,
+      query: ProcessorContentTypes | None = None,
+      *,
+      key: str | None = None,
   ) -> ProcessorContent | CacheMissT:
-    query_key = self._hash_fn(query)
+    query_key = key if key is not None else self._hash_fn(query)
     if query_key is None:
       return CacheMiss
 
@@ -186,12 +195,16 @@ class InMemoryCache(cache_base.CacheBase):
 
   @override
   async def put(
-      self, query: ProcessorContentTypes, value: ProcessorContentTypes
+      self,
+      *,
+      query: ProcessorContentTypes | None = None,
+      key: str | None = None,
+      value: ProcessorContentTypes,
   ) -> None:
     if self._cache.maxsize == 0:
       return
 
-    query_key = self._hash_fn(query)
+    query_key = key if key is not None else self._hash_fn(query)
     if query_key is None:
       return
 

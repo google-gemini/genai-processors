@@ -15,6 +15,7 @@
 """Interface declaration for `ProcessorContent` cache."""
 
 import abc
+from collections.abc import Callable
 
 from genai_processors import content_api
 
@@ -33,15 +34,29 @@ ProcessorContent = content_api.ProcessorContent
 class CacheBase(abc.ABC):
   """Abstract base class for a cache for ProcessorContent."""
 
+  @property
+  @abc.abstractmethod
+  def hash_fn(
+      self,
+  ) -> Callable[[ProcessorContentTypes], str | None]:
+    """Returns the function used to convert a query into a lookup key."""
+
   @abc.abstractmethod
   async def lookup(
-      self, query: ProcessorContentTypes
+      self,
+      query: ProcessorContentTypes | None = None,
+      *,
+      key: str | None = None,
   ) -> ProcessorContent | CacheMissT:
     """Looks up a ProcessorContent-like value in the cache for a given query."""
 
   @abc.abstractmethod
   async def put(
-      self, query: ProcessorContentTypes, value: ProcessorContentTypes
+      self,
+      *,
+      query: ProcessorContentTypes | None = None,
+      key: str | None = None,
+      value: ProcessorContentTypes,
   ) -> None:
     """Puts a ProcessorContent value into the cache for a given query."""
 

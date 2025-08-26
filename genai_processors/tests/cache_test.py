@@ -20,7 +20,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     value_content = ProcessorContent(
         [ProcessorPart('response_text', role='model')]
     )
-    await mem_cache.put(query, value_content)
+    await mem_cache.put(query=query, value=value_content)
     retrieved = await mem_cache.lookup(query)
 
     self.assertIsNot(retrieved, cache.CacheMiss)
@@ -35,8 +35,8 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
   async def test_put_override(self):
     mem_cache = cache.InMemoryCache()
     query = ProcessorContent(['query_text'])
-    await mem_cache.put(query, ProcessorContent(['value1']))
-    await mem_cache.put(query, ProcessorContent(['value2']))
+    await mem_cache.put(query=query, value=ProcessorContent(['value1']))
+    await mem_cache.put(query=query, value=ProcessorContent(['value2']))
 
     retrieved = await mem_cache.lookup(query)
     self.assertIsNot(retrieved, cache.CacheMiss)
@@ -47,7 +47,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     ttl_hours = 0.0001  # A very short TTL
     mem_cache = cache.InMemoryCache(ttl_hours=ttl_hours, max_items=10)
     query = ProcessorContent(['key1'])
-    await mem_cache.put(query, ProcessorContent(['value1']))
+    await mem_cache.put(query=query, value=ProcessorContent(['value1']))
 
     # Should exist immediately after
     self.assertIsNot(await mem_cache.lookup(query), cache.CacheMiss)
@@ -62,10 +62,10 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     query2 = ProcessorContent(['key2'])
     query3 = ProcessorContent(['key3'])
 
-    await mem_cache.put(query1, ProcessorContent(['value1']))
-    await mem_cache.put(query2, ProcessorContent(['value2']))
+    await mem_cache.put(query=query1, value=ProcessorContent(['value1']))
+    await mem_cache.put(query=query2, value=ProcessorContent(['value2']))
     await mem_cache.put(
-        query3, ProcessorContent(['value3'])
+        query=query3, value=ProcessorContent(['value3'])
     )  # This should evict query1
 
     # query1 should be gone
@@ -77,7 +77,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
   async def test_remove(self):
     mem_cache = cache.InMemoryCache()
     query = ProcessorContent(['key1'])
-    await mem_cache.put(query, ProcessorContent(['value1']))
+    await mem_cache.put(query=query, value=ProcessorContent(['value1']))
     self.assertIsNot(await mem_cache.lookup(query), cache.CacheMiss)
 
     await mem_cache.remove(query)
@@ -88,7 +88,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     mem_cache = cache.InMemoryCache(hash_fn=custom_hash_fn)
     query = ProcessorContent(['query_text'])
 
-    await mem_cache.put(query, ProcessorContent(['value']))
+    await mem_cache.put(query=query, value=ProcessorContent(['value']))
     custom_hash_fn.assert_called_once_with(query)
 
     custom_hash_fn.reset_mock()
@@ -103,8 +103,8 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     self.assertIsInstance(cache2, cache.InMemoryCache)
 
     query = ProcessorContent(['shared_query'])
-    await cache1.put(query, ProcessorContent(['value1']))
-    await cache2.put(query, ProcessorContent(['value2']))
+    await cache1.put(query=query, value=ProcessorContent(['value1']))
+    await cache2.put(query=query, value=ProcessorContent(['value2']))
 
     # Check that each cache has its own value for the same query
     retrieved1 = await cache1.lookup(query)
@@ -119,7 +119,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     mem_cache = cache.InMemoryCache(hash_fn=lambda q: None)
     query = ProcessorContent(['any_query'])
 
-    await mem_cache.put(query, ProcessorContent(['some_response']))
+    await mem_cache.put(query=query, value=ProcessorContent(['some_response']))
     self.assertIs(await mem_cache.lookup(query), cache.CacheMiss)
 
   async def test_put_with_serialization_error_propagates(self):
@@ -130,7 +130,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
         mem_cache, '_serialize_fn', side_effect=RuntimeError('Unexpected!')
     ):
       with self.assertRaises(RuntimeError):
-        await mem_cache.put(query, ProcessorContent(['irrelevant']))
+        await mem_cache.put(query=query, value=ProcessorContent(['irrelevant']))
 
   async def test_invalid_init_with_zero_max_items(self):
     with self.assertRaisesRegex(
@@ -159,7 +159,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     self.assertNotEqual(hash1, hash2)
 
     # Caching one should not allow lookup of the other
-    await mem_cache.put(query_order1, value)
+    await mem_cache.put(query=query_order1, value=value)
     self.assertIsNot(await mem_cache.lookup(query_order1), cache.CacheMiss)
     self.assertIs(await mem_cache.lookup(query_order2), cache.CacheMiss)
 
@@ -178,7 +178,7 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     hash2 = cache.default_processor_content_hash(query2)
     self.assertEqual(hash1, hash2)
 
-    await mem_cache.put(query1, value)
+    await mem_cache.put(query=query1, value=value)
     retrieved = await mem_cache.lookup(query2)
     self.assertIsNot(retrieved, cache.CacheMiss)
     self.assertEqual(content_api.as_text(retrieved), 'Value')
