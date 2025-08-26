@@ -122,16 +122,6 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     await mem_cache.put(query=query, value=ProcessorContent(['some_response']))
     self.assertIs(await mem_cache.lookup(query), cache.CacheMiss)
 
-  async def test_put_with_serialization_error_propagates(self):
-    mem_cache = cache.InMemoryCache()
-    query = ProcessorContent(['query'])
-
-    with mock.patch.object(
-        mem_cache, '_serialize_fn', side_effect=RuntimeError('Unexpected!')
-    ):
-      with self.assertRaises(RuntimeError):
-        await mem_cache.put(query=query, value=ProcessorContent(['irrelevant']))
-
   async def test_invalid_init_with_zero_max_items(self):
     with self.assertRaisesRegex(
         ValueError, 'max_items must be positive, got: 0'

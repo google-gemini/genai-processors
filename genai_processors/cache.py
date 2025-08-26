@@ -18,7 +18,6 @@ Please don't use Caches directly, but instead wrap your processors with
 processor.CachedPartProcessor.
 """
 
-import asyncio
 from collections.abc import Callable
 import json
 from typing import Optional, overload
@@ -60,21 +59,17 @@ def default_processor_content_hash(
   return hasher.hexdigest()
 
 
-def _serialize_content(value: ProcessorContent) -> bytes:
-  """Serializes ProcessorContent to bytes (via JSON)."""
-  list_of_part_dicts_val = [part.to_dict() for part in value.all_parts]
-  json_string_val = json.dumps(list_of_part_dicts_val)
-  return json_string_val.encode('utf-8')
+def prefixed_hash_fn(
+    original_hash_fn: Callable[[content_api.ProcessorContentTypes], str | None],
+    prefix: str,
+) -> Callable[[content_api.ProcessorContentTypes], str | None]:
+  """Returns a wrapped hash function that prepends a prefix to the key."""
 
+  def _wrapper(query: content_api.ProcessorContentTypes) -> str | None:
+    key = original_hash_fn(query)
+    return f'{prefix}{key}' if key is not None else None
 
-def _deserialize_content(data_bytes: bytes) -> ProcessorContent:
-  """Deserializer for ProcessorContent from bytes (via JSON)."""
-  json_string_val = data_bytes.decode('utf-8')
-  list_of_part_dicts_val = json.loads(json_string_val)
-  return ProcessorContent([
-      content_api.ProcessorPart.from_dict(data=pd)
-      for pd in list_of_part_dicts_val
-  ])
+  return _wrapper
 
 
 class InMemoryCache(cache_base.CacheBase):
@@ -124,8 +119,6 @@ class InMemoryCache(cache_base.CacheBase):
     self._hash_fn = (
         hash_fn if hash_fn is not None else default_processor_content_hash
     )
-    self._serialize_fn = _serialize_content
-    self._deserialize_fn = _deserialize_content
 
     if base:
       self._cache = base._cache
@@ -155,15 +148,9 @@ class InMemoryCache(cache_base.CacheBase):
     Returns:
       A new InMemoryCache instance with the given prefix.
     """
-    original_hash_fn = self._hash_fn
-
-    def prefixed_hash_fn(query: ProcessorContentTypes) -> str | None:
-      key = original_hash_fn(query)
-      return f'{prefix}{key}' if key is not None else None
-
     return InMemoryCache(
         base=self,
-        hash_fn=prefixed_hash_fn,
+        hash_fn=prefixed_hash_fn(self._hash_fn, prefix),
     )
 
   @override
@@ -177,21 +164,16 @@ class InMemoryCache(cache_base.CacheBase):
     if query_key is None:
       return CacheMiss
 
-    cached_bytes = self._cache.get(query_key, CacheMiss)
+    cached_value = self._cache.get(query_key, CacheMiss)
 
-    if cached_bytes is CacheMiss:
+    if cached_value is CacheMiss:
       return CacheMiss
 
-    if not isinstance(cached_bytes, bytes):
+    if not isinstance(cached_value, ProcessorContent):
       await self._remove_by_string_key(query_key)
       return CacheMiss
 
-    try:
-      value = self._deserialize_fn(cached_bytes)
-      return value
-    except Exception:  # pylint: disable=broad-exception-caught
-      await self._remove_by_string_key(query_key)
-      return CacheMiss
+    return cached_value
 
   @override
   async def put(
@@ -208,10 +190,7 @@ class InMemoryCache(cache_base.CacheBase):
     if query_key is None:
       return
 
-    data_to_cache_bytes = await asyncio.to_thread(
-        self._serialize_fn, content_api.ProcessorContent(value)
-    )
-    self._cache[query_key] = data_to_cache_bytes
+    self._cache[query_key] = content_api.ProcessorContent(value)
 
   async def _remove_by_string_key(self, string_key: str) -> None:
     """Internal helper to remove by the actual string key."""
