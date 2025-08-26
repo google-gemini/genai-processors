@@ -21,7 +21,7 @@ processor.CachedPartProcessor.
 import asyncio
 from collections.abc import Callable
 import json
-from typing import Optional
+from typing import Optional, overload
 
 import cachetools
 from genai_processors import cache_base
@@ -78,7 +78,7 @@ def _deserialize_content(data_bytes: bytes) -> ProcessorContent:
 class InMemoryCache(cache_base.CacheBase):
   """An in-memory cache with TTL and size limits, specifically for caching `ProcessorContent`."""
 
-  @override
+  @overload
   def __init__(
       self,
       *,
@@ -88,7 +88,7 @@ class InMemoryCache(cache_base.CacheBase):
   ):
     ...
 
-  @override
+  @overload
   def __init__(
       self,
       *,
@@ -110,6 +110,8 @@ class InMemoryCache(cache_base.CacheBase):
     Args:
       ttl_hours: Time-to-live for cache items in hours.
       max_items: Maximum number of items in the cache. Must be positive.
+      base: An instance of InMemoryCachewith which this instance should share
+        the cached items. Used to create a view of the cache `with_key_prefix`.
       hash_fn: Function to convert a ProcessorContentTypes query into a string
         key. If None, `default_processor_content_hash` is used. If it returns
         None, the item is considered not cacheable.
