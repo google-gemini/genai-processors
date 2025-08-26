@@ -52,6 +52,8 @@ def default_processor_content_hash(
   """
   content_obj = ProcessorContent(processor_content_query)
   raw_part_dicts = [part.to_dict() for part in content_obj.all_parts]
+  for part in raw_part_dicts:
+    part['metadata'].pop('capture_time', None)
   canonical_representation_str = json.dumps(raw_part_dicts, sort_keys=True)
   hasher = xxhash.xxh128()
   hasher.update(canonical_representation_str.encode('utf-8'))

@@ -192,6 +192,23 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     self.assertIsNot(retrieved, cache.CacheMiss)
     self.assertEqual(content_api.as_text(retrieved), 'Value')
 
+  def test_default_hash_ignores_capture_time(self):
+    """Tests that the default hash function ignores the capture_time metadata."""
+    part1 = ProcessorPart('Hello', metadata={'capture_time': 12345.67})
+    part2 = ProcessorPart('Hello', metadata={'capture_time': 98765.43})
+    part3 = ProcessorPart('Hello')
+
+    query1 = ProcessorContent([part1])
+    query2 = ProcessorContent([part2])
+    query3 = ProcessorContent([part3])
+
+    hash1 = cache.default_processor_content_hash(query1)
+    hash2 = cache.default_processor_content_hash(query2)
+    hash3 = cache.default_processor_content_hash(query3)
+
+    self.assertEqual(hash1, hash2)
+    self.assertEqual(hash1, hash3)
+
 
 if __name__ == '__main__':
   absltest.main()
