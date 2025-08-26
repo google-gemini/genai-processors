@@ -160,18 +160,11 @@ class InMemoryCache(cache_base.CacheBase):
         hash_fn=prefixed_hash_fn,
     )
 
-  async def _get_string_key(self, query: ProcessorContentTypes) -> str | None:
-    """Helper to get string key, handling potential errors in hash_fn."""
-    try:
-      return self._hash_fn(query)
-    except Exception:  # pylint: disable=broad-exception-caught
-      return None
-
   @override
   async def lookup(
       self, query: ProcessorContentTypes
   ) -> ProcessorContent | CacheMissT:
-    query_key = await self._get_string_key(query)
+    query_key = self._hash_fn(query)
     if query_key is None:
       return CacheMiss
 
@@ -198,7 +191,7 @@ class InMemoryCache(cache_base.CacheBase):
     if self._cache.maxsize == 0:
       return
 
-    query_key = await self._get_string_key(query)
+    query_key = self._hash_fn(query)
     if query_key is None:
       return
 
@@ -214,7 +207,7 @@ class InMemoryCache(cache_base.CacheBase):
 
   @override
   async def remove(self, query: ProcessorContentTypes) -> None:
-    query_key = await self._get_string_key(query)
+    query_key = self._hash_fn(query)
     if query_key is None:
       return
     await self._remove_by_string_key(query_key)

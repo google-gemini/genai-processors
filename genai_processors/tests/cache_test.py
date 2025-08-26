@@ -122,15 +122,6 @@ class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):
     await mem_cache.put(query, ProcessorContent(['some_response']))
     self.assertIs(await mem_cache.lookup(query), cache.CacheMiss)
 
-  async def test_hash_fn_raises_exception(self):
-    mock_hash_fn = mock.Mock(side_effect=ValueError('Hashing failed!'))
-    mem_cache = cache.InMemoryCache(hash_fn=mock_hash_fn)
-    query = ProcessorContent(['query_that_will_fail_hash'])
-
-    await mem_cache.put(query, ProcessorContent(['irrelevant']))
-    self.assertIs(await mem_cache.lookup(query), cache.CacheMiss)
-    self.assertEqual(mock_hash_fn.call_count, 2)
-
   async def test_put_with_serialization_error_propagates(self):
     mem_cache = cache.InMemoryCache()
     query = ProcessorContent(['query'])
