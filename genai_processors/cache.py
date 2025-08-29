@@ -25,6 +25,7 @@ from typing import Optional, overload
 import cachetools
 from genai_processors import cache_base
 from genai_processors import content_api
+from genai_processors import mime_types
 from typing_extensions import override
 import xxhash
 
@@ -37,7 +38,7 @@ ProcessorContent = content_api.ProcessorContent
 
 def default_processor_content_hash(
     processor_content_query: ProcessorContentTypes,
-) -> str:
+) -> str | None:
   """Creates a deterministic hash key from a ProcessorContent-like query.
 
   Serializes its parts to JSON and then hashes the result. The hash is
@@ -50,6 +51,12 @@ def default_processor_content_hash(
     A string hash key.
   """
   content_obj = ProcessorContent(processor_content_query)
+
+  # Do not cache content with errors.
+  for part in content_obj.all_parts:
+    if mime_types.is_exception(part.mimetype):
+      return None
+
   raw_part_dicts = [part.to_dict() for part in content_obj.all_parts]
   for part in raw_part_dicts:
     part['metadata'].pop('capture_time', None)

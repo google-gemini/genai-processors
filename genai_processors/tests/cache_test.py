@@ -5,10 +5,22 @@ from unittest import mock
 from absl.testing import absltest
 from genai_processors import cache
 from genai_processors import content_api
+from genai_processors import mime_types
 
 
 ProcessorPart = content_api.ProcessorPart
 ProcessorContent = content_api.ProcessorContent
+
+
+class DefaultProcessorContentHashTest(unittest.TestCase):
+
+  def test_default_processor_content_hash_with_error(self):
+    """Tests that content with errors is not cacheable by default."""
+    content = content_api.ProcessorContent([
+        content_api.ProcessorPart('ok'),
+        content_api.ProcessorPart('error', mimetype=mime_types.TEXT_EXCEPTION),
+    ])
+    self.assertIsNone(cache.default_processor_content_hash(content))
 
 
 class InMemoryCacheTest(unittest.IsolatedAsyncioTestCase):

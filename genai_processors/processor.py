@@ -1248,7 +1248,7 @@ def yield_exceptions_as_parts(
       yield ProcessorPart(
           # NOTE: The exact formatting might change, please use
           # mime_types.is_exception to detect exception parts.
-          f'An unexpected error occurred: {e}',
+          f'An unexpected error occurred: {e!r}',
           mimetype=mime_types.TEXT_EXCEPTION,
           substream_name=STATUS_STREAM,
           metadata={
