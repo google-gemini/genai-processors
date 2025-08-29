@@ -1301,16 +1301,16 @@ class CachedPartProcessor(PartProcessor):
     self._default_cache = default_cache
 
   @classmethod
-  def set_cache(cls, part_cache: cache_base.CacheBase) -> None:
+  def set_cache(cls, cache: cache_base.CacheBase) -> None:
     """Update thread-local cache to be used.
 
-    All CachedPartProcessor within the current contextvars context will use this
-    cache to store and retrieve results.
+    All CachedProcessor and CachedPartProcessor instance within the current
+    contextvars context will use this cache to store and retrieve results.
 
     Args:
-      part_cache: Cache to use.
+      cache: Cache to use.
     """
-    _PROCESSOR_PART_CACHE.set(part_cache)
+    _PROCESSOR_PART_CACHE.set(cache)
 
   def match(self, part: ProcessorPart) -> bool:
     """Matches if the underlying processor matches."""
@@ -1339,4 +1339,80 @@ class CachedPartProcessor(PartProcessor):
       create_task(part_cache.put(key=key, value=results_for_caching))
     else:
       async for p in self._wrapped_processor(part):
+        yield p
+
+
+class CachedProcessor(Processor):
+  """A Processor that wraps another Processor with a cache.
+
+  Incoming content will be buffered (breaking the input streaming), hashed and
+  checked whether it has been seen before. If not, wrapped processor would be
+  invoked and its output would be written to the cache.
+
+  The cache to use is bound to a contextvars context and can be set via
+  CachedProcessor.set_cache classmethod.
+
+  This way, servers can instantiate a processor chain in a constructor, but
+  still have separate caches for each request - avoiding cross-talk between
+  users.
+  """
+
+  def __init__(
+      self,
+      processor: Processor,
+      *,
+      key_prefix: str | None = None,
+      default_cache: cache_base.CacheBase | None = None,
+  ):
+    """Initializes the caching wrapper.
+
+    Args:
+      processor: The Processor instance to wrap.
+      key_prefix: Optional custom prefix for the cache key. If None, defaults to
+        the key_prefix of the `part_processor_to_cache`.
+      default_cache: The cache to use if one is not set in the context with
+        .set_cache.
+    """
+    self._wrapped_processor = processor
+    self.key_prefix = key_prefix or processor.key_prefix
+    self._default_cache = default_cache
+
+  @classmethod
+  def set_cache(cls, cache: cache_base.CacheBase) -> None:
+    """Update thread-local cache to be used.
+
+    All CachedProcessor and CachedPartProcessor instance within the current
+    contextvars context will use this cache to store and retrieve results.
+
+    Args:
+      cache: Cache to use.
+    """
+    _PROCESSOR_PART_CACHE.set(cache)
+
+  async def call(
+      self, content: AsyncIterable[ProcessorPartTypes]
+  ) -> AsyncIterable[ProcessorPartTypes]:
+    part_cache = _PROCESSOR_PART_CACHE.get(self._default_cache)
+
+    if part_cache is not None:
+      content = await gather_stream(content)
+
+      part_cache = part_cache.with_key_prefix(self.key_prefix)
+      key = part_cache.hash_fn(content)
+      cached_result = await part_cache.lookup(content, key=key)
+
+      if isinstance(cached_result, ProcessorContent):
+        for p in cached_result.all_parts:
+          yield p
+        return
+
+      results_for_caching = []
+      async for p in self._wrapped_processor(stream_content(content)):
+        results_for_caching.append(p)
+        yield p
+
+      if results_for_caching:
+        create_task(part_cache.put(key=key, value=results_for_caching))
+    else:
+      async for p in self._wrapped_processor(content):
         yield p

@@ -1467,6 +1467,35 @@ class CachedPartProcessorTest(
     # Call tracker has not been called a second time.
     call_tracker.assert_called_once()
 
+  async def test_set_cache(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.part_processor_function
+    async def trackable_processor(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      call_tracker()
+      yield f'processed:{part.text}'
+
+    cached_p = processor.CachedPartProcessor(trackable_processor)
+    processor.CachedPartProcessor.set_cache(cache.InMemoryCache())
+    result = await streams.gather_stream(
+        cached_p(content_api.ProcessorPart('A'))
+    )
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    call_tracker.assert_called_once()
+
+    # Give some time for the background cache-put task to complete.
+    await asyncio.sleep(0.01)
+
+    # Second call (cache hit)
+    result = await streams.gather_stream(
+        cached_p(content_api.ProcessorPart('A'))
+    )
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    # Call tracker has not been called a second time.
+    call_tracker.assert_called_once()
+
   async def test_does_not_cache_on_error(self):
     """Tests that if the wrapped processor fails, the result is not cached."""
     call_tracker = unittest.mock.Mock()
@@ -1566,6 +1595,184 @@ class CachedPartProcessorTest(
     results2 = await streams.gather_stream(cached_p(input_part))
     self.assertEqual(call_tracker.call_count, 2)
     self.assertEmpty(results2)
+
+
+class CachedProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
+
+  async def test_cache_hit_and_miss_flow(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.processor_function
+    async def trackable_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      call_tracker()
+      text = content_api.as_text(await streams.gather_stream(content))
+      yield f'processed:{text}'
+
+    cached_p = processor.CachedProcessor(
+        trackable_processor, default_cache=cache.InMemoryCache()
+    )
+
+    # First call (cache miss)
+    result = await processor.apply_async(cached_p, ['A'])
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    call_tracker.assert_called_once()
+
+    # Give some time for the background cache-put task to complete.
+    await asyncio.sleep(0.01)
+
+    # Second call (cache hit)
+    result = await processor.apply_async(cached_p, ['A'])
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    # Call tracker has not been called a second time.
+    call_tracker.assert_called_once()
+
+    # Third call with different content (cache miss)
+    result = await processor.apply_async(cached_p, ['B'])
+    self.assertEqual(content_api.as_text(result), 'processed:B')
+    self.assertEqual(call_tracker.call_count, 2)
+
+  async def test_does_not_cache_on_error(self):
+    """Tests that if the wrapped processor fails, the result is not cached."""
+    call_tracker = unittest.mock.Mock()
+
+    @processor.processor_function
+    async def failing_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      del content  # Unused.
+      call_tracker()
+      raise ValueError('Something went wrong')
+      # This yield required to make the function a generator.
+      yield content_api.ProcessorPart('')  # pylint: disable=unreachable
+
+    cached_p = processor.CachedProcessor(
+        failing_processor, default_cache=cache.InMemoryCache()
+    )
+    input_content = ['B']
+
+    # First call, should fail by raising the exception.
+    with self.assertRaises(ValueError):
+      await processor.apply_async(cached_p, input_content)
+    call_tracker.assert_called_once()
+
+    # Second call, should be a cache miss and call the processor again,
+    # failing a second time.
+    with self.assertRaises(ValueError):
+      await processor.apply_async(cached_p, input_content)
+    self.assertEqual(call_tracker.call_count, 2)
+
+  async def test_cache_keys_are_isolated_by_processor(self):
+    """Tests that two different processors don't share cache entries."""
+    tracker1 = unittest.mock.Mock()
+    tracker2 = unittest.mock.Mock()
+
+    @processor.processor_function
+    async def processor1(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      tracker1()
+      text = content_api.as_text(await streams.gather_stream(content))
+      yield content_api.ProcessorPart(f'p1:{text}')
+
+    @processor.processor_function
+    async def processor2(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      tracker2()
+      text = content_api.as_text(await streams.gather_stream(content))
+      yield content_api.ProcessorPart(f'p2:{text}')
+
+    # Use the SAME cache instance for both cached processors.
+    shared_cache = cache.InMemoryCache()
+    cached_p1 = processor.CachedProcessor(
+        processor1, default_cache=shared_cache
+    )
+    cached_p2 = processor.CachedProcessor(
+        processor2, default_cache=shared_cache
+    )
+
+    input_content = ['C']
+
+    # Call the first processor. It should be a miss.
+    await processor.apply_async(cached_p1, input_content)
+    tracker1.assert_called_once()
+    tracker2.assert_not_called()
+
+    # Call the second processor with the SAME input content.
+    # It should also be a miss because its key prefix is different.
+    await processor.apply_async(cached_p2, input_content)
+    tracker1.assert_called_once()  # Should not have been called again.
+    tracker2.assert_called_once()  # Should be called for the first time.
+
+  async def test_does_not_cache_empty_results(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.processor_function
+    async def empty_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      del content  # Unused.
+      call_tracker()
+      return
+      # This yield required to make the function a generator.
+      yield content_api.ProcessorPart('')  # pylint: disable=unreachable
+
+    cached_p = processor.CachedProcessor(
+        empty_processor, default_cache=cache.InMemoryCache()
+    )
+    input_content = ['no_cache']
+
+    self.assertEmpty(await processor.apply_async(cached_p, input_content))
+    call_tracker.assert_called_once()
+
+    # Give some time for the background cache-put task to complete.
+    await asyncio.sleep(0.01)
+
+    # Check empty results are not cached.
+    self.assertEmpty(await processor.apply_async(cached_p, input_content))
+    self.assertEqual(call_tracker.call_count, 2)
+
+  async def test_context_cache(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.processor_function
+    async def trackable_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      call_tracker()
+      text = content_api.as_text(await streams.gather_stream(content))
+      yield f'processed:{text}'
+
+    # No default cache
+    cached_p = processor.CachedProcessor(trackable_processor)
+
+    # Call without cache in context
+    result = await processor.apply_async(cached_p, ['A'])
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    call_tracker.assert_called_once()
+
+    result = await processor.apply_async(cached_p, ['A'])
+    self.assertEqual(content_api.as_text(result), 'processed:A')
+    self.assertEqual(call_tracker.call_count, 2)
+
+    # Call with cache in context
+    cache_instance = cache.InMemoryCache()
+    processor.CachedProcessor.set_cache(cache_instance)
+
+    result = await processor.apply_async(cached_p, ['B'])
+    self.assertEqual(content_api.as_text(result), 'processed:B')
+    self.assertEqual(call_tracker.call_count, 3)
+
+    # Give some time for the background cache-put task to complete.
+    await asyncio.sleep(0.01)
+
+    result = await processor.apply_async(cached_p, ['B'])
+    self.assertEqual(content_api.as_text(result), 'processed:B')
+    self.assertEqual(call_tracker.call_count, 3)  # Cache hit
 
 
 if __name__ == '__main__':
