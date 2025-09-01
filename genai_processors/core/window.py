@@ -258,6 +258,7 @@ class Window(Processor):
           Callable[[collections.deque[ProcessorPart]], Awaitable[None]] | None
       ) = None,
       max_concurrency: int = 0,
+      stride: int = 1,
   ):
     """Initializes the window processor.
 
@@ -267,9 +268,13 @@ class Window(Processor):
         modifies it in place to compress the history.
       max_concurrency: The maximum number of concurrent window_processor
         invocations. If 0 or less, concurrency is unlimited.
+      stride: Only process every `stride` window, skipping the rest.
     """
+    if stride < 1:
+      raise ValueError('stride must be >= 1')
     self._window_processor = window_processor
     self._compress_history = compress_history
+    self._stride = stride
     if max_concurrency > 0:
       self._semaphore = asyncio.Semaphore(max_concurrency)
     else:
@@ -284,6 +289,8 @@ class Window(Processor):
       rolling_prompt: RollingPrompt,
   ) -> None:
     """The main loop that creates and manages window processing tasks."""
+
+    window_index = 0
 
     async def _create_window_task():
       prompt_for_window = rolling_prompt.pending()
@@ -303,13 +310,17 @@ class Window(Processor):
 
       processor.create_task(run_window_processor())
 
-    await _create_window_task()
+    if window_index % self._stride == 0:
+      await _create_window_task()
+    window_index += 1
 
     async for part in content:
       rolling_prompt.add_part(part)
       if content_api.is_end_of_turn(part):
         await rolling_prompt.finalize_pending()
-        await _create_window_task()
+        if window_index % self._stride == 0:
+          await _create_window_task()
+        window_index += 1
 
     await rolling_prompt.finalize_pending()
 

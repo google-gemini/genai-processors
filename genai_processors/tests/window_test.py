@@ -114,6 +114,25 @@ class WindowProcessorTest(unittest.IsolatedAsyncioTestCase):
     actual = content_api.as_text(output_parts)
     self.assertEqual(actual, 'model(1)model(12)')
 
+  async def test_window_with_stride(self):
+    input_stream = streams.stream_content([
+        '1',
+        content_api.ProcessorPart.end_of_turn(),
+        '2',
+        content_api.ProcessorPart.end_of_turn(),
+        '3',
+        content_api.ProcessorPart.end_of_turn(),
+        '4',
+    ])
+    output_parts = await streams.gather_stream(
+        window.Window(
+            main_model_fake.to_processor(),
+            stride=2,
+        )(input_stream)
+    )
+    actual = content_api.as_text(output_parts)
+    self.assertEqual(actual, 'model(1)model(123)')
+
   async def test_history_compression(self):
     async def compress_history(history):
       history.clear()
