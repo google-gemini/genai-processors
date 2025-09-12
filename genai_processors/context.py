@@ -17,6 +17,7 @@
 import asyncio
 from collections.abc import Coroutine, Iterable
 import contextvars
+import types
 from typing import Any, TypeVar
 
 from absl import logging
@@ -38,11 +39,52 @@ _PROCESSOR_RESERVED_SUBSTREAMS: contextvars.ContextVar[frozenset[str]] = (
 
 
 def raise_flattened_exception_group(exception: Exception):
+  """Flattens the exception group and filters the traceback."""
+  exceptions_in_group = 0
   e = exception
   while isinstance(e, ExceptionGroup):
+    exceptions_in_group += len(e.exceptions)
     e = e.exceptions[0]
-  if e is exception:
-    raise exception
+
+  # Every processor invocation is wrapperd in a couple of helpers, significantly
+  # inflating the callstack. Here we manipulate it and leave only the most
+  # nested instances of these helper, making stacktraces more readable.
+  processors_internal_functions = [
+      '_normalize_part_stream',
+      '_enqueue_content',
+      '__call__',
+  ]
+  observed_functions = set()
+
+  if e.__traceback__ is not None:
+    frames = []
+    tb = e.__traceback__
+    while tb is not None:
+      frames.append(tb)
+      tb = tb.tb_next
+
+    tb = None
+    for frame in reversed(frames):
+      if frame.tb_frame.f_code.co_filename.endswith(
+          'genai_processors/processor.py'
+      ):
+        function_name = frame.tb_frame.f_code.co_name
+        if function_name in processors_internal_functions:
+          if function_name in observed_functions:
+            continue
+          observed_functions.add(function_name)
+
+        tb = types.TracebackType(
+            tb_next=tb,
+            tb_frame=frame.tb_frame,
+            tb_lasti=frame.tb_lasti,
+            tb_lineno=frame.tb_lineno,
+        )
+
+    e.__traceback__ = tb
+
+  if e is exception or exceptions_in_group <= 1:
+    raise e from None
   else:
     raise e from exception
 
