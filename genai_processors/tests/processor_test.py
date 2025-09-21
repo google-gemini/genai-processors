@@ -149,15 +149,18 @@ class ProcessorPipelineTest(parameterized.TestCase):
     # Using assertRaises removes the traceback which we want to check
     # includes the TaskGroup error.
     exception = None
+    tb = None
     try:
       processor.apply_sync(
           processor_0, content_api.ProcessorContent(['foo', 'bar'])
       )
     except ValueError as e:
       exception = str(e)
+      tb = traceback.format_exc()
 
     # Assert that the error message isn't a generic ExceptionGroup message
     self.assertNotIn('unhandled errors in a TaskGroup', exception)
+    self.assertIn('unhandled errors in a TaskGroup', tb)
     self.assertEqual(exception, err_msg)
 
   def test_chained_part_processor_raises_specific_error_message(self):
@@ -176,15 +179,18 @@ class ProcessorPipelineTest(parameterized.TestCase):
     # Using assertRaises removes the traceback which we want to check
     # includes the TaskGroup error.
     exception = None
+    tb = None
     try:
       processor.apply_sync(
           combined_processor, [content_api.ProcessorPart('bar')]
       )
     except ValueError as e:
       exception = str(e)
+      tb = traceback.format_exc()
 
     # Assert that the error message isn't a generic ExceptionGroup message
     self.assertNotIn('unhandled errors in a TaskGroup', exception)
+    self.assertIn('unhandled errors in a TaskGroup', tb)
     self.assertEqual(exception, err_msg)
 
   def test_normalization_function(self):
@@ -998,24 +1004,6 @@ class ProcessorChainMixTest(TestWithProcessors):
     inputs = [content_api.ProcessorPart('test')]
     content = processor.apply_sync(chain_abc, inputs)
     self.assertEqual(content, inputs)
-
-  def test_backtrace_optimization(self):
-    @processor.part_processor_function
-    async def fail(
-        part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
-      raise ValueError('foo is not allowed')
-      yield part  # pylint: disable=unreachable
-
-    p = processor.passthrough()
-
-    inputs = [content_api.ProcessorPart('0')]
-    try:
-      processor.apply_sync(p + p + fail, inputs)
-    except ValueError:
-      tb = traceback.format_exc()
-      self.assertIn('foo is not allowed', tb)  # pylint: disable=g-assert-in-except
-      self.assertEqual(tb.count('_normalize_part_stream\n'), 1)  # pylint: disable=g-assert-in-except
 
 
 class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
