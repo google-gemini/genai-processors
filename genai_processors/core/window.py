@@ -232,8 +232,8 @@ class Window(Processor):
   and mark each as turn_complete.
 
   The output of `window_processor` is propagated to the Window output, but
-  unlike `LiveProcessor` it is not added to the prompt and not visible to
-  the consecutive `window_processor` invocations.
+  unlike `LiveProcessor` it is not kept in the prompt of `window_processor` and
+  is not visible to the consecutive `window_processor` invocations.
 
   Many instances of `window_processor` may be run concurrently, but their output
   will be yielded in order.
@@ -268,7 +268,8 @@ class Window(Processor):
         modifies it in place to compress the history.
       max_concurrency: The maximum number of concurrent window_processor
         invocations. If 0 or less, concurrency is unlimited.
-      stride: Only process every `stride` window, skipping the rest.
+      stride: Only process every `stride` window, skipping the rest. Must be
+        >= 1.
     """
     if stride < 1:
       raise ValueError('stride must be >= 1')
@@ -310,8 +311,7 @@ class Window(Processor):
 
       processor.create_task(run_window_processor())
 
-    if window_index % self._stride == 0:
-      await _create_window_task()
+    await _create_window_task()
     window_index += 1
 
     async for part in content:
