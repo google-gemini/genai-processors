@@ -80,6 +80,7 @@ def _combined_key_prefix(
 
 async def _normalize_part_stream(
     content: AsyncIterable[ProcessorPartTypes],
+    producer: Any = None,
 ) -> AsyncIterable[ProcessorPart]:
   """Yields ProcessorParts given a stream of content convertible to them."""
   async for part in content:
@@ -87,7 +88,10 @@ async def _normalize_part_stream(
       case ProcessorPart():
         yield part
       case _:
-        yield ProcessorPart(part)
+        try:
+          yield ProcessorPart(part)
+        except ValueError as e:
+          raise ValueError(f'{e} produced by {producer}') from e
 
 
 @typing.runtime_checkable
@@ -123,7 +127,7 @@ class Processor(abc.ABC):
     Yields:
       the result of processing the input content.
     """
-    content = _normalize_part_stream(content)
+    content = _normalize_part_stream(content, producer=self)
     # Ensures that the same taskgroup is always added to the context and
     # includes the proper way of handling generators, i.e. use a queue inside
     # the task group instead of a generator.
@@ -145,7 +149,9 @@ class Processor(abc.ABC):
       async def _with_context():
         async with context():
           try:
-            async for p in _normalize_part_stream(self.call(content)):
+            async for p in _normalize_part_stream(
+                self.call(content), producer=self.call
+            ):
               output_queue.put_nowait(p)
           finally:
             output_queue.put_nowait(None)
@@ -157,7 +163,9 @@ class Processor(abc.ABC):
       finally:
         await task
     else:
-      async for p in _normalize_part_stream(self.call(content)):
+      async for p in _normalize_part_stream(
+          self.call(content), producer=self.call
+      ):
         yield p
 
   @abc.abstractmethod
@@ -279,7 +287,9 @@ class PartProcessor(abc.ABC):
     if not self.match(part):
       yield part
       return
-    async for result in _normalize_part_stream(self.call(part)):
+    async for result in _normalize_part_stream(
+        self.call(part), producer=self.call
+    ):
       yield result
 
   @abc.abstractmethod
@@ -807,7 +817,7 @@ def _chain_processors(
     # Chain all processors together
     for processor in processors:
       content = _capture_reserved_substreams(content, output_queue)
-      content = _normalize_part_stream(processor(content))
+      content = _normalize_part_stream(processor(content), producer=processor)
     # Place output processed output parts on the queue.
     create_task(_enqueue_content(content, output_queue), name=task_name)
     while (part := await output_queue.get()) is not None:
@@ -837,7 +847,7 @@ class _CaptureReservedSubstreams(PartProcessor):
       await self._queue.put(part)
       return
     processed_stream: AsyncIterable[ProcessorPart] = _normalize_part_stream(
-        self._part_processor_fn(part)
+        self._part_processor_fn(part), producer=self._part_processor_fn
     )
     async for part in processed_stream:
       if context_lib.is_reserved_substream(part.substream_name):
@@ -932,7 +942,8 @@ class _ParallelProcessor(Processor):
         _normalize_part_stream(
             processor(
                 _capture_reserved_substreams(stream_inputs[idx], output_queue)
-            )
+            ),
+            producer=processor,
         )
         for idx, processor in enumerate(self._processor_list)
     ]
@@ -1177,7 +1188,9 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
       """Adapter from the source function to a Processor."""
 
       def __init__(self, *args, **kwargs):
-        self._source = _normalize_part_stream(source_fn(*args, **kwargs))
+        self._source = _normalize_part_stream(
+            source_fn(*args, **kwargs), producer=source_fn
+        )
 
       async def call(
           self, content: AsyncIterable[ProcessorPart]
