@@ -47,7 +47,7 @@ class ProcessorPart:
       mimetype: str | None = None,
       metadata: dict[str, Any] | None = None,
   ) -> None:
-    """Constructs a ProcessorPart using a `Part` or `ProcessorPart`.
+    """Constructs a ProcessorPart.
 
     Args:
       value: The content to use to construct the ProcessorPart.
@@ -62,9 +62,9 @@ class ProcessorPart:
         substream_name, unless it is overridden in this argument.
       mimetype: Mime type of the data.
       metadata: (Optional) Auxiliary information about the part. If the
-        `ProcessorPart` is created using another `ProcessorPart`, this
-        ProcessorPart inherits the existing metadata, unless it is overridden in
-        this argument.
+        `ProcessorPart` is created using another `ProcessorPart` or a
+        `content_pb2.Part`, this ProcessorPart inherits the existing metadata,
+        unless it is overridden in this argument.
     """
     super().__init__()
     self._metadata = {}
@@ -77,7 +77,8 @@ class ProcessorPart:
         role = role or value.role
         substream_name = substream_name or value.substream_name
         mimetype = mimetype or value.mimetype
-        self._metadata.update(value.metadata)
+        self._metadata = value.metadata
+        self._metadata.update(metadata or {})
       case str():
         self._part = genai_types.Part(text=value)
       case bytes():
@@ -329,7 +330,7 @@ class ProcessorPart:
       name: str,
       response: dict[str, Any],
       function_call_id: str | None = None,
-      will_continue: bool = False,
+      will_continue: bool | None = None,
       scheduling: genai_types.FunctionResponseScheduling | None = None,
       **kwargs,
   ) -> 'ProcessorPart':
@@ -500,7 +501,6 @@ class ProcessorContent:
       *parts: 'ProcessorContentTypes',
   ) -> None:
     """Constructs a new Content object from the given inputs."""
-
     self.replace_parts(*parts)
 
     self.as_text = functools.partial(as_text, self)
