@@ -407,5 +407,48 @@ class ProcessorContentTest(parameterized.TestCase):
     content = content_api.ProcessorContent('foo')
     self.assertNotEqual(content, object())
 
+  def test_to_genai_contents(self):
+    parts = [
+        content_api.ProcessorPart('part1', role='user'),
+        content_api.ProcessorPart('part2', role='user'),
+        content_api.ProcessorPart('part3', role='model'),
+        content_api.ProcessorPart('part4', role='user'),
+    ]
+    expected_genai_contents = [
+        genai_types.Content(
+            parts=[
+                genai_types.Part(text='part1'),
+                genai_types.Part(text='part2'),
+            ],
+            role='user',
+        ),
+        genai_types.Content(
+            parts=[genai_types.Part(text='part3')],
+            role='model',
+        ),
+        genai_types.Content(
+            parts=[genai_types.Part(text='part4')],
+            role='user',
+        ),
+    ]
+    genai_contents = content_api.to_genai_contents(parts)
+    self.assertEqual(genai_contents, expected_genai_contents)
+
+  def test_to_genai_contents_empty(self):
+    genai_contents = content_api.to_genai_contents([])
+    self.assertEmpty(genai_contents)
+
+  def test_to_genai_contents_single_part(self):
+    parts = [content_api.ProcessorPart('part1', role='user')]
+    genai_contents = content_api.to_genai_contents(parts)
+    expected_genai_contents = [
+        genai_types.Content(
+            parts=[genai_types.Part(text='part1')],
+            role='user',
+        ),
+    ]
+    self.assertEqual(genai_contents, expected_genai_contents)
+
+
 if __name__ == '__main__':
   absltest.main()

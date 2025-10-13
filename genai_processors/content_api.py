@@ -18,6 +18,7 @@ from collections.abc import Callable, Iterable, Iterator
 import dataclasses
 import functools
 import io
+import itertools
 import json
 from typing import Any, TypeVar
 
@@ -413,15 +414,13 @@ class ProcessorPart:
 
     Args:
       data: A JSON-compatible dictionary containing the serialized data for the
-        ProcessorPart.
-
-        It is expected to have the following keys:
-          * 'part' (dict): A dictionary representing the underlying
-            `google.genai.types.Part` object.
-          * 'role' (str): The role of the part (e.g., 'user', 'model').
-          * 'substream_name' (str): The substream name.
-          * 'mimetype' (str): The MIME type of the part.
-          * 'metadata' (dict[str, Any]): Auxiliary metadata.
+        ProcessorPart.  It is expected to have the following keys:
+        * 'part' (dict): A dictionary representing the underlying
+          `google.genai.types.Part` object.
+        * 'role' (str): The role of the part (e.g., 'user', 'model').
+        * 'substream_name' (str): The substream name.
+        * 'mimetype' (str): The MIME type of the part.
+        * 'metadata' (dict[str, Any]): Auxiliary metadata.
 
     Returns:
       A new ProcessorPart instance.
@@ -438,7 +437,7 @@ class ProcessorPart:
     reconstructed = ProcessorPart.from_dict(data=part_as_dict)
     print(reconstructed)
     ```
-    """
+    """  # fmt: skip
     return cls(
         genai_types.Part.model_validate(data['part']),
         role=data.get('role', ''),
@@ -830,3 +829,29 @@ def to_genai_part(
     raise ValueError(
         f'Unsupported type for to_genai_part: {type(part_content)}'
     )
+
+
+def to_genai_contents(
+    content: ProcessorContentTypes,
+) -> list[genai_types.Content]:
+  """Converts a list of ProcessorParts into a list of Genai Content objects.
+
+  Consecutive parts with the same role are grouped together into a single
+  `genai_types.Content` object.
+
+  Args:
+    content: Processor content, e.g. a list of `ProcessorPartTypes`.
+
+  Returns:
+    A list of `genai_types.Content` objects, where each object represents
+    content from a single role.
+  """
+  processor_content = ProcessorContent(content)
+  contents = []
+  for role, content_part in itertools.groupby(
+      processor_content, lambda p: p.role
+  ):
+    content_parts = [p.part for p in content_part]
+    contents.append(genai_types.Content(parts=content_parts, role=role))
+
+  return contents

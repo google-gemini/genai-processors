@@ -56,6 +56,7 @@ from collections.abc import AsyncIterable
 from typing import Any
 from genai_processors import content_api
 from genai_processors import processor
+from genai_processors import streams
 from genai_processors.core import constrained_decoding
 from google.genai import client
 from google.genai import types as genai_types
@@ -164,26 +165,13 @@ class GenaiModel(processor.Processor):
       self, content: AsyncIterable[content_api.ProcessorPartTypes]
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Internal method to call the GenAI API and stream results."""
-    turn = genai_types.Content(parts=[])
-    contents = []
-    async for content_part in content:
-      content_part = content_api.ProcessorPart(content_part)
-      if turn.role and content_part.role != turn.role:
-        contents.append(turn)
-        turn = genai_types.Content(parts=[])
-
-      turn.role = content_part.role or 'user'
-      turn.parts.append(content_api.to_genai_part(content_part))  # pylint: disable=attribute-error
-
-    if turn.role:
-      contents.append(turn)
-
+    contents = await streams.gather_stream(content)
     if not contents:
       return
 
     async for res in await self._client.aio.models.generate_content_stream(
         model=self._model_name,
-        contents=contents,
+        contents=content_api.to_genai_contents(contents),
         config=self._generate_content_config,
     ):
       res: genai_types.GenerateContentResponse = res
