@@ -120,26 +120,34 @@ TEXT_EXCEPTION = 'text/x-exception'
 def is_text(mime: str) -> bool:
   """Returns whether the content is a human-readable text."""
   return (
-      mime in INPUT_TEXT_TYPES
-      or mime.startswith('text/')
-      or mime.startswith(TEXT_JSON)
+      mime.lower() in INPUT_TEXT_TYPES
+      or mime.lower().startswith('text/')
+      or mime.lower().startswith(TEXT_JSON)
   )
 
 
 def is_json(mime: str) -> bool:
   """Returns whether the content is a human-readable json."""
-  return mime.startswith(TEXT_JSON)
+  return mime.lower().startswith(TEXT_JSON)
 
 
 def is_dataclass(mime: str, json_dataclass: type[Any] | None = None) -> bool:
   """Returns whether the content is a dataclass."""
   type_name = json_dataclass.__name__ if json_dataclass else ''
-  return mime.startswith(f'application/json; type={type_name}')
+  semi_colon_index = mime.lower().find('; type=')
+  if semi_colon_index != -1:
+    lower_index = semi_colon_index + len('; type=')
+    mime_lower = mime[:lower_index].lower() + mime[lower_index:]
+    return mime_lower.startswith(f'application/json; type={type_name}')
+  else:
+    return False
 
 
 def is_image(mime: str) -> bool:
   """Returns whether the content is an image."""
-  return (mime in INPUT_IMAGE_TYPES) or mime.startswith('image/')
+  return (mime.lower() in INPUT_IMAGE_TYPES) or mime.lower().startswith(
+      'image/'
+  )
 
 
 def is_video(mime: str) -> bool:
@@ -151,28 +159,32 @@ def is_video(mime: str) -> bool:
   Returns:
     True of it is a video, False otherwise.
   """
-  return (mime in INPUT_VIDEO_TYPES) or mime.startswith('video/')
+  return (mime.lower() in INPUT_VIDEO_TYPES) or mime.lower().startswith(
+      'video/'
+  )
 
 
 def is_audio(mime: str) -> bool:
   """Returns whether the content is audio."""
-  return (mime in INPUT_AUDIO_TYPES) or mime.startswith('audio/')
+  return (mime.lower() in INPUT_AUDIO_TYPES) or mime.lower().startswith(
+      'audio/'
+  )
 
 
 def is_streaming_audio(mime: str) -> bool:
   """Returns whether the content is streaming audio."""
-  return mime.startswith('audio/l16')
+  return mime.lower().startswith('audio/l16')
 
 
 def is_wav(mime: str) -> bool:
   """Returns whether the content is a wav file."""
-  return mime == AUDIO_WAV
+  return mime.lower() == AUDIO_WAV
 
 
 def is_source_code(mime: str) -> bool:
   """Returns whether the content is a source code in some language."""
   # This list is incomplete and will be extended on as-needed basis.
-  return mime in (
+  return mime.lower() in (
       'text/x-python',
       'application/x-latex',
       'text/x-c',
@@ -181,19 +193,19 @@ def is_source_code(mime: str) -> bool:
 
 def is_pdf(mime: str) -> bool:
   """Returns whether the content is a PDF."""
-  return mime == TEXT_PDF
+  return mime.lower() == TEXT_PDF
 
 
 def is_csv(mime: str) -> bool:
   """Returns whether the content is a CSV file."""
-  return mime == TEXT_CSV
+  return mime.lower() == TEXT_CSV
 
 
 def is_python(mime: str) -> bool:
   """Returns whether the content is python code."""
-  return mime in [TEXT_PYTHON, TEXT_SCRIPT_PYTHON]
+  return mime.lower() in [TEXT_PYTHON, TEXT_SCRIPT_PYTHON]
 
 
 def is_exception(mime: str) -> bool:
   """Returns whether the content is an exception."""
-  return mime == TEXT_EXCEPTION
+  return mime.lower() == TEXT_EXCEPTION
