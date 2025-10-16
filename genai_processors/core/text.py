@@ -23,6 +23,7 @@ from typing import Mapping, Type
 import dataclasses_json
 from genai_processors import content_api
 from genai_processors import processor
+import termcolor
 
 
 _MAX_LOOP_COUNT = 1000
@@ -229,7 +230,7 @@ class MatchProcessor(processor.Processor):
         ]
         break
       offset += len(c.text)
-    to_process = left_over + part_buffer[part_idx + 1:]
+    to_process = left_over + part_buffer[part_idx + 1 :]
     return to_yield, to_process
 
   async def call(
@@ -414,3 +415,53 @@ async def terminal_input(
     except EOFError:
       # Exit on ctrl+D.
       return
+
+
+async def terminal_output(
+    content: AsyncIterable[content_api.ProcessorPartTypes],
+    prompt: str = '',
+) -> None:
+  """Prints the part to the terminal.
+
+  Consumes all the content and prints it to the terminal. Prints the prompt
+  when an `end_of_turn` part is encountered.
+
+  The parts are printed with their role in green, red or yellow. The text parts
+  are printed in bold.
+
+  Args:
+    content: The content to print.
+    prompt: The prompt to print when the model is done.
+  """
+  old_part_role = None
+  async for part in content:
+    match part.role:
+      case 'user':
+        color = 'green'
+      case 'model':
+        color = 'red'
+      case _:
+        color = 'yellow'
+    part_role = part.role or 'default'
+    if content_api.is_text(part.mimetype):
+      content_text = part.text
+    else:
+      content_text = f'<{part.mimetype}>'
+    if part_role != old_part_role:
+      old_part_role = part_role
+      print(
+          termcolor.colored(
+              f'\n{part_role}: {content_text}', color, attrs=['bold']
+          ),
+          end='',
+          flush=True,
+      )
+    else:
+      print(
+          termcolor.colored(f'{content_text}', color, attrs=['bold']),
+          end='',
+          flush=True,
+      )
+    # Reprint the prompt when the model is done.
+    if content_api.is_end_of_turn(part):
+      print('\n' + prompt, end='', flush=True)

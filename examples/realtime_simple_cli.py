@@ -58,7 +58,6 @@ from genai_processors.core import text
 from genai_processors.core import text_to_speech
 from genai_processors.examples import models
 import pyaudio
-import termcolor
 
 # You need to define the project id in the environment variables.
 GOOGLE_PROJECT_ID = os.environ['GOOGLE_PROJECT_ID']
@@ -144,23 +143,10 @@ async def run_conversation() -> None:
       + realtime.LiveProcessor(turn_processor=genai_processor + tts)
       + play_output
   )
-
-  async for part in conversation_agent(text.terminal_input()):
-    # Print the transcription and the output of the model (should include status
-    # parts and other metadata parts)
-    match part.role:
-      case 'user':
-        color = 'green'
-      case 'model':
-        color = 'red'
-      case _:
-        color = 'yellow'
-    part_role = part.role or 'default'
-    print(
-        termcolor.colored(
-            f'{part_role}: {part.text}', color, 'on_grey', attrs=['bold']
-        )
-    )
+  prompt = 'USER (ctrl+D to end)> '
+  await text.terminal_output(
+      conversation_agent(text.terminal_input(prompt=prompt)), prompt=prompt
+  )
 
 
 def main(argv: Sequence[str]):
