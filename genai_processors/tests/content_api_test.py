@@ -72,15 +72,14 @@ class ProcessorPartTest(parameterized.TestCase):
     mimetype = 'text/plain'
     part = content_api.ProcessorPart(bytes_data, mimetype=mimetype)
     self.assertEqual(part.text, 'hello')
-    self.assertEqual(part.part.text, 'hello')
 
   def test_from_bytes_with_non_text_mimetype(self):
     bytes_data = b'hello'
     mimetype = 'application/octet-stream'
     part = content_api.ProcessorPart(bytes_data, mimetype=mimetype)
     self.assertEqual(part.bytes, bytes_data)
-    self.assertEqual(part.part.inline_data.data, bytes_data)
-    self.assertEqual(part.part.inline_data.mime_type, mimetype)
+    self.assertEqual(part.inline_data.data, bytes_data)
+    self.assertEqual(part.inline_data.mime_type, mimetype)
 
   def test_eq_part_and_non_part(self):
     part = content_api.ProcessorPart('foo')
@@ -417,17 +416,17 @@ class ProcessorContentTest(parameterized.TestCase):
     expected_genai_contents = [
         genai_types.Content(
             parts=[
-                genai_types.Part(text='part1'),
-                genai_types.Part(text='part2'),
+                content_api.ProcessorPart('part1'),
+                content_api.ProcessorPart('part2'),
             ],
             role='user',
         ),
         genai_types.Content(
-            parts=[genai_types.Part(text='part3')],
+            parts=[content_api.ProcessorPart('part3')],
             role='model',
         ),
         genai_types.Content(
-            parts=[genai_types.Part(text='part4')],
+            parts=[content_api.ProcessorPart('part4')],
             role='user',
         ),
     ]
@@ -443,7 +442,7 @@ class ProcessorContentTest(parameterized.TestCase):
     genai_contents = content_api.to_genai_contents(parts)
     expected_genai_contents = [
         genai_types.Content(
-            parts=[genai_types.Part(text='part1')],
+            parts=[content_api.ProcessorPart('part1')],
             role='user',
         ),
     ]

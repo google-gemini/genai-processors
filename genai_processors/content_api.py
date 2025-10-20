@@ -26,9 +26,10 @@ from absl import logging
 from genai_processors import mime_types
 from google.genai import types as genai_types
 import PIL.Image
+import pydantic
 
 
-class ProcessorPart:
+class ProcessorPart(genai_types.Part):
   """A wrapper around `Part` with additional metadata.
 
   Represents a single piece of content that can be processed by an agentic
@@ -37,6 +38,10 @@ class ProcessorPart:
   Includes metadata such as the producer of the content, the substream the part
   belongs to, the MIME type of the content, and arbitrary metadata.
   """
+  _metadata: dict[str, Any] = pydantic.PrivateAttr(default_factory=dict)
+  _role: str = pydantic.PrivateAttr(default='')
+  _substream_name: str = pydantic.PrivateAttr(default='')
+  _mimetype: str = pydantic.PrivateAttr(default='')
 
   def __init__(
       self,
@@ -50,37 +55,32 @@ class ProcessorPart:
     """Constructs a ProcessorPart.
 
     Args:
-      value: The content to use to construct the ProcessorPart.
+      value: The content to use to construct the ProcessorPart. Any keyword
+        arguments after this one overrides any properties in value.
       role: Optional. The producer of the content. In Genai models, must be
         either 'user' or 'model', but the user can set their own semantics.
         Useful to set for multi-turn conversations, otherwise can be empty.
       substream_name: (Optional) ProcessorPart stream can be split into multiple
         independent streams. They may have specific semantics, e.g. a song and
         its lyrics, or can be just alternative responses. Prefer using a default
-        substream with an empty name. If the `ProcessorPart` is created using
-        another `ProcessorPart`, this ProcessorPart inherits the existing
-        substream_name, unless it is overridden in this argument.
+        substream with an empty name.
       mimetype: Mime type of the data.
       metadata: (Optional) Auxiliary information about the part. If the
         `ProcessorPart` is created using another `ProcessorPart` or a
         `content_pb2.Part`, this ProcessorPart inherits the existing metadata,
         unless it is overridden in this argument.
     """
-    super().__init__()
-    self._metadata = {}
-
     match value:
-      case genai_types.Part():
-        self._part = value
       case ProcessorPart():
-        self._part = value.part
+        super().__init__(**value.model_dump(exclude_unset=True))
         role = role or value.role
         substream_name = substream_name or value.substream_name
         mimetype = mimetype or value.mimetype
         self._metadata = value.metadata
-        self._metadata.update(metadata or {})
+      case genai_types.Part():
+        super().__init__(**value.model_dump(exclude_unset=True))
       case str():
-        self._part = genai_types.Part(text=value)
+        super().__init__(text=value)
       case bytes():
         if not mimetype:
           raise ValueError(
@@ -88,10 +88,10 @@ class ProcessorPart:
               ' from bytes.'
           )
         if is_text(mimetype):
-          self._part = genai_types.Part(text=value.decode('utf-8'))
+          super().__init__(text=value.decode('utf-8'))
         else:
-          self._part = genai_types.Part.from_bytes(
-              data=value, mime_type=mimetype
+          super().__init__(
+              inline_data=genai_types.Blob(data=value, mime_type=mimetype)
           )
       case PIL.Image.Image():
         if mimetype:
@@ -113,8 +113,10 @@ class ProcessorPart:
           mimetype = f'image/{suffix}'
         bytes_io = io.BytesIO()
         value.save(bytes_io, suffix.upper())
-        self._part = genai_types.Part.from_bytes(
-            data=bytes_io.getvalue(), mime_type=mimetype
+        super().__init__(
+            inline_data=genai_types.Blob(
+                data=bytes_io.getvalue(), mime_type=mimetype
+            )
         )
       case _:
         raise ValueError(f"Can't construct ProcessorPart from {type(value)}.")
@@ -127,10 +129,10 @@ class ProcessorPart:
     if mimetype:
       self._mimetype = mimetype
     # Otherwise, if MIME type is specified using inline data, use that.
-    elif self._part.inline_data and self._part.inline_data.mime_type:
-      self._mimetype = self._part.inline_data.mime_type
+    elif self.inline_data and self.inline_data.mime_type:
+      self._mimetype = self.inline_data.mime_type
     # Otherwise, if text is not empty, assume 'text/plain' MIME type.
-    elif self._part.text:
+    elif self.text:
       self._mimetype = 'text/plain'
     else:
       self._mimetype = ''
@@ -144,24 +146,23 @@ class ProcessorPart:
     if self.role:
       optional_args += f', role={self.role!r}'
     return (
-        f'ProcessorPart({self.part.to_json_dict()!r},'
+        f'ProcessorPart({self.to_json_dict()!r},'
         f' mimetype={self.mimetype!r}{optional_args})'
     )
 
   def __eq__(self, other: Any) -> bool:
     if not isinstance(other, ProcessorPart):
       return False
-    return (
-        self._part == other._part
-        and self._role.lower() == other._role.lower()
-        and self._substream_name.lower() == other._substream_name.lower()
-        and self._metadata == other._metadata
-    )
+    return self.__dict__ == other.__dict__
 
   @property
   def part(self) -> genai_types.Part:
-    """Returns the underlying Genai Part."""
-    return self._part
+    """Returns the underlying Genai Part.
+
+    DEPRECATED: Use the ProcessorPart itself, it now inherits from genai.Part.
+    This property is provided for backward compatibility reasons.
+    """
+    return self
 
   @property
   def role(self) -> str:
@@ -187,10 +188,10 @@ class ProcessorPart:
       Text encoded into bytes or bytes from inline data if the underlying part
       is a Blob.
     """
-    if self.part.text:
+    if self.text:
       return self.text.encode()
-    if isinstance(self.part.inline_data, genai_types.Blob):
-      return self.part.inline_data.data
+    if isinstance(self.inline_data, genai_types.Blob):
+      return self.inline_data.data
     return None
 
   @property
@@ -214,25 +215,6 @@ class ProcessorPart:
     return self._mimetype or 'text/plain'
 
   @property
-  def text(self) -> str:
-    """Returns part text as string.
-
-    Returns:
-      The text of the part.
-
-    Raises:
-      ValueError if part has no text.
-    """
-    if not mime_types.is_text(self.mimetype):
-      raise ValueError('Part is not text.')
-    return self.part.text or ''
-
-  @text.setter
-  def text(self, value: str) -> None:
-    """Sets part to a text part."""
-    self._part = genai_types.Part(text=value)
-
-  @property
   def metadata(self) -> dict[str, Any]:
     """Returns metadata."""
     return self._metadata
@@ -247,16 +229,6 @@ class ProcessorPart:
     return self._metadata.get(key, default)
 
   @property
-  def function_call(self) -> genai_types.FunctionCall | None:
-    """Returns function call."""
-    return self.part.function_call
-
-  @property
-  def function_response(self) -> genai_types.FunctionResponse | None:
-    """Returns function response."""
-    return self.part.function_response
-
-  @property
   def tool_cancellation(self) -> str | None:
     """Returns an id of a function call to be cancelled.
 
@@ -266,13 +238,13 @@ class ProcessorPart:
       The id of the function call to be cancelled or None if this part is not a
       tool cancellation from the model.
     """
-    if not self.part.function_response:
+    if not self.function_response:
       return None
-    if self.part.function_response.name != 'tool_cancellation':
+    if self.function_response.name != 'tool_cancellation':
       return None
-    if not self.part.function_response.response:
+    if not self.function_response.response:
       return None
-    return self.part.function_response.response.get('function_call_id', None)
+    return self.function_response.response.get('function_call_id', None)
 
   T = TypeVar('T')
 
@@ -301,8 +273,8 @@ class ProcessorPart:
     if not mime_types.is_image(self.mimetype):
       raise ValueError(f'Part is not an image. Mime type is {self.mimetype}.')
     bytes_io = io.BytesIO()
-    if self.part.inline_data is not None:
-      bytes_io.write(self.part.inline_data.data)
+    if self.inline_data is not None:
+      bytes_io.write(self.inline_data.data)
     bytes_io.seek(0)
     return PIL.Image.open(bytes_io)
 
@@ -474,7 +446,7 @@ class ProcessorPart:
     ```
     """
     return {
-        'part': self.part.model_dump(mode='json', exclude_none=True),
+        'part': self.model_dump(mode='json', exclude_none=True),
         'role': self.role,
         'substream_name': self.substream_name,
         'mimetype': self.mimetype,
@@ -848,10 +820,9 @@ def to_genai_contents(
   """
   processor_content = ProcessorContent(content)
   contents = []
-  for role, content_part in itertools.groupby(
+  for role, content_parts in itertools.groupby(
       processor_content, lambda p: p.role
   ):
-    content_parts = [p.part for p in content_part]
     contents.append(genai_types.Content(parts=content_parts, role=role))
 
   return contents
