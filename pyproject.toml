@@ -61,6 +61,7 @@ dev = [
     "pylint>=2.6.0",
     "pyink",
     "flake8",
+    "google-adk",
 ]
 
 [tool.pyink]
