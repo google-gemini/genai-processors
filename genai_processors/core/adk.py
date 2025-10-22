@@ -14,7 +14,8 @@
 # ==============================================================================
 """ADK - GenAI Processors integration."""
 
-from typing import AsyncGenerator, AsyncIterable, Callable, override
+from typing import AsyncGenerator, AsyncIterable, Callable
+from typing_extensions import override
 
 from genai_processors import content_api
 from genai_processors import processor
