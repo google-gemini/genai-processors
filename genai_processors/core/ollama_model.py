@@ -33,7 +33,7 @@ ollama pull gemma3
 import base64
 from collections.abc import AsyncIterable
 import json
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 from genai_processors import content_api
 from genai_processors import mime_types
 from genai_processors import processor
@@ -99,7 +99,7 @@ class GenerateContentConfig(TypedDict, total=False):
   top_p: float | None
   """If specified, nucleus sampling will be used."""
 
-  tools: list[genai_types.Tool] | None
+  tools: list[genai_types.Tool | Callable[..., Any]] | None
   """Tools the model may call."""
 
 
@@ -146,8 +146,16 @@ class OllamaModel(processor.Processor):
     self._keep_alive = keep_alive
     self._parser = None
 
-    if tools := generate_content_config.get('tools'):
-      tools: list[genai_types.Tool] = tools
+    if tools_config := generate_content_config.get('tools'):
+      tools: list[genai_types.Tool] = []
+      for t in tools_config:
+        if callable(t):
+          fdecl = genai_types.FunctionDeclaration.from_callable_with_api_option(
+              callable=t, api_option='GEMINI_API'
+          )
+          tools.append(genai_types.Tool(function_declarations=[fdecl]))
+        else:
+          tools.append(t)
       tool_utils.raise_for_gemini_server_side_tools(tools)
       self._tools = []
       for tool in tools:

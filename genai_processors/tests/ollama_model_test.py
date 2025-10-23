@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 import http
+import inspect
 import json
 from unittest import mock
 
@@ -194,6 +195,64 @@ class OllamaProcessorTest(parameterized.TestCase):
 
       self.assertEqual(
           content_api.as_text(output), 'The weather in Boston is 72 and sunny.'
+      )
+
+  def test_callable_tool(self):
+    def get_weather(location: str) -> str:
+      """Get the current weather using a weather stone.
+
+      Args:
+        location: The city and state, e.g. "Craven Arms pub"
+
+      Returns:
+        The weather information e.g. "Stone swinging".
+      """
+      return f'stone white on top at {location}'
+
+    def request_handler(request: httpx.Request):
+      json_body = json.loads(request.content.decode('utf-8'))
+      self.assertEqual(
+          json_body['tools'],
+          [{
+              'type': 'function',
+              'function': {
+                  'name': 'get_weather',
+                  'description': inspect.cleandoc(get_weather.__doc__),
+                  'parameters': {
+                      'properties': {'location': {'type': 'string'}},
+                      'type': 'object',
+                      'required': ['location'],
+                  },
+              },
+          }],
+      )
+
+      response = {
+          'message': {
+              'role': 'assistant',
+              'content': 'Stone under water (but pub still open)',
+          }
+      }
+
+      return httpx.Response(
+          http.HTTPStatus.OK, content=json.dumps(response).encode('utf-8')
+      )
+
+    mock_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(request_handler)
+    )
+
+    with mock.patch.object(httpx, 'AsyncClient', return_value=mock_client):
+      model = ollama_model.OllamaModel(
+          model_name='gemma3',
+          generate_content_config=ollama_model.GenerateContentConfig(
+              tools=[get_weather]
+          ),
+      )
+
+      self.assertEqual(
+          content_api.as_text(processor.apply_sync(model, 'Nice weather, eh?')),
+          'Stone under water (but pub still open)',
       )
 
   def test_json_parsing_by_default(self):
