@@ -38,6 +38,7 @@ class ProcessorPart(genai_types.Part):
   Includes metadata such as the producer of the content, the substream the part
   belongs to, the MIME type of the content, and arbitrary metadata.
   """
+
   _metadata: dict[str, Any] = pydantic.PrivateAttr(default_factory=dict)
   _role: str = pydantic.PrivateAttr(default='')
   _substream_name: str = pydantic.PrivateAttr(default='')
@@ -374,8 +375,13 @@ class ProcessorPart(genai_types.Part):
     return cls(part, **kwargs)
 
   @classmethod
-  def end_of_turn(cls) -> 'ProcessorPart':
-    return ProcessorPart('', role='user', metadata={'turn_complete': True})
+  def end_of_turn(cls, substream_name: str = '') -> 'ProcessorPart':
+    return ProcessorPart(
+        '',
+        role='user',
+        substream_name=substream_name,
+        metadata={'turn_complete': True},
+    )
 
   @classmethod
   def from_dict(cls, *, data: dict[str, Any]) -> 'ProcessorPart':
