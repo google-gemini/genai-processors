@@ -82,7 +82,9 @@ class FunctionCallingTest(unittest.IsolatedAsyncioTestCase):
         output,
         [
             content_api.ProcessorPart.from_function_call(
-                name='get_weather', args={'location': 'London'}
+                name='get_weather',
+                args={'location': 'London'},
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='get_weather',
@@ -179,7 +181,9 @@ class FunctionCallingTest(unittest.IsolatedAsyncioTestCase):
         output,
         [
             content_api.ProcessorPart.from_function_call(
-                name='get_time', args={}
+                name='get_time',
+                args={},
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='get_time',
@@ -226,7 +230,9 @@ class FunctionCallingTest(unittest.IsolatedAsyncioTestCase):
         output,
         [
             content_api.ProcessorPart.from_function_call(
-                name='failing_function', args={}
+                name='failing_function',
+                args={},
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='failing_function',
