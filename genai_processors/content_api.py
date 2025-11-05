@@ -20,7 +20,7 @@ import functools
 import io
 import itertools
 import json
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union
 
 from absl import logging
 from genai_processors import mime_types
@@ -328,23 +328,66 @@ class ProcessorPart:
       cls,
       *,
       name: str,
-      response: dict[str, Any],
+      response: Union[dict[str, Any], 'ProcessorContentTypes'],
       function_call_id: str | None = None,
       will_continue: bool | None = None,
       scheduling: genai_types.FunctionResponseScheduling | None = None,
       **kwargs,
   ) -> 'ProcessorPart':
-    """Constructs a ProcessorPart as a function response."""
-    part = genai_types.Part(
-        function_response=genai_types.FunctionResponse(
-            id=function_call_id,
-            name=name,
-            response=response,
-            will_continue=will_continue,
-            scheduling=scheduling,
-        )
+    """Constructs a ProcessorPart as a function response.
+
+    Args:
+      name: The name of the invoked function.
+      response: The value returned by the function. It can be a
+        JSON-serializable object or `ProcessorContentTypes`. If response is a
+        JSON-serializable or is text-only it will be stored in the '.result'
+        field of the function response. Otherwise it will be stored in `.parts`.
+      function_call_id: The ID of the function call this is a response to if
+        known.
+      will_continue: Whether this is the last response from a generator
+        function.
+      scheduling: The scheduling policy for the function response. Controls
+        whether the response generation will be triggered immediately or the
+        function response is just added to the context.
+      **kwargs: Additional keyword arguments to pass to the `ProcessorPart`
+        constructor.
+
+    Returns:
+      A ProcessorPart representing the function response.
+    """
+    function_response_args = dict(
+        id=function_call_id,
+        name=name,
+        will_continue=will_continue,
+        scheduling=scheduling,
     )
-    return cls(part, **kwargs)
+    # For maximal compatibility we first try to interpret response as JSON
+    # serializable object. This is what tools in Gemini API return historically.
+    try:
+      function_response = genai_types.FunctionResponse(
+          response={'result': response}, **function_response_args
+      )
+      function_response.json()
+    except ValueError:
+      # Response is not JSON serializable. Then try to construct content.
+      response_content = ProcessorContent(response)
+      try:
+        function_response = genai_types.FunctionResponse(
+            response={'result': as_text(response_content, strict=True)},
+            **function_response_args,
+        )
+      except ValueError:
+        parts = [
+            genai_types.FunctionResponsePart.from_bytes(
+                data=part.bytes, mime_type=part.mimetype
+            )
+            for part in response_content
+        ]
+        function_response = genai_types.FunctionResponse(
+            parts=parts, **function_response_args
+        )
+
+    return cls(genai_types.Part(function_response=function_response), **kwargs)
 
   @classmethod
   def from_executable_code(

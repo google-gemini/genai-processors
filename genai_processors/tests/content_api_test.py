@@ -82,6 +82,67 @@ class ProcessorPartTest(parameterized.TestCase):
     self.assertEqual(part.part.inline_data.data, bytes_data)
     self.assertEqual(part.part.inline_data.mime_type, mimetype)
 
+  def test_from_function_response_with_text_content(self):
+    part = content_api.ProcessorPart.from_function_response(
+        name='foo',
+        response=content_api.ProcessorContent('bar'),
+    )
+    self.assertEqual(part.function_response.name, 'foo')
+    self.assertEqual(part.function_response.response, {'result': 'bar'})
+    self.assertIsNone(part.function_response.parts)
+
+  def test_from_function_response_with_dataclass(self):
+    part = content_api.ProcessorPart.from_function_response(
+        name='foo',
+        response=Dataclass(foo='foo', bar=1),
+    )
+    self.assertEqual(part.function_response.name, 'foo')
+    self.assertEqual(
+        part.function_response.response, {'result': Dataclass(foo='foo', bar=1)}
+    )
+    self.assertIsNone(part.function_response.parts)
+
+  def test_from_function_response_with_image_content(self):
+    image_bytes = _png_image_bytes()
+    part = content_api.ProcessorPart.from_function_response(
+        name='foo',
+        response=content_api.ProcessorPart(image_bytes, mimetype='image/png'),
+    )
+    self.assertEqual(part.function_response.name, 'foo')
+    self.assertIsNone(part.function_response.response)
+    self.assertLen(part.function_response.parts, 1)
+    self.assertEqual(
+        part.function_response.parts[0].inline_data.mime_type, 'image/png'
+    )
+    self.assertEqual(
+        part.function_response.parts[0].inline_data.data, image_bytes
+    )
+
+  def test_from_function_response_with_mixed_content(self):
+    image_bytes = _png_image_bytes()
+    part = content_api.ProcessorPart.from_function_response(
+        name='foo',
+        response=[
+            'Here is a black cat in a black room: ',
+            content_api.ProcessorPart(image_bytes, mimetype='image/png'),
+        ],
+    )
+    self.assertEqual(
+        part.function_response,
+        genai_types.FunctionResponse(
+            name='foo',
+            parts=[
+                genai_types.FunctionResponsePart.from_bytes(
+                    data=b'Here is a black cat in a black room: ',
+                    mime_type='text/plain',
+                ),
+                genai_types.FunctionResponsePart.from_bytes(
+                    data=image_bytes, mime_type='image/png'
+                ),
+            ],
+        ),
+    )
+
   def test_eq_part_and_non_part(self):
     part = content_api.ProcessorPart('foo')
     self.assertNotEqual(part, object())
