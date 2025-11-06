@@ -705,12 +705,13 @@ class _ExecuteFunctionCall(processor.PartProcessor):
     try:
       fn = self._fns[call.name]
     except KeyError:
+      function_names = ', '.join(repr(fn) for fn in sorted(self._fns.keys()))
       yield content_api.ProcessorPart.from_function_response(
           name=call.name,
           function_call_id=call.id,
           response=(
               f'Function {call.name} not found. Available functions:'
-              f' \'{"\', \'".join(sorted(self._fns.keys()))}\'.'  # pylint: disable=g-inconsistent-quotes
+              f' {function_names}.'
           ),
           role='user',
           substream_name=self._substream_name,
