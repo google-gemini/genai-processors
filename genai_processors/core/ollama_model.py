@@ -15,7 +15,7 @@
 
 """Wraps the Ollama API into a Processor.
 
-This module allows grounding Processor pipelines with locally-run LLMs, such as
+This module allows running Processor pipelines with locally-run LLMs, such as
 Gemma. To use the module, you must install Ollama. You can find the full
 instructions at https://ai.google.dev/gemma/docs/integrations/ollama. Also
 before working with Gemma models, make sure you have requested access via Kaggle

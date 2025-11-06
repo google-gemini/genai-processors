@@ -4,33 +4,138 @@ The FunctionCalling processor is a loop over a model call that intercepts any
 function call, runs the function, injects the result back into the model prompt
 and goes to the next iteration until no function call is made.
 
-It assumes that model uses Part.function_call / Part.function_response and
-focuses on the function calling loop and the execution of tools. Model itself
-is responsible for formatting/parsing these parts in-to its internal
-representation.
+The term function here is a bit of a misnomer as not all functions can be
+called: its parameters must be JSON-serializable, see
+https://ai.google.dev/gemini-api/docs/function-calling?example=meeting#schema.
+Its responses should also either be JSON-serializable values or should return a
+genai_types.FunctionResponse. We will therefore refer to such functions as tools
+from now on to avoid confusion with functions defined in Python.
+
+We define two types of tools: sync and async. Both can be easily defined from
+sync of async Python functions.
+
+For sync tools, the function calling processor will wait until the function
+returns the result. This is the default behavior when the model is turn-based.
+When the model is bidi (aka realtime), the function will be run in a separate
+thread and any result will trigger an interruption of the model output and a new
+model call.
+
+If you provide an async tool, the function calling processor will return a 'OK,
+running in the background.' response to the model immediately and will send back
+the result later on when it is available. Such behavior happens for turn-based
+models as well as for realtime models. For turn-based models, the model will
+wait for the async tools to return the result before returning to the user.
+If the model outputs more than one async function/tool call, these tools will
+be run in parallel and the results can be interleaved. The function responses
+contain the name of the tool that returned the response. This allows you to
+detect which response corresponds to which tool call.
+
+We therefore have the following 4 cases:
+
+- Turn-based model + sync tool: tool is blocking, only one can be run at a time.
+- Turn-based model + async tool: tool is non-blocking, allowing the model to
+invoke multiple tools in parallel. The model will wait for all tools to finish
+before returning control to the user.
+- Realtime model + sync tool: tool is automatically converted to an async tool.
+to let the realtime model process new incoming input without being blocked.
+- Realtime model + async tool: tool is non-blocking, many can be run in
+parallel and async tools can stream responses back to the model as they become
+available.
+
+For async tools and more generally for any tool used in with a realtime model,
+you will get a first and immediate 'OK, running in the background.' response
+containing a tool call ID, which is needed to associate future function
+responses to the  correct calls. For sync tools, you will get the result as a
+single function response when the tool returns. It is scheduled just after the
+tool call.
+
+We recommend using sync tools for turn-based models as they have
+simpler formatting: they don't need the 'OK, running in the background.'
+response with a tool call ID as the function response is returned after the tool
+call.
+
+When using a realtime model, sync tools are wrapped into a thread and de facto
+becomes async to avoid blocking the realtime model. This means the model will
+not wait for the tool to finish before returning and can process new input while
+the tool is running. This means any tool used in a realtime model will have
+a first 'OK, running in the background.' immediate response containing a tool
+call ID.
+
+You can define an async tool from a Python async function or from a Python async
+generator. Async generators will stream responses back to the model whenever it
+can. This can be used for proactive applications, e.g. geofence tool can yield a
+response every time a user enters or exits their home, thus waking an assistant
+and giving it a chance to react.
+
+The response of async tools are automatically wrapped into
+`genai_types.FunctionResponse`. This is what is returned by the function calling
+processor. To control how the function response is added to the model prompt,
+you can return `FunctionResponse` directly from your async tool function.
+
+The `FunctionResponse` object includes a scheduling option that lets you control
+how the function response is added to the model prompt:
+
+- SILENT: the response is added to the model prompt but no model output is
+generated. The model will see it next time something else triggers the
+generation.
+- INTERRUPT: the response is added to the model prompt, and the model output is
+generated interrupting any ongoing model output.
+- WHEN_IDLE: we wait for the model to output its current result (if there is
+an ongoing one) then the response is appended to the prompt and the model is
+requested to generate a response. This is the default option.
+
+Note that you can return FunctionResponse in an async generator function.
+
+Any async tool (or sync tool in a bidi model) called by the model will trigger
+the following `FunctionResponse`. This is done automatically by this function
+calling processor:
+
+```python
+FunctionResponse(
+    name='<tool_name>',  # name of the tool or of the python function
+    function_call_id='<id provided by the function call>',
+    response={'result': 'Running in background.'},
+    role='user',
+    substream_name=<function_call_substream_name>, # provided to the ctor.
+    scheduling='SILENT', # does not trigger any model output. just for info.
+)
+```
+
+The function calling processor will populate any function ouptut with the proper
+tool call ID and substream name, even when the function returns a
+`FunctionResponse` directly.
+
+This function calling processor focuses on the function calling loop and on the
+execution of tools only. The model is responsible for formatting/parsing these
+parts into its internal representation.
 
 The overall logic can be depicted as:
 
 ```
-    input -> pre_processor -> model -> function_call -> output
-                  |                    |
-                  -<---function run---<-
+    input -> pre_processor -> model -----+----> output
+                  ^                      |
+                  |                      v
+            function run ----<---- function call
 ```
 
 where:
 -  `input` is the input stream.
 -  `pre_processor` is a processor called once on `input` and on all results
-obtained by tool invocation.
--  `model` is an unary (not bidirectional) model processor that generates
-   content. For the model to know which tools are available, the same
-   function/tool set should be given both to the FunctionCalling and the model
-   constructor.
--  `function_call` executes the function calls returned by the model. The
-function response is then fed back to the model for another iteration. If there
-is no function call to execute, the loop is stopped and the current tool_use
-output is sent back to the output stream.
+obtained by tool invocation. This could for instance be an image tokenizer to
+preprocess images and avoid re-tokenizing them on every model invocation.
+-  `model` is a model processor that generates content. For the model to know
+which tools are available, the samefunction/tool set should be given both to the
+FunctionCalling and the model constructor. This model can be turn-based or
+bidi but this should be specificed in the FunctionCalling ctor.
+-  `function_call` executes the function calls returned by the model. This is
+a private processor in this file. The function response is then fed back to the
+model for another iteration. If there is no function call to execute and the
+the model is turn-based, the loop is stopped and the current tool_use output is
+sent back to the output stream.
 
 The output is the model output including the function call and the responses.
+They are all in the same substream as identified by `substream_name` in the
+FunctionCalling ctor.
 
 When used with GenAI models (i.e. Gemini API), the model should be defined as
 follows:
@@ -38,7 +143,7 @@ follows:
 ```python
 genai_processor = genai_model.GenaiModel(
     api_key=API_KEY,
-    model_name="gemini-2.5-flash",
+    model_name='gemini-2.5-flash',
     generate_content_config=genai_types.GenerateContentConfig(
         tools=[fns],
         automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(disable=True),
@@ -49,38 +154,226 @@ genai_processor = genai_model.GenaiModel(
 where `fns` are the python functions to be called. Note that we disable the
 automatic function calling feature here to avoid duplicate function calls with
 the GenAI automatic function calling feature.
+
+You define the function `fns` as regular python functions. Arguments and
+outputs need to be JSON-serializable for models to be able to generate and
+ingest them:
+
+```python
+def get_weather(location: str, period: Tuple[str, str] | None = None) -> str:
+  '''Returns the weather for the provided period of time.
+
+  Args:
+    location: The location to get the weather for.
+    period: A (start_time, end_time) tuple.
+
+  Returns:
+    A string describing the weather for the provided periods of time. If no
+    period is provided, the current weather is returned.
+  '''
+  return 'Sun is shining'
+```
+
+We provide an extensive docstring here as this is usually used by the model to
+add function declarations to its prompt. Supplying async Python functions
+directly can be done as follows:
+
+```python
+async get_weather(location: str) -> str:
+  '''Returns the current weather at the provided location.
+
+  Args:
+    location: The location to get the weather for.
+
+  Returns:
+    A string describing the weather for the provided location at the current
+    time.
+  '''
+  response = await httpx.AsyncClient(...).get()
+  return response.json()['temperature']
+```
+
+This creates an async tool automatically: the function calling processor will
+return a 'OK, running in the background.' response to the model immediately and
+will send back the result later on when it is available.
+
+When an async function returns more than one response (over a longer period of
+time), it is recommended to define an async generator function:
+
+```python
+async set_timer(countdown_seconds: int) -> AsyncIterable[str]:
+  '''Sets a timer for the given number of seconds.
+
+  Args:
+    countdown_seconds: The number of seconds to set the timer for.
+
+  Yields:
+    A string describing the progress of the timer every second.
+  '''
+  await asyncio.sleep(countdown_seconds)
+  yield f'{countdown_seconds} seconds have passed.'
+```
+  count_tick = 0
+  while (count_tick < countdown_seconds)
+    await asyncio.sleep(1)
+    count_tick += 1
+    yield f'{count_tick} seconds have passed.'
+
+The function calling processor will detect async generators and will stream
+responses back to the model whenever it can. This can be used for proactive
+applications when an async generator function for instance sends signals to the
+model every time it detects a change in a video feed.
+
+When the end of the async generator is reached, the async tool will return an
+empty `FunctionResponse` with the `will_continue` field set to `False` and the
+scheduling set to `SILENT` (for info to the model). All other function responses
+in the async generator are returned with the `will_continue` field set to
+`True` to indicate that the tool is continuing to run and might produce more
+responses.
+
+As discussed above, you can return FunctionResponse directly from your async
+tool function or async generator function to control how the function response
+is added to the model prompt.
 """
 
+import asyncio
+import collections
 from collections.abc import AsyncIterable
+import dataclasses
+import inspect
+import math
 from typing import Any, Callable
 
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import streams
 from google.genai import _extra_utils
+from google.genai import types as genai_types
 
 
 # All function call parts (calls and responses) are emitted in a substream
 # with this name. This is to help downstream processors to identify function
 # calls that were executed from function calls returned directly by the model.
-FUNCTION_CALL_SUBTREAM_NAME = "function_call"
+FUNCTION_CALL_SUBTREAM_NAME = 'function_call'
+
+# Internal metadata key to carry the scheduling of a function call in an
+# EndOfTurn part.
+_SCHEDULING_METADATA_KEY = '__scheduling__'
+
+
+@dataclasses.dataclass
+class _FunctionCallState:
+  """State of the function calling processor."""
+
+  # Number of async function calls that are currently running.
+  async_fc_count: int = 0
+  # Whether the model is currently outputting.
+  model_outputting: bool = True
+  # Number of tool calls that have been made.
+  fn_call_count: int = 0
+  # Maximum number of tool calls to make.
+  fn_call_count_limit: float = math.inf
+  # Whether the model has output a function call that has not been run yet.
+  has_new_fn_calls: bool = False
+  # Whether a model call should be scheduled after an async function sent back
+  # a part to the model prompt.
+  schedule_model_call: bool = False
+
+
+def _update_model_outputting(
+    model: processor.Processor, state: _FunctionCallState
+) -> processor.Processor:
+  """Updates the model outputting state based on the model output."""
+
+  @processor.processor_function
+  async def _catch_eot(
+      content: AsyncIterable[content_api.ProcessorPart],
+  ) -> AsyncIterable[content_api.ProcessorPart]:
+
+    async def input_stream():
+      async for part in content:
+        if content_api.is_end_of_turn(part):
+          state.model_outputting = True
+        yield part
+
+    async for part in model(input_stream()):
+      if content_api.is_end_of_turn(part):
+        state.model_outputting = False
+      yield part
+
+  return _catch_eot
+
+
+def _to_bidi(p: processor.Processor) -> processor.Processor:
+  """Converts a unary processor to a bidi processor.
+
+  A bidi (aka realtime) processor has actually more features than what we return
+  here: eager processing of input, to handle start/end of speech signals, etc.
+  Here, we need a thin adapter from turn-based to bidi using EoT to trigger a
+  model call. This is to keep the same function calling loop between bidi and
+  non-bidi so the logic stays the same as much as possible.
+
+  Args:
+    p: The unary processor to convert.
+
+  Returns:
+    A processor that can take an infinite input stream and will trigger model
+    calls whenever an EndOfTurn is received.
+  """
+
+  @processor.processor_function
+  async def call(
+      content: AsyncIterable[content_api.ProcessorPart],
+  ) -> AsyncIterable[content_api.ProcessorPart]:
+    prompt = []
+    dirty_prompt = False
+    async for part in content:
+      if content_api.is_end_of_turn(part):
+        dirty_prompt = False
+        async for part in p(streams.stream_content(prompt)):
+          yield part
+        yield content_api.END_OF_TURN
+      else:
+        prompt.append(part)
+        if part.role == 'user':
+          dirty_prompt = True
+    if dirty_prompt:
+      async for part in p(streams.stream_content(prompt)):
+        yield part
+      yield content_api.END_OF_TURN
+
+  return call
+
+
+async def _add_end_of_turn(
+    content: AsyncIterable[content_api.ProcessorPart],
+) -> AsyncIterable[content_api.ProcessorPart]:
+  """Adds an end of turn to the content if it is not already present."""
+  last_part = None
+  async for part in content:
+    yield part
+    last_part = part
+  if last_part is None or not content_api.is_end_of_turn(last_part):
+    yield content_api.END_OF_TURN
 
 
 class FunctionCalling(processor.Processor):
   """Tool use with Function Calling.
 
-  See class docstring for more details.
+  See file level docstring for more details.
   """
 
   def __init__(
       self,
       model: processor.Processor,
       *,
+      is_bidi_model: bool = False,
+      substream_name: str = FUNCTION_CALL_SUBTREAM_NAME,
       pre_processor: (
           processor.Processor | processor.PartProcessor | None
       ) = None,
       fns: list[Callable[..., Any]] | None = None,
-      max_function_calls: int = 5,
+      max_function_calls: int | None = None,
   ):
     """Initializes the FunctionCalling processor.
 
@@ -88,6 +381,18 @@ class FunctionCalling(processor.Processor):
       model: The processor to use for generation. This processor should not be a
         bidi model like the one obtained from `realtime.py`. It should be a
         unary-streaming model, waiting on the full input stream when called.
+      is_bidi_model: Whether the model is a bidi model. Most Gemini API models -
+        except the Live API - are unary streaming, i.e. `is_bidi_model` is
+        False. If `is_bidi_model` is False, the function calling processor will
+        convert the unary processor to a bidi processor that can be called with
+        async function calls. This means the model will wait for the end of any
+        async function called before returning, the TTFT is therefore bounded by
+        the longest async function called. With true bidi models, the model
+        stops whenever the input stream ends.
+      substream_name: The substream name to use for function calls and function
+        responses. This is to help downstream processors to identify function
+        calls and responses that were executed from this function calling
+        processor.
       pre_processor: An optional pre-processor to pass the model input (prompt,
         function responses, model output from previous iterations) through.
       fns: The functions to register for function calling. Those functions must
@@ -99,85 +404,357 @@ class FunctionCalling(processor.Processor):
         function call part and will raise a `ValueError`. If the execution of
         the function fails, the function calling processor will return a
         function response with the error message.
-      max_function_calls: The maximum number of function calls to make (default
-        set to 5). When this limit is reached, the function calling loop will
-        stop even if the model is still invoking function calls.
+      max_function_calls: maximum number of function calls to make (default set
+        to 5 of turn-based models and infinity for bidi aka realtime models).
+        When this limit is reached, the function calling loop will wait for the
+        last function calls to return. If a function call is async and runs for
+        a long time, the function calling loop will wait for it to finish.
     """
     self._model = model
+    self._substream_name = substream_name
+    self._is_bidi_model = is_bidi_model
     self._fns = fns
     self._pre_processor = (
         pre_processor.to_processor()
         if pre_processor
         else processor.passthrough().to_processor()
     )
-    assert max_function_calls >= 0
-    self._max_function_calls = max_function_calls
+    default_max_function_calls = 5 if not is_bidi_model else math.inf
+    self._max_function_calls = max_function_calls or default_max_function_calls
 
   async def call(
       self, content: AsyncIterable[content_api.ProcessorPart]
   ) -> AsyncIterable[content_api.ProcessorPart]:
 
-    execute_function_call = ExecuteFunctionCall(fns=self._fns)
-
-    if self._pre_processor:
-      content = self._pre_processor(content)
-
     # Main loop - ensure we have at least one iteration and one model call
     # independent of the max_function_calls value.
-    for _ in range(self._max_function_calls + 1):
-      content, prev_content = streams.split(content, with_copy=True)
-      next_content = (self._model + execute_function_call)(content)
+    input_queue = asyncio.Queue[content_api.ProcessorPart | None]()
+    input_stream = streams.merge(
+        streams=[
+            _add_end_of_turn(content),
+            streams.dequeue(input_queue),
+        ],
+        stop_on_first=self._is_bidi_model,
+    )
+    output_queue = asyncio.Queue[content_api.ProcessorPart | None]()
 
-      # Keep a copy of the model output
-      output_content, next_content = streams.split(next_content, with_copy=True)
-      tool_calls = False
-      async for part in output_content:
-        if part.function_response:
-          tool_calls = True
+    model = self._model
+    if not self._is_bidi_model:
+      model = _to_bidi(model)
+    state = _FunctionCallState()
+    state.fn_call_count_limit = self._max_function_calls
+    execute_function_call = _ExecuteFunctionCall(
+        fns=self._fns,
+        output_queue=output_queue,
+        fn_state=state,
+        is_bidi_model=self._is_bidi_model,
+        substream_name=self._substream_name,
+    )
+    processor_pipeline = (
+        self._pre_processor
+        + _update_model_outputting(model, state)
+        + execute_function_call
+    )
+
+    async for part in streams.merge(
+        [processor_pipeline(input_stream), streams.dequeue(output_queue)],
+        stop_on_first=self._is_bidi_model,
+    ):
+      if not content_api.is_end_of_turn(part):
+        # Reinject output parts into the model except EoTs (handled below).
+        input_queue.put_nowait(part)
         yield part
 
-      if not tool_calls:
-        break
+        if (
+            part.function_response
+            and part.function_response.scheduling
+            != genai_types.FunctionResponseScheduling.SILENT
+        ):
+          # only for sync function calls.
+          state.has_new_fn_calls = True
 
-      content = streams.concat(prev_content, self._pre_processor(next_content))
+      elif part.substream_name == FUNCTION_CALL_SUBTREAM_NAME:
+        # EoT is requested by function calls. We need to schedule the next
+        # function call or stop the loop.
+        match part.get_metadata(
+            _SCHEDULING_METADATA_KEY,
+            genai_types.FunctionResponseScheduling.INTERRUPT,
+        ):
+          case genai_types.FunctionResponseScheduling.SILENT:
+            # state.has_new_fn_calls = False
+            pass
+          case genai_types.FunctionResponseScheduling.WHEN_IDLE:
+            if state.model_outputting:
+              state.schedule_model_call = True
+            else:
+              input_queue.put_nowait(content_api.END_OF_TURN)
+              state.has_new_fn_calls = False
+          case _:
+            input_queue.put_nowait(content_api.END_OF_TURN)
+            state.has_new_fn_calls = False
+        # If we reached max count, stop the loop after this last call.
+        if state.fn_call_count >= state.fn_call_count_limit:
+          input_queue.put_nowait(None)
+          output_queue.put_nowait(None)
+      else:
+        # EoT issued by the model. We need to check if we stop or if there is
+        # a function call to schedule.
+        if not self._is_bidi_model:
+          if not state.has_new_fn_calls and state.async_fc_count == 0:
+            # Stop when there are no more function calls to execute and no more
+            # async function calls running, or when the max function calls is
+            # reached.
+            input_queue.put_nowait(None)
+            output_queue.put_nowait(None)
+          elif state.has_new_fn_calls or state.schedule_model_call:
+            input_queue.put_nowait(content_api.END_OF_TURN)
+            state.has_new_fn_calls = False
+            state.schedule_model_call = False
+        elif (
+            state.schedule_model_call and not state.model_outputting
+        ):  # or state.has_new_fn_calls:
+          input_queue.put_nowait(content_api.END_OF_TURN)
+          state.has_new_fn_calls = False
+          state.schedule_model_call = False
 
 
-class ExecuteFunctionCall(processor.PartProcessor):
+class _ExecuteFunctionCall(processor.PartProcessor):
   """Executes a function call and returns the whole input with the result."""
 
-  def __init__(self, fns: list[Callable[..., Any]]):
+  def __init__(
+      self,
+      fns: list[Callable[..., Any]],
+      output_queue: asyncio.Queue[content_api.ProcessorPart | None],
+      fn_state: _FunctionCallState,
+      is_bidi_model: bool,
+      substream_name: str,
+  ):
     self._fns = {fn.__name__: fn for fn in fns}
+    self._output_queue = output_queue
+    # Map from function call id to the task running the function call.
+    self._task_map = {}
+    self._task_counter = collections.defaultdict(int)
+    self._fn_state = fn_state
+    self._is_bidi_model = is_bidi_model
+    self._substream_name = substream_name
+
+  def _create_task_id(self, fn_name: str) -> str:
+    """Creates a function call id."""
+    # Semantic task IDs help models to keep track of running tools and reduce
+    # halucinations.
+    task_id = f'{fn_name}_{self._task_counter[fn_name]}'
+    self._task_counter[fn_name] += 1
+    return task_id
+
+  def _add_task(self, task_id: str, task: asyncio.Task) -> None:
+    """Adds the Task running a function and returns task_id."""
+    self._task_map = {k: v for k, v in self._task_map.items() if not v.done()}
+    self._task_map[task_id] = task
 
   def match(self, part: content_api.ProcessorPart) -> bool:
     return bool(part.function_call)
+
+  def _to_function_response(
+      self,
+      parts: content_api.ProcessorContentTypes | Any,
+      call: genai_types.FunctionCall,
+      will_continue: bool | None = None,
+  ) -> content_api.ProcessorPart:
+    """Wraps the part in a FunctionResponse if it is not already one.
+
+    Tools in function calling do not always return a FunctionResponse. This
+    method wraps the part in a FunctionResponse if it is not already one. If it
+    is already a FunctionResponse, we update the id to match the function call
+    id.
+
+    The response is structured as {'result': str(part)}. Part must therefore be
+    convertible to a string (e.g. json serializable).
+
+    Args:
+      parts: The parts to wrap. You can pass more than one part. It will be
+        wrapped in a single function response. When providing something
+        different than a `ProcessorContentTypes`, `parts` needs to be JSON
+        serializable. When providing a function response, the id will be set to
+        the function call id and the substream name will be set to the function
+        calling processor substream name (changed in place).
+      call: The function call that was made.
+      will_continue: should only be used for async generator functions.
+
+    Returns:
+      A function response wrapping the content in the part.
+    """
+    if isinstance(parts, content_api.ProcessorPart) and parts.function_response:
+      parts.function_response.id = call.id
+      parts.substream_name = self._substream_name
+      return parts
+    else:
+      return content_api.ProcessorPart.from_function_response(
+          name=call.name,
+          response=parts,
+          function_call_id=call.id,
+          substream_name=self._substream_name,
+          scheduling=genai_types.FunctionResponseScheduling.WHEN_IDLE,
+          will_continue=will_continue,
+          role='user',
+      )
+
+  async def _add_will_continue_logic(
+      self,
+      will_continue: bool,
+      call: genai_types.FunctionCall,
+      content: AsyncIterable[Any],
+  ) -> AsyncIterable[Any]:
+    """Wraps a loop with a final `will_continue=False` logic."""
+    async for fc_part in content:
+      yield fc_part
+
+    # Return a silent function response to indicate to the model that the
+    # function call is done (see will_continue). Only applicable to async
+    # generator functions.
+    if will_continue:
+      yield content_api.ProcessorPart.from_function_response(
+          name=call.name,
+          function_call_id=call.id,
+          response='',
+          role='user',
+          substream_name=self._substream_name,
+          scheduling=genai_types.FunctionResponseScheduling.SILENT,
+          will_continue=False,
+      )
+
+  async def _put_function_response_to_output_queue(
+      self, call: genai_types.FunctionCall, fn: Callable[..., Any]
+  ) -> None:
+    """Puts the function call results to the output queue.
+
+    Wraps all function call parts in a function response and puts them to the
+    output queue. An EoT is also put to the output queue to request a model call
+    in function calling loop.
+
+    Args:
+      call: The function call to execute.
+      fn: The function to execute.
+    """
+    will_continue = inspect.isasyncgenfunction(fn) or None
+    async for fc_part in self._add_will_continue_logic(
+        will_continue, call, self._execute_function(call, fn)
+    ):
+      wrapped_part = self._to_function_response(
+          fc_part, call, will_continue=will_continue
+      )
+
+      # return an EoT to request a model call in function calling loop.
+      self._output_queue.put_nowait(wrapped_part)
+      eot = content_api.ProcessorPart.end_of_turn(
+          substream_name=FUNCTION_CALL_SUBTREAM_NAME,
+          metadata={
+              _SCHEDULING_METADATA_KEY: (
+                  wrapped_part.function_response.scheduling
+              )
+          },
+      )
+      self._output_queue.put_nowait(eot)
+
+    self._fn_state.async_fc_count -= 1
+
+  async def _execute_function(
+      self,
+      call: genai_types.FunctionCall,
+      fn: Callable[..., Any],
+  ) -> AsyncIterable[Any]:
+    """Runs the function into an async Task."""
+    args = _extra_utils.convert_number_values_for_dict_function_call_args(
+        call.args
+    )
+    converted_args = _extra_utils.convert_argument_from_function(args, fn)
+    try:
+      if inspect.isasyncgenfunction(fn):
+        async for part_type in fn(**converted_args):
+          yield part_type
+        return
+      elif inspect.iscoroutinefunction(fn):
+        part_type = await fn(**converted_args)
+        yield part_type
+        return
+      else:
+        yield await asyncio.to_thread(fn, **converted_args)
+    except Exception as e:  # pylint: disable=broad-except
+      yield content_api.ProcessorPart.from_function_response(
+          name=call.name,
+          response=(
+              f'Failed to invoke function {fn.__name__}({converted_args}): {e}'
+          ),
+          role='user',
+          substream_name=self._substream_name,
+          is_error=True,
+      )
 
   async def call(
       self, part: content_api.ProcessorPart
   ) -> AsyncIterable[content_api.ProcessorPart]:
     """Executes a function call and returns the result."""
     # The match() method ensures that the part is a function call.
+    self._fn_state.fn_call_count += 1
+    if self._fn_state.fn_call_count > self._fn_state.fn_call_count_limit:
+      return
+
     part.substream_name = FUNCTION_CALL_SUBTREAM_NAME
-    yield part
     call = part.function_call
+    yield part
+
     try:
       fn = self._fns[call.name]
-    except KeyError as e:
-      raise ValueError(
-          f"Function {call.name} not found. Available functions:"
-          f" {self._fns.keys()}."
-      ) from e
-    try:
-      args = _extra_utils.convert_number_values_for_dict_function_call_args(
-          call.args
+    except KeyError:
+      yield content_api.ProcessorPart.from_function_response(
+          name=call.name,
+          function_call_id=call.id,
+          response=(
+              f'Function {call.name} not found. Available functions:'
+              f' \'{"\', \'".join(sorted(self._fns.keys()))}\'.'  # pylint: disable=g-inconsistent-quotes
+          ),
+          role='user',
+          substream_name=self._substream_name,
+          will_continue=False if self._is_bidi_model else None,
+          is_error=True,
       )
-      function_response = {
-          "result": _extra_utils.invoke_function_from_dict_args(args, fn)
-      }
-    except Exception as e:  # pylint: disable=broad-except
-      function_response = {"error": str(e)}
-    yield content_api.ProcessorPart.from_function_response(
-        name=call.name,
-        response=function_response,
-        role="user",
-        substream_name=FUNCTION_CALL_SUBTREAM_NAME,
-    )
+      return
+
+    if (
+        inspect.iscoroutinefunction(fn)
+        or inspect.isasyncgenfunction(fn)
+        or self._is_bidi_model
+    ):
+      # Immediately returns a function response with a std result. The
+      # scheduling is silent. If the model needs an interrupt now, the function
+      # that is called should return an async generator of
+      # ProcessorPart.FunctionResponse with a first reponse requesting a model
+      # interrupt.
+      yield content_api.ProcessorPart.from_function_response(
+          name=call.name,
+          function_call_id=call.id,
+          response='Running in background.',
+          role='user',
+          substream_name=self._substream_name,
+          scheduling=genai_types.FunctionResponseScheduling.SILENT,
+      )
+
+      # Run function in a separate task and inject the results back into the
+      # output queue.
+      task_id = call.id or self._create_task_id(call.name)
+      self._add_task(
+          task_id,
+          processor.create_task(
+              self._put_function_response_to_output_queue(call, fn)
+          ),
+      )
+      self._fn_state.async_fc_count += 1
+    else:
+      # When the function is sync, we execute in sync. Note that the loop is
+      # async and the function is actually sent to another thread to run when
+      # the model is bidi.
+      will_continue = inspect.isasyncgenfunction(fn) or None
+
+      async for fc_part in self._add_will_continue_logic(
+          inspect.isasyncgenfunction(fn), call, self._execute_function(call, fn)
+      ):
+        yield self._to_function_response(fc_part, call, will_continue)

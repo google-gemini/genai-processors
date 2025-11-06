@@ -332,6 +332,7 @@ class ProcessorPart:
       function_call_id: str | None = None,
       will_continue: bool | None = None,
       scheduling: genai_types.FunctionResponseScheduling | None = None,
+      is_error: bool = False,
       **kwargs,
   ) -> 'ProcessorPart':
     """Constructs a ProcessorPart as a function response.
@@ -349,12 +350,19 @@ class ProcessorPart:
       scheduling: The scheduling policy for the function response. Controls
         whether the response generation will be triggered immediately or the
         function response is just added to the context.
+      is_error: Whether the function response is an error. When it is an error,
+        the response will be stored in the '.error' field in the function
+        response.
       **kwargs: Additional keyword arguments to pass to the `ProcessorPart`
         constructor.
 
     Returns:
       A ProcessorPart representing the function response.
     """
+    if is_error:
+      response_key = 'error'
+    else:
+      response_key = 'result'
     function_response_args = dict(
         id=function_call_id,
         name=name,
@@ -365,7 +373,7 @@ class ProcessorPart:
     # serializable object. This is what tools in Gemini API return historically.
     try:
       function_response = genai_types.FunctionResponse(
-          response={'result': response}, **function_response_args
+          response={response_key: response}, **function_response_args
       )
       function_response.json()
     except ValueError:
@@ -373,7 +381,7 @@ class ProcessorPart:
       response_content = ProcessorContent(response)
       try:
         function_response = genai_types.FunctionResponse(
-            response={'result': as_text(response_content, strict=True)},
+            response={response_key: as_text(response_content, strict=True)},
             **function_response_args,
         )
       except ValueError:
@@ -445,12 +453,16 @@ class ProcessorPart:
     return cls(part, **kwargs)
 
   @classmethod
-  def end_of_turn(cls, substream_name: str = '') -> 'ProcessorPart':
+  def end_of_turn(
+      cls, substream_name: str = '', metadata: dict[str, Any] | None = None
+  ) -> 'ProcessorPart':
+    metadata = metadata or {}
+    metadata['turn_complete'] = True
     return ProcessorPart(
         '',
         role='user',
         substream_name=substream_name,
-        metadata={'turn_complete': True},
+        metadata=metadata,
     )
 
   @classmethod
