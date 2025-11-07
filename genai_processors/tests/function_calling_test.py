@@ -3,14 +3,13 @@ from collections.abc import AsyncIterable
 import time
 import unittest
 
+from absl.testing import absltest
+from absl.testing import parameterized
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import streams
 from genai_processors.core import function_calling
 from google.genai import types as genai_types
-
-from google3.testing.pybase import googletest
-from google3.testing.pybase import parameterized
 
 
 def get_weather(location: str) -> str:
@@ -867,4 +866,4 @@ class FunctionCallingAsyncTest(
 
 
 if __name__ == '__main__':
-  googletest.main()
+  absltest.main()
