@@ -30,7 +30,7 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
   async def test_cache_put_and_lookup(self):
     """Tests basic put and lookup functionality."""
     async with sql_cache.sql_cache(self.db_url) as cache:
-      await cache.put(TEST_QUERY, TEST_VALUE)
+      await cache.put(query=TEST_QUERY, value=TEST_VALUE)
       result = await cache.lookup(TEST_QUERY)
       self.assertEqual(result, TEST_VALUE)
 
@@ -45,7 +45,7 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     async with sql_cache.sql_cache(
         self.db_url, ttl_hours=0.0001 / 60 / 60
     ) as cache:  # Very short TTL
-      await cache.put(TEST_QUERY, TEST_VALUE)
+      await cache.put(query=TEST_QUERY, value=TEST_VALUE)
       await asyncio.sleep(0.0002)  # Wait for TTL to expire
       result = await cache.lookup(TEST_QUERY)
       self.assertIs(result, cache_base.CacheMiss)
@@ -53,7 +53,7 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
   async def test_cache_remove(self):
     """Tests removing an item from the cache."""
     async with sql_cache.sql_cache(self.db_url) as cache:
-      await cache.put(TEST_QUERY, TEST_VALUE)
+      await cache.put(query=TEST_QUERY, value=TEST_VALUE)
       await cache.remove(TEST_QUERY)
       result = await cache.lookup(TEST_QUERY)
       self.assertIs(result, cache_base.CacheMiss)
@@ -63,8 +63,8 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     async with sql_cache.sql_cache(self.db_url) as cache1:
       cache2 = cache1.with_key_prefix('prefix:')
 
-      await cache1.put(TEST_QUERY, TEST_VALUE)
-      await cache2.put(TEST_QUERY, TEST_VALUE_2)
+      await cache1.put(query=TEST_QUERY, value=TEST_VALUE)
+      await cache2.put(query=TEST_QUERY, value=TEST_VALUE_2)
 
       result1 = await cache1.lookup(TEST_QUERY)
       result2 = await cache2.lookup(TEST_QUERY)
@@ -84,8 +84,8 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
       value2 = content_api.ProcessorContent({'a': 1, 'b': True})
 
-      await cache.put(query1, value1)
-      await cache.put(query2, value2)
+      await cache.put(query=query1, value=value1)
+      await cache.put(query=query2, value=value2)
 
       self.assertEqual(await cache.lookup(query1), value1)
       self.assertEqual(await cache.lookup(query2), value2)
@@ -93,7 +93,7 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
   async def test_cleanup_expired(self):
     """Tests that the _cleanup_expired method removes old entries."""
     async with sql_cache.sql_cache(self.db_url, ttl_hours=0.0001) as cache:
-      await cache.put(TEST_QUERY, TEST_VALUE)
+      await cache.put(query=TEST_QUERY, value=TEST_VALUE)
       # Mock datetime to control time
       with mock.patch('genai_processors.sql_cache.datetime') as mock_datetime:
         mock_datetime.datetime.now.return_value = datetime.datetime.now(

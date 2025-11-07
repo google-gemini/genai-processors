@@ -132,12 +132,17 @@ class ProcessorPartTest(parameterized.TestCase):
         genai_types.FunctionResponse(
             name='foo',
             parts=[
-                genai_types.FunctionResponsePart.from_bytes(
-                    data=b'Here is a black cat in a black room: ',
-                    mime_type='text/plain',
+                genai_types.FunctionResponsePart(
+                    inline_data=genai_types.FunctionResponseBlob(
+                        data=b'Here is a black cat in a black room: ',
+                        mime_type='text/plain',
+                    ),
                 ),
-                genai_types.FunctionResponsePart.from_bytes(
-                    data=image_bytes, mime_type='image/png'
+                genai_types.FunctionResponsePart(
+                    inline_data=genai_types.FunctionResponseBlob(
+                        data=image_bytes,
+                        mime_type='image/png',
+                    ),
                 ),
             ],
         ),

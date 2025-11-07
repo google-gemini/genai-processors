@@ -375,7 +375,7 @@ class ProcessorPart:
       function_response = genai_types.FunctionResponse(
           response={response_key: response}, **function_response_args
       )
-      function_response.json()
+      function_response.model_dump_json()
     except ValueError:
       # Response is not JSON serializable. Then try to construct content.
       response_content = ProcessorContent(response)
@@ -386,8 +386,11 @@ class ProcessorPart:
         )
       except ValueError:
         parts = [
-            genai_types.FunctionResponsePart.from_bytes(
-                data=part.bytes, mime_type=part.mimetype
+            genai_types.FunctionResponsePart(
+                inline_data=genai_types.FunctionResponseBlob(
+                    data=part.bytes,
+                    mime_type=part.mimetype,
+                )
             )
             for part in response_content
         ]
