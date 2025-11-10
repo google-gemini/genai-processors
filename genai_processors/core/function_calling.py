@@ -510,9 +510,7 @@ class FunctionCalling(processor.Processor):
             input_queue.put_nowait(content_api.END_OF_TURN)
             state.has_new_fn_calls = False
             state.schedule_model_call = False
-        elif (
-            state.schedule_model_call and not state.model_outputting
-        ):  # or state.has_new_fn_calls:
+        elif state.schedule_model_call and not state.model_outputting:
           input_queue.put_nowait(content_api.END_OF_TURN)
           state.has_new_fn_calls = False
           state.schedule_model_call = False

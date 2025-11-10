@@ -97,8 +97,8 @@ class UrlFetch(processor.PartProcessor):
 
       # Iterate over the response chunks
       html_content = []
-      async for chunk in response.aiter_bytes():
-        html_content.append(chunk.decode(response.encoding or 'utf-8'))
+      async for chunk in response.aiter_text():
+        html_content.append(chunk)
       yield content_api.ProcessorPart(
           ''.join(html_content), mimetype=mime_types.TEXT_HTML
       )
