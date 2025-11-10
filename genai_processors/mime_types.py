@@ -181,6 +181,11 @@ def is_wav(mime: str) -> bool:
   return mime.lower() == AUDIO_WAV
 
 
+def is_html(mime: str) -> bool:
+  """Returns whether the content is HTML."""
+  return mime.lower().startswith(TEXT_HTML)
+
+
 def is_source_code(mime: str) -> bool:
   """Returns whether the content is a source code in some language."""
   # This list is incomplete and will be extended on as-needed basis.

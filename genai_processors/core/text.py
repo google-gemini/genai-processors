@@ -18,10 +18,12 @@ import asyncio
 from collections.abc import AsyncIterable, Callable
 import dataclasses
 import re
-from typing import Mapping, Type
+from typing import Literal, Mapping, Type
 
+import bs4
 import dataclasses_json
 from genai_processors import content_api
+from genai_processors import mime_types
 from genai_processors import processor
 import termcolor
 
@@ -401,6 +403,95 @@ class UrlExtractor(MatchProcessor):
         remove_from_input_stream=True,
         transform=transform,
     )
+
+
+_TAG_DENYLIST = [
+    'head',
+    'script',
+    'noscript',
+    'style',
+    'footer',
+    'aside',
+    'nav',
+    'svg',
+]
+_ATTR_ALLOWLIST = [
+    'alt',
+    'href',
+    'aria-label',
+    'aria-level',
+    'aria-roledescription',
+]
+
+
+def _clean_html(raw_html: str) -> bs4.BeautifulSoup:
+  """Cleans raw HTML into cleaner HTML and plaintext.
+
+  Args:
+    raw_html: raw html document - can include a long prefix, e.g. containing the
+      response header of some service: all the content is stripped until the
+      first occurrence of `<html`.
+
+  Returns:
+    a tuple where the first element is the html content, and the second one is
+    the page content stripped from all html tags and reformatted.
+  """
+  # Should catch <html> with and without attribute, e.g. <html locale='..'>.
+  # The document could be prefixed with some non-html header.
+  html_tag_index = raw_html.find('<html')
+  if html_tag_index >= 0:
+    html_no_header = raw_html[html_tag_index:]
+  else:
+    html_no_header = raw_html
+  soup = bs4.BeautifulSoup(html_no_header, 'html.parser')
+  for entry in soup(_TAG_DENYLIST):
+    entry.decompose()
+  for tag in soup.descendants:
+    if isinstance(tag, bs4.element.Tag):
+      tag.attrs = {
+          key: value
+          for key, value in tag.attrs.items()
+          if key in _ATTR_ALLOWLIST
+      }
+  return soup
+
+
+class HtmlCleaner(processor.PartProcessor):
+  """PartProcessor cleaning up HTML content.
+
+  This part processor will return a new version of a processor part that is of
+  the `text/html` MIME type.
+
+  Based on the `cleaning_mode` argument, the content will be cleaned
+  accordingly and returned in a new part, that is, many tags and attributes will
+  be stripped away. When `plain` mode is selected, the content will be returned
+  as plain text with no formatting.
+
+  Note that the cleaning is done per part. It is recommended to collect the
+  whole html content into a single part. Otherwise, the cleaning might only be
+  done partially, i.e. there is no guarantee that the html content within a
+  single part is a valid html text.
+  """
+
+  def __init__(self, *, cleaning_mode: Literal['html', 'plain'] = 'plain'):
+    self._cleaning_mode = cleaning_mode
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return mime_types.is_html(part.mimetype)
+
+  async def call(
+      self, part: content_api.ProcessorPart
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    match self._cleaning_mode:
+      case 'html':
+        yield content_api.ProcessorPart(
+            _clean_html(part.text).prettify().strip(),
+            mimetype=mime_types.TEXT_HTML,
+        )
+      case 'plain':
+        yield _clean_html(part.text).get_text().strip()
+      case _:
+        raise ValueError(f'Unsupported cleaning mode: {self._cleaning_mode}')
 
 
 @processor.source()

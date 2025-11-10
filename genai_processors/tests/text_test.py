@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import re
+import textwrap
 from typing import Sequence
 import unittest
 
@@ -654,6 +655,69 @@ class UrlExtractorTest(
       # Test that we got one part despite the input stream not being complete.
       self.assertEqual(part.text, 'Hello')
       break
+
+
+class HtmlCleanerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
+  HTML_CONTENT = textwrap.dedent("""\
+      <html>
+      <head><title>Title</title></head>
+      <body>
+      <script>alert('foo')</script>
+      <style>.foo {color: red;}</style>
+      <nav>menu</nav>
+      <div class="content" other-attr="value"><h1>Title</h1>
+        <p>Some text with <a href="http://example.com" target="_blank">link</a></p>
+        <img src="image.png" alt="alt text" width="100"/>
+      </div>
+      <footer>footer</footer>
+      </body>
+      </html>""")
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='html',
+          cleaning_mode='html',
+          expected_output=textwrap.dedent("""\
+      <html>
+       <body>
+        <div>
+         <h1>
+          Title
+         </h1>
+         <p>
+          Some text with
+          <a href="http://example.com">
+           link
+          </a>
+         </p>
+         <img alt="alt text"/>
+        </div>
+       </body>
+      </html>"""),
+      ),
+      dict(
+          testcase_name='text',
+          cleaning_mode='plain',
+          expected_output='Title\nSome text with link',
+      ),
+  )
+  async def test_html_cleaner_html_mode(self, cleaning_mode, expected_output):
+    cleaner = text.HtmlCleaner(cleaning_mode=cleaning_mode)
+    input_part = content_api.ProcessorPart(
+        self.HTML_CONTENT, mimetype='text/html'
+    )
+    output = await processor.apply_async(cleaner, [input_part])
+    self.assertEqual(
+        output,
+        [
+            content_api.ProcessorPart(
+                expected_output,
+                mimetype='text/html'
+                if cleaning_mode == 'html'
+                else 'text/plain',
+            )
+        ],
+    )
 
 
 if __name__ == '__main__':
