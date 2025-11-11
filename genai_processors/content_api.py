@@ -20,12 +20,17 @@ import functools
 import io
 import itertools
 import json
-from typing import Any, TypeVar, Union
+from typing import Any, TypeAlias, TypeVar, Union
 
 from absl import logging
 from genai_processors import mime_types
 from google.genai import types as genai_types
 import PIL.Image
+
+
+# bytes is used as a property in ProcessorPart, but pytype gets confused when
+# checking function signatures. Use a type alias to avoid name conflict.
+DataBytes: TypeAlias = bytes
 
 
 class ProcessorPart:
@@ -416,6 +421,14 @@ class ProcessorPart:
     part = genai_types.Part.from_code_execution_result(
         outcome=outcome, output=output
     )
+    return cls(part, **kwargs)
+
+  @classmethod
+  def from_bytes(
+      cls, *, data: DataBytes, mimetype: str, **kwargs
+  ) -> 'ProcessorPart':
+    """Constructs a ProcessorPart as a blob."""
+    part = genai_types.Part.from_bytes(data=data, mime_type=mimetype)
     return cls(part, **kwargs)
 
   @classmethod

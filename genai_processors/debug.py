@@ -19,7 +19,6 @@ from collections.abc import AsyncIterable
 import time
 
 from absl import logging
-
 from genai_processors import content_api
 from genai_processors import processor
 
@@ -121,7 +120,7 @@ class TTFTSingleStream(processor.Processor):
 
 
 def debug_string(part: ProcessorPart) -> str:
-  return f'{part} role {part.role} substream {part.substream_name}'
+  return f'role {part.role} substream {part.substream_name} {part!r}'
 
 
 def log_stream(message: str) -> processor.Processor:
