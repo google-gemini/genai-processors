@@ -32,10 +32,13 @@ detect which response corresponds to which tool call.
 
 We therefore have the following 4 cases:
 
-- Turn-based model + sync tool: tool is blocking, only one can be run at a time.
+- Turn-based model + sync tool: tool is blocking future model calls. It is run
+in a separate thread. Many can be run concurrently if the model output more than
+one tool call at once. The model will wait for all tools to finish before
+returning.
 - Turn-based model + async tool: tool is non-blocking, allowing the model to
-invoke multiple tools in parallel. The model will wait for all tools to finish
-before returning control to the user.
+continue returning tool calls in subsequent model calls. The model will wait for
+all tools to finish before returning control to the user.
 - Realtime model + sync tool: tool is automatically converted to an async tool.
 to let the realtime model process new incoming input without being blocked.
 - Realtime model + async tool: tool is non-blocking, many can be run in
@@ -60,6 +63,14 @@ not wait for the tool to finish before returning and can process new input while
 the tool is running. This means any tool used in a realtime model will have
 a first 'OK, running in the background.' immediate response containing a tool
 call ID.
+
+Function calling processor provides a function to cancel any async tool. This
+cancellation is implemented by the function calling processor directly. You
+still need to provide the function declaration to the model in its prompt to
+make it aware that this function is available. See below how to add the
+cancel function to the model prompt. If you do not provide this cancel function
+to the model, function calling will still work but the user will not be able to
+stop an async tool.
 
 You can define an async tool from a Python async function or from a Python async
 generator. Async generators will stream responses back to the model whenever it
@@ -146,7 +157,9 @@ genai_processor = genai_model.GenaiModel(
     model_name='gemini-2.5-flash',
     generate_content_config=genai_types.GenerateContentConfig(
         tools=[fns],
-        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(disable=True),
+        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+            disable=True
+        ),
     ),
 )
 ```
@@ -154,6 +167,18 @@ genai_processor = genai_model.GenaiModel(
 where `fns` are the python functions to be called. Note that we disable the
 automatic function calling feature here to avoid duplicate function calls with
 the GenAI automatic function calling feature.
+
+If you want to allow cancelling ongoing async functions add `cancel_fc` tool
+defined in this file:
+
+```python
+generate_content_config=genai_types.GenerateContentConfig(
+    tools=[fns, function_calling.cancel_fc],
+    automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+        disable=True
+    ),
+)
+```
 
 You define the function `fns` as regular python functions. Arguments and
 outputs need to be JSON-serializable for models to be able to generate and
@@ -462,7 +487,7 @@ class FunctionCalling(processor.Processor):
     ):
       if not content_api.is_end_of_turn(part):
         # Reinject output parts into the model except EoTs (handled below).
-        input_queue.put_nowait(part)
+        await input_queue.put(part)
         yield part
 
         if (
@@ -478,7 +503,7 @@ class FunctionCalling(processor.Processor):
         # function call or stop the loop.
         match part.get_metadata(
             _SCHEDULING_METADATA_KEY,
-            genai_types.FunctionResponseScheduling.INTERRUPT,
+            genai_types.FunctionResponseScheduling.WHEN_IDLE,
         ):
           case genai_types.FunctionResponseScheduling.SILENT:
             # state.has_new_fn_calls = False
@@ -487,15 +512,15 @@ class FunctionCalling(processor.Processor):
             if state.model_outputting:
               state.schedule_model_call = True
             else:
-              input_queue.put_nowait(content_api.END_OF_TURN)
+              await input_queue.put(content_api.END_OF_TURN)
               state.has_new_fn_calls = False
           case _:
-            input_queue.put_nowait(content_api.END_OF_TURN)
+            await input_queue.put(content_api.END_OF_TURN)
             state.has_new_fn_calls = False
         # If we reached max count, stop the loop after this last call.
         if state.fn_call_count >= state.fn_call_count_limit:
-          input_queue.put_nowait(None)
-          output_queue.put_nowait(None)
+          await input_queue.put(None)
+          await output_queue.put(None)
       else:
         # EoT issued by the model. We need to check if we stop or if there is
         # a function call to schedule.
@@ -504,16 +529,35 @@ class FunctionCalling(processor.Processor):
             # Stop when there are no more function calls to execute and no more
             # async function calls running, or when the max function calls is
             # reached.
-            input_queue.put_nowait(None)
-            output_queue.put_nowait(None)
+            await input_queue.put(None)
+            await output_queue.put(None)
           elif state.has_new_fn_calls or state.schedule_model_call:
-            input_queue.put_nowait(content_api.END_OF_TURN)
+            await input_queue.put(content_api.END_OF_TURN)
             state.has_new_fn_calls = False
             state.schedule_model_call = False
         elif state.schedule_model_call and not state.model_outputting:
           input_queue.put_nowait(content_api.END_OF_TURN)
           state.has_new_fn_calls = False
           state.schedule_model_call = False
+
+
+async def cancel_fc(function_ids: list[str]) -> content_api.ProcessorPart:
+  """Cancels function calls whose ids are in the provided argument.
+
+  Args:
+    function_ids: The list of ids of the function calls to cancel.
+
+  Returns:
+    A text message stating whether the functions have been successufully
+    cancelled or if there were some errors e.g. function with such id does not
+    exist.
+  """
+  del function_ids
+  raise NotImplementedError(
+      'This cancel_fc is an interface without implementation that can be used'
+      ' as a tool definition for models. Actual implementation is in'
+      ' FunctionCalling.cancel_fc.'
+  )
 
 
 class _ExecuteFunctionCall(processor.PartProcessor):
@@ -528,9 +572,12 @@ class _ExecuteFunctionCall(processor.PartProcessor):
       substream_name: str,
   ):
     self._fns = {fn.__name__: fn for fn in fns}
+    if is_bidi_model:
+      # Cancel functions make only sense for bidi models.
+      self._fns['cancel_fc'] = self.cancel_fc
     self._output_queue = output_queue
     # Map from function call id to the task running the function call.
-    self._task_map = {}
+    self._task_map: dict[str, asyncio.Task] = {}
     self._task_counter = collections.defaultdict(int)
     self._fn_state = fn_state
     self._is_bidi_model = is_bidi_model
@@ -543,6 +590,47 @@ class _ExecuteFunctionCall(processor.PartProcessor):
     task_id = f'{fn_name}_{self._task_counter[fn_name]}'
     self._task_counter[fn_name] += 1
     return task_id
+
+  async def cancel_fc(
+      self, function_ids: list[str]
+  ) -> content_api.ProcessorPart:
+    """Cancels function calls whose ids are in the provided argument."""
+    cancelled_tasks = []
+    for function_id in function_ids:
+      if function_id in self._task_map:
+        if self._task_map[function_id].cancel():
+          try:
+            await self._task_map[function_id]
+          except asyncio.CancelledError:
+            cancelled_tasks.append(function_id)
+        else:
+          # When the task is already done, we assume cancellation was
+          # successful.
+          cancelled_tasks.append(function_id)
+    diff = set(function_ids) - set(cancelled_tasks)
+    if not diff:
+      response = 'OK, cancelled.'
+      is_error = False
+    elif cancelled_tasks:
+      response = (
+          f'Cancelled the following function calls: {cancelled_tasks}.'
+          f' The following function calls were not found: {diff}.'
+      )
+      is_error = True
+    else:
+      response = (
+          f'Could not find any of the following function calls: {function_ids}.'
+      )
+      is_error = True
+
+    return content_api.ProcessorPart.from_function_response(
+        name='cancel_fc',
+        response=response,
+        role='user',
+        substream_name=FUNCTION_CALL_SUBTREAM_NAME,
+        is_error=is_error,
+        scheduling='SILENT',
+    )
 
   def _add_task(self, task_id: str, task: asyncio.Task) -> None:
     """Adds the Task running a function and returns task_id."""
@@ -557,6 +645,7 @@ class _ExecuteFunctionCall(processor.PartProcessor):
       parts: content_api.ProcessorContentTypes | Any,
       call: genai_types.FunctionCall,
       will_continue: bool | None = None,
+      scheduling: genai_types.FunctionResponseScheduling | None = None,
   ) -> content_api.ProcessorPart:
     """Wraps the part in a FunctionResponse if it is not already one.
 
@@ -576,7 +665,11 @@ class _ExecuteFunctionCall(processor.PartProcessor):
         the function call id and the substream name will be set to the function
         calling processor substream name (changed in place).
       call: The function call that was made.
-      will_continue: should only be used for async generator functions.
+      will_continue: should only be used for async generator functions. If set,
+        will override any provided value. Otherwise, the existing value is
+        preserved.
+      scheduling: The scheduling of the function response. If set, will override
+        any provided value. Otherwise, the existing value is preserved.
 
     Returns:
       A function response wrapping the content in the part.
@@ -584,6 +677,10 @@ class _ExecuteFunctionCall(processor.PartProcessor):
     if isinstance(parts, content_api.ProcessorPart) and parts.function_response:
       parts.function_response.id = call.id
       parts.substream_name = self._substream_name
+      if will_continue is not None:
+        parts.function_response.will_continue = will_continue
+      if scheduling is not None:
+        parts.function_response.scheduling = scheduling
       return parts
     else:
       return content_api.ProcessorPart.from_function_response(
@@ -591,25 +688,27 @@ class _ExecuteFunctionCall(processor.PartProcessor):
           response=parts,
           function_call_id=call.id,
           substream_name=self._substream_name,
-          scheduling=genai_types.FunctionResponseScheduling.WHEN_IDLE,
+          scheduling=scheduling,
           will_continue=will_continue,
           role='user',
       )
 
   async def _add_will_continue_logic(
       self,
-      will_continue: bool,
+      is_async_gen: bool,
       call: genai_types.FunctionCall,
       content: AsyncIterable[Any],
   ) -> AsyncIterable[Any]:
     """Wraps a loop with a final `will_continue=False` logic."""
     async for fc_part in content:
-      yield fc_part
+      yield self._to_function_response(
+          fc_part, call, will_continue=is_async_gen or None
+      )
 
     # Return a silent function response to indicate to the model that the
     # function call is done (see will_continue). Only applicable to async
     # generator functions.
-    if will_continue:
+    if is_async_gen:
       yield content_api.ProcessorPart.from_function_response(
           name=call.name,
           function_call_id=call.id,
@@ -627,31 +726,32 @@ class _ExecuteFunctionCall(processor.PartProcessor):
 
     Wraps all function call parts in a function response and puts them to the
     output queue. An EoT is also put to the output queue to request a model call
-    in function calling loop.
+    in function calling loop. This function should only be called for async
+    functions.
 
     Args:
       call: The function call to execute.
       fn: The function to execute.
     """
-    will_continue = inspect.isasyncgenfunction(fn) or None
+    is_async_gen = inspect.isasyncgenfunction(fn) or None
+    # Sleep for a tiny bit before returning the async response to make sure
+    # the function response is returned after the function call for async
+    # functions. This is to avoid race conditions between the main function
+    # calling loop and the async function responses that are injected back to
+    # the output queue in an async way.
+    await asyncio.sleep(1e-6)
     async for fc_part in self._add_will_continue_logic(
-        will_continue, call, self._execute_function(call, fn)
+        is_async_gen, call, self._execute_function(call, fn)
     ):
-      wrapped_part = self._to_function_response(
-          fc_part, call, will_continue=will_continue
-      )
-
+      await self._output_queue.put(fc_part)
       # return an EoT to request a model call in function calling loop.
-      self._output_queue.put_nowait(wrapped_part)
       eot = content_api.ProcessorPart.end_of_turn(
           substream_name=FUNCTION_CALL_SUBTREAM_NAME,
           metadata={
-              _SCHEDULING_METADATA_KEY: (
-                  wrapped_part.function_response.scheduling
-              )
+              _SCHEDULING_METADATA_KEY: fc_part.function_response.scheduling,
           },
       )
-      self._output_queue.put_nowait(eot)
+      await self._output_queue.put(eot)
 
     self._fn_state.async_fc_count -= 1
 
@@ -689,7 +789,7 @@ class _ExecuteFunctionCall(processor.PartProcessor):
 
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Executes a function call and returns the result."""
     # The match() method ensures that the part is a function call.
     self._fn_state.fn_call_count += 1
@@ -698,6 +798,7 @@ class _ExecuteFunctionCall(processor.PartProcessor):
 
     part.substream_name = FUNCTION_CALL_SUBTREAM_NAME
     call = part.function_call
+
     yield part
 
     try:
@@ -724,19 +825,12 @@ class _ExecuteFunctionCall(processor.PartProcessor):
         or self._is_bidi_model
     ):
       # Immediately returns a function response with a std result. The
-      # scheduling is silent. If the model needs an interrupt now, the function
-      # that is called should return an async generator of
-      # ProcessorPart.FunctionResponse with a first reponse requesting a model
-      # interrupt.
-      yield content_api.ProcessorPart.from_function_response(
-          name=call.name,
-          function_call_id=call.id,
-          response='Running in background.',
-          role='user',
-          substream_name=self._substream_name,
+      # scheduling is silent.
+      yield self._to_function_response(
+          'Running in background.',
+          call,
           scheduling=genai_types.FunctionResponseScheduling.SILENT,
       )
-
       # Run function in a separate task and inject the results back into the
       # output queue.
       task_id = call.id or self._create_task_id(call.name)

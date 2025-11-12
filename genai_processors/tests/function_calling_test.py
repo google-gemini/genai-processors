@@ -149,7 +149,6 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 response='Weather in London is sunny',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
             ),
         ]
         + model_output_1,
@@ -190,7 +189,6 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             response='12:00',
             role='user',
             substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-            scheduling='WHEN_IDLE',
         ),
     ]
     request_1 = request_0 + fc_output_0
@@ -200,7 +198,6 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             response='Weather in Paris is sunny',
             role='user',
             substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-            scheduling='WHEN_IDLE',
         ),
     ]
     request_2 = request_1 + fc_output_1
@@ -262,7 +259,6 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 response='12:00',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
             ),
         ]
         * max_function_calls,
@@ -441,7 +437,6 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
             ),
         ]
         + model_output_1,
@@ -524,7 +519,6 @@ class FunctionCallingAsyncTest(
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
             ),
         ]
         + model_output_1
@@ -551,7 +545,6 @@ class FunctionCallingAsyncTest(
                 # No function call id provided in the function call part.
                 response='Weather in London is sunny',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
                 role='user',
             ),
         ]
@@ -631,7 +624,6 @@ class FunctionCallingAsyncTest(
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
                 will_continue=True,
             ),
         ]
@@ -642,7 +634,6 @@ class FunctionCallingAsyncTest(
                 response='Slept for 2 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
                 will_continue=True,
             ),
         ]
@@ -674,22 +665,18 @@ class FunctionCallingAsyncTest(
     ]
     model_output_1 = [
         content_api.ProcessorPart(
-            'ok, sleeping for 1 second once',
+            'ok, we slept for 1 second once',
             role='model',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
         ),
-    ]
-    model_output_2 = [
         content_api.ProcessorPart.from_function_call(
             name='sleep_async',
             args={'sleep_seconds': 1},
             role='model',
-        )
+        ),
     ]
     generate_processor = MockGenerateProcessor([
         model_output_0,
         model_output_1,
-        model_output_2,
     ])
     fc_processor = function_calling.FunctionCalling(
         generate_processor,
@@ -717,10 +704,9 @@ class FunctionCallingAsyncTest(
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
             ),
         ]
-        + model_output_1,
+        + model_output_1[:1],
     )
 
   @parameterized.named_parameters(
@@ -858,10 +844,118 @@ class FunctionCallingAsyncTest(
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='WHEN_IDLE',
             )
         ]
         + model_output_2,
+    )
+
+  @parameterized.named_parameters(
+      (
+          'non_existent_id',
+          ['sleep_async_0', 'non-existent-id'],
+          (
+              'Cancelled the following function calls:'
+              " ['sleep_async_0']. The following function calls were not found:"
+              " {'non-existent-id'}."
+          ),
+          True,
+      ),
+      ('ok', ['sleep_async_0'], 'OK, cancelled.', False),
+      ('empty', [], 'OK, cancelled.', False),
+  )
+  async def test_cancel_async_function(self, function_ids, response, is_error):
+    input_content = [
+        content_api.ProcessorPart('Call sleep and cancel'),
+        content_api.END_OF_TURN,
+        content_api.END_OF_TURN,
+    ]
+    sleep_time_sec = 3
+    model_output_0 = [
+        content_api.ProcessorPart.from_function_call(
+            name='sleep_async',
+            args={'sleep_seconds': sleep_time_sec},
+            role='model',
+        ),
+    ]
+    model_output_1 = [
+        content_api.ProcessorPart(
+            'OK, running sleep async function, now cancel it',
+            role='model',
+        ),
+        content_api.ProcessorPart.from_function_call(
+            name='cancel_fc',
+            args={'function_ids': function_ids},
+            role='model',
+        ),
+    ]
+    generate_processor, delay_sec = create_model(
+        [
+            model_output_0,
+            model_output_1,
+        ],
+        is_bidi=True,
+    )
+    fc_processor = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[sleep_async, function_calling.cancel_fc],
+        is_bidi_model=True,
+    )
+    output = await streams.gather_stream(
+        fc_processor(
+            streams.stream_content(
+                input_content, with_delay_sec=delay_sec, delay_end=True
+            )
+        )
+    )
+    # When no cancellation happens, the async sleep function should return
+    # the result.
+    print('output: ', output)
+    async_sleep_output = (
+        [
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                response=f'Slept for {sleep_time_sec} seconds',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            ),
+            END_OF_STREAM,
+        ]
+        if not function_ids
+        else []
+    )
+    self.assertEqual(
+        output,
+        model_output_0
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                response='Running in background.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                scheduling='SILENT',
+            ),
+        ]
+        + model_output_1
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='cancel_fc',
+                response='Running in background.',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                role='user',
+                scheduling='SILENT',
+            )
+        ]
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='cancel_fc',
+                response=response,
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                is_error=is_error,
+                scheduling='SILENT',
+            ),
+        ]
+        + async_sleep_output,
     )
 
 
