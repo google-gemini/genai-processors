@@ -275,7 +275,6 @@ from genai_processors import streams
 from google.genai import _extra_utils
 from google.genai import types as genai_types
 
-
 # All function call parts (calls and responses) are emitted in a substream
 # with this name. This is to help downstream processors to identify function
 # calls that were executed from function calls returned directly by the model.
@@ -303,30 +302,6 @@ class _FunctionCallState:
   # Whether a model call should be scheduled after an async function sent back
   # a part to the model prompt.
   schedule_model_call: bool = False
-
-
-def _update_model_outputting(
-    model: processor.Processor, state: _FunctionCallState
-) -> processor.Processor:
-  """Updates the model outputting state based on the model output."""
-
-  @processor.processor_function
-  async def _catch_eot(
-      content: AsyncIterable[content_api.ProcessorPart],
-  ) -> AsyncIterable[content_api.ProcessorPart]:
-
-    async def input_stream():
-      async for part in content:
-        if content_api.is_end_of_turn(part):
-          state.model_outputting = True
-        yield part
-
-    async for part in model(input_stream()):
-      if content_api.is_end_of_turn(part):
-        state.model_outputting = False
-      yield part
-
-  return _catch_eot
 
 
 def _to_bidi(p: processor.Processor) -> processor.Processor:
@@ -450,9 +425,10 @@ class FunctionCalling(processor.Processor):
   async def call(
       self, content: AsyncIterable[content_api.ProcessorPart]
   ) -> AsyncIterable[content_api.ProcessorPart]:
-
-    # Main loop - ensure we have at least one iteration and one model call
-    # independent of the max_function_calls value.
+    state = _FunctionCallState(fn_call_count_limit=self._max_function_calls)
+    # To support both bidi and unary models we reduce both cases to bidi.
+    model = _to_bidi(self._model) if not self._is_bidi_model else self._model
+    # We use input_queue to feed function responses to consecutive turns.
     input_queue = asyncio.Queue[content_api.ProcessorPart | None]()
     input_stream = streams.merge(
         streams=[
@@ -461,13 +437,8 @@ class FunctionCalling(processor.Processor):
         ],
         stop_on_first=self._is_bidi_model,
     )
-    output_queue = asyncio.Queue[content_api.ProcessorPart | None]()
 
-    model = self._model
-    if not self._is_bidi_model:
-      model = _to_bidi(model)
-    state = _FunctionCallState()
-    state.fn_call_count_limit = self._max_function_calls
+    output_queue = asyncio.Queue[content_api.ProcessorPart | None]()
     execute_function_call = _ExecuteFunctionCall(
         fns=self._fns,
         output_queue=output_queue,
@@ -475,16 +446,28 @@ class FunctionCalling(processor.Processor):
         is_bidi_model=self._is_bidi_model,
         substream_name=self._substream_name,
     )
-    processor_pipeline = (
-        self._pre_processor
-        + _update_model_outputting(model, state)
-        + execute_function_call
-    )
 
-    async for part in streams.merge(
-        [processor_pipeline(input_stream), streams.dequeue(output_queue)],
-        stop_on_first=self._is_bidi_model,
-    ):
+    async def processor_pipeline():
+      async def preprocess():
+        async for part in self._pre_processor(input_stream):
+          if content_api.is_end_of_turn(part):
+            state.model_outputting = True
+          yield part
+
+      try:
+        async for part in model(preprocess()):
+          if content_api.is_end_of_turn(part):
+            state.model_outputting = False
+          if part.function_call:
+            await execute_function_call(part)
+          else:
+            await output_queue.put(part)
+      finally:
+        await output_queue.put(None)
+
+    pipeline_task = processor.create_task(processor_pipeline())
+
+    async for part in streams.dequeue(output_queue):
       if not content_api.is_end_of_turn(part):
         # Reinject output parts into the model except EoTs (handled below).
         await input_queue.put(part)
@@ -495,7 +478,7 @@ class FunctionCalling(processor.Processor):
             and part.function_response.scheduling
             != genai_types.FunctionResponseScheduling.SILENT
         ):
-          # only for sync function calls.
+          # Only for sync function calls.
           state.has_new_fn_calls = True
 
       elif part.substream_name == FUNCTION_CALL_SUBTREAM_NAME:
@@ -517,10 +500,12 @@ class FunctionCalling(processor.Processor):
           case _:
             await input_queue.put(content_api.END_OF_TURN)
             state.has_new_fn_calls = False
-        # If we reached max count, stop the loop after this last call.
-        if state.fn_call_count >= state.fn_call_count_limit:
+        # If we reached max count, but we should allow the model to react to
+        # this response, so we make one extra iteration and stop after it.
+        if state.fn_call_count >= state.fn_call_count_limit + 1:
           await input_queue.put(None)
           await output_queue.put(None)
+          pipeline_task.cancel()
       else:
         # EoT issued by the model. We need to check if we stop or if there is
         # a function call to schedule.
@@ -560,7 +545,7 @@ async def cancel_fc(function_ids: list[str]) -> content_api.ProcessorPart:
   )
 
 
-class _ExecuteFunctionCall(processor.PartProcessor):
+class _ExecuteFunctionCall:
   """Executes a function call and returns the whole input with the result."""
 
   def __init__(
@@ -636,9 +621,6 @@ class _ExecuteFunctionCall(processor.PartProcessor):
     """Adds the Task running a function and returns task_id."""
     self._task_map = {k: v for k, v in self._task_map.items() if not v.done()}
     self._task_map[task_id] = task
-
-  def match(self, part: content_api.ProcessorPart) -> bool:
-    return bool(part.function_call)
 
   def _to_function_response(
       self,
@@ -734,12 +716,7 @@ class _ExecuteFunctionCall(processor.PartProcessor):
       fn: The function to execute.
     """
     is_async_gen = inspect.isasyncgenfunction(fn) or None
-    # Sleep for a tiny bit before returning the async response to make sure
-    # the function response is returned after the function call for async
-    # functions. This is to avoid race conditions between the main function
-    # calling loop and the async function responses that are injected back to
-    # the output queue in an async way.
-    await asyncio.sleep(1e-6)
+
     async for fc_part in self._add_will_continue_logic(
         is_async_gen, call, self._execute_function(call, fn)
     ):
@@ -787,9 +764,7 @@ class _ExecuteFunctionCall(processor.PartProcessor):
           is_error=True,
       )
 
-  async def call(
-      self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+  async def __call__(self, part: content_api.ProcessorPart) -> None:
     """Executes a function call and returns the result."""
     # The match() method ensures that the part is a function call.
     self._fn_state.fn_call_count += 1
@@ -799,23 +774,25 @@ class _ExecuteFunctionCall(processor.PartProcessor):
     part.substream_name = FUNCTION_CALL_SUBTREAM_NAME
     call = part.function_call
 
-    yield part
+    await self._output_queue.put(part)
 
     try:
       fn = self._fns[call.name]
     except KeyError:
       function_names = ', '.join(repr(fn) for fn in sorted(self._fns.keys()))
-      yield content_api.ProcessorPart.from_function_response(
-          name=call.name,
-          function_call_id=call.id,
-          response=(
-              f'Function {call.name} not found. Available functions:'
-              f' {function_names}.'
-          ),
-          role='user',
-          substream_name=self._substream_name,
-          will_continue=False if self._is_bidi_model else None,
-          is_error=True,
+      await self._output_queue.put(
+          content_api.ProcessorPart.from_function_response(
+              name=call.name,
+              function_call_id=call.id,
+              response=(
+                  f'Function {call.name} not found. Available functions:'
+                  f' {function_names}.'
+              ),
+              role='user',
+              substream_name=self._substream_name,
+              will_continue=False if self._is_bidi_model else None,
+              is_error=True,
+          )
       )
       return
 
@@ -824,18 +801,21 @@ class _ExecuteFunctionCall(processor.PartProcessor):
         or inspect.isasyncgenfunction(fn)
         or self._is_bidi_model
     ):
+      if call.id is None:
+        call.id = self._create_task_id(call.name)
       # Immediately returns a function response with a std result. The
       # scheduling is silent.
-      yield self._to_function_response(
-          'Running in background.',
-          call,
-          scheduling=genai_types.FunctionResponseScheduling.SILENT,
+      await self._output_queue.put(
+          self._to_function_response(
+              'Running in background.',
+              call,
+              scheduling=genai_types.FunctionResponseScheduling.SILENT,
+          )
       )
       # Run function in a separate task and inject the results back into the
       # output queue.
-      task_id = call.id or self._create_task_id(call.name)
       self._add_task(
-          task_id,
+          call.id,
           processor.create_task(
               self._put_function_response_to_output_queue(call, fn)
           ),
@@ -850,4 +830,6 @@ class _ExecuteFunctionCall(processor.PartProcessor):
       async for fc_part in self._add_will_continue_logic(
           inspect.isasyncgenfunction(fn), call, self._execute_function(call, fn)
       ):
-        yield self._to_function_response(fc_part, call, will_continue)
+        await self._output_queue.put(
+            self._to_function_response(fc_part, call, will_continue)
+        )

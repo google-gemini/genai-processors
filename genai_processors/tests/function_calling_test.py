@@ -530,6 +530,7 @@ class FunctionCallingAsyncTest(
                 content_api.ProcessorPart.from_function_response(
                     name='get_weather',
                     # No function call id provided in the function call part.
+                    function_call_id='get_weather_0',
                     response='Running in background.',
                     role='user',
                     substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -543,6 +544,7 @@ class FunctionCallingAsyncTest(
             content_api.ProcessorPart.from_function_response(
                 name='get_weather',
                 # No function call id provided in the function call part.
+                function_call_id='get_weather_0' if is_bidi else None,
                 response='Weather in London is sunny',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 role='user',
@@ -578,19 +580,12 @@ class FunctionCallingAsyncTest(
             role='model',
         )
     ]
-    model_output_3 = [
-        content_api.ProcessorPart(
-            'got end of stream',
-            role='model',
-        )
-    ]
 
     generate_processor, delay_sec = create_model(
         [
             model_output_0,
             model_output_1,
             model_output_2,
-            model_output_3,
         ],
         is_bidi,
     )
@@ -612,6 +607,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async_generator',
+                function_call_id='sleep_async_generator_0',
                 response='Running in background.',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -621,6 +617,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async_generator',
+                function_call_id='sleep_async_generator_0',
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -631,6 +628,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async_generator',
+                function_call_id='sleep_async_generator_0',
                 response='Slept for 2 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -640,6 +638,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async_generator',
+                function_call_id='sleep_async_generator_0',
                 response='',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -647,10 +646,7 @@ class FunctionCallingAsyncTest(
                 will_continue=False,
             )
         ]
-        + model_output_2
-        # The last part with `will_continue=False` is a user part that the model
-        # will process in a last turn when it is not bidi.
-        + (model_output_3 if not is_bidi else []),
+        + model_output_2,
     )
 
   async def test_async_max_tool_calls(self):
@@ -692,6 +688,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async',
+                function_call_id='sleep_async_0',
                 response='Running in background.',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -701,6 +698,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async',
+                function_call_id='sleep_async_0',
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -755,6 +753,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='failing_async_function',
+                function_call_id='failing_async_function_0',
                 response='Running in background.',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -764,6 +763,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='failing_async_function',
+                function_call_id='failing_async_function_0',
                 response=(
                     'Failed to invoke function failing_async_function({}):'
                     ' <this async function failed>'
@@ -831,6 +831,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_sync',
+                function_call_id='sleep_sync_0',
                 response='Running in background.',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -841,6 +842,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_sync',
+                function_call_id='sleep_sync_0',
                 response='Slept for 1 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -909,11 +911,11 @@ class FunctionCallingAsyncTest(
     )
     # When no cancellation happens, the async sleep function should return
     # the result.
-    print('output: ', output)
     async_sleep_output = (
         [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async',
+                function_call_id='sleep_async_0',
                 response=f'Slept for {sleep_time_sec} seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -929,6 +931,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async',
+                function_call_id='sleep_async_0',
                 response='Running in background.',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
@@ -939,6 +942,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='cancel_fc',
+                function_call_id='cancel_fc_0',
                 response='Running in background.',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 role='user',
@@ -948,6 +952,7 @@ class FunctionCallingAsyncTest(
         + [
             content_api.ProcessorPart.from_function_response(
                 name='cancel_fc',
+                function_call_id='cancel_fc_0',
                 response=response,
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
