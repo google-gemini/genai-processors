@@ -5,6 +5,8 @@ from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import mime_types
 
+from google.protobuf import struct_pb2
+
 
 @dataclasses.dataclass
 class MyData:
@@ -93,6 +95,29 @@ class MimeTypesTest(parameterized.TestCase, unittest.TestCase):
   ])
   def test_is_wav(self, mime_type, expected):
     self.assertEqual(mime_types.is_wav(mime_type), expected)
+
+  @parameterized.parameters([
+      (
+          'application/x-protobuf; type=google.protobuf.Struct',
+          True,
+      ),
+      (
+          'Application/X-PROTOBUF; TYPE=google.protobuf.Struct',
+          True,
+      ),
+      (
+          'application/x-protobuf; type=google.protobuf.Struct2',
+          False,
+      ),
+  ])
+  def test_proto_message_mime_type(self, mime, expected):
+    self.assertEqual(
+        mime_types.is_proto_message(
+            mime,
+            struct_pb2.Struct,
+        ),
+        expected,
+    )
 
 
 if __name__ == '__main__':

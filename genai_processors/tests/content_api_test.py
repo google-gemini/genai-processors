@@ -10,6 +10,8 @@ from genai_processors import mime_types
 from google.genai import types as genai_types
 import PIL.Image
 
+from google.protobuf import struct_pb2
+
 
 def _png_image_bytes() -> bytes:
   as_bytes = io.BytesIO()
@@ -396,6 +398,25 @@ class ProcessorContentTest(parameterized.TestCase):
     )
     with self.assertRaises(ValueError):
       test_part.get_dataclass(Dataclass)
+
+  def test_to_and_from_proto_message(self):
+    test_proto = struct_pb2.Struct(
+        fields={'foo': struct_pb2.Value(string_value='bar')}
+    )
+    part = content_api.ProcessorPart.from_proto_message(
+        proto_message=test_proto
+    )
+    self.assertEqual(part.get_proto_message(struct_pb2.Struct), test_proto)
+    self.assertTrue(
+        mime_types.is_proto_message(part.mimetype, struct_pb2.Struct)
+    )
+
+  def test_get_proto_message_raises_error_with_incorrect_mimetype(self):
+    test_part = content_api.ProcessorPart(
+        '{"foo": "hello", "bar": 1}', mimetype='application/json'
+    )
+    with self.assertRaises(ValueError):
+      test_part.get_proto_message(struct_pb2.Struct)
 
   def test_is_text(self):
     text_part = content_api.ProcessorPart('hello')

@@ -14,13 +14,17 @@
 # ==============================================================================
 """Processor for rendering Jinja templates with multimodal contents."""
 
+import abc
 from collections.abc import AsyncIterable
+import json
 from typing import Any
 import uuid
 
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import streams
+from google.protobuf import json_format
+from google.protobuf import message as pb_message
 import jinja2
 
 
@@ -141,52 +145,75 @@ class JinjaTemplate(processor.Processor):
           yield part
 
 
-class RenderDataClass(processor.PartProcessor):
-  r"""PartProcessor for rendering a dataclass part using a Jinja template.
+class _Render(processor.PartProcessor):
+  r"""Abstract class for rendering a Jinja template from different data objects.
 
-  The dataclass object must be referenced by the name `data` in the jinja
-  template, i.e. `{{ data.first_name }}`.
-
-  Example usage:
+  The jinja template must reference the data object containing the data to
+  render by the name `data`, i.e. `{{ data.first_name }}`.
 
   ```python
-  @dataclasses_json.dataclass_json
-  @dataclasses.dataclass(frozen=True)
-  class ExampleDataClass:
-    first_name: str
-    last_name: str
-
-  shopping_list = ['A', 'B', 'C']
-  p = jinja_template.RenderDataClass(
-      template_str=(
+  template_str=(
           'Hello {{ data.first_name }},\n'
           'This is your shopping list:\n'
-          '{% for item in your_list %}This is item: {{ item }}\n'
+          '{% for item in data.your_list %}This is item: {{ item }}\n'
           '{% endfor %}'
       ),
-      data_class=ExampleDataClass,
-      your_list=shopping_list,
-  )
-  output = processor.apply_sync(
-      p,
-      [
-        content_api.ProcessorPart.from_dataclass(
-            dataclass=ExampleDataClass(first_name='John', last_name='Doe')
-        )
-      ],
-  )
-  print(content_api.as_text)
   ```
+
+  With a data object containing:
+  {'first_name': 'John', your_list: ['A', 'B', 'C']}
 
   The expected output is:
   ```
-  Hello John Doe,
+  Hello John,
   This is your shopping list:
   This is item: A
   This is item: B
   This is item: C
   ```
   """
+
+  def __init__(
+      self,
+      template_str: str,
+      **kwargs,
+  ):
+    """Initializes the processor.
+
+    Args:
+      template_str: The Jinja template string.
+      **kwargs: Keyword arguments to pass to the Jinja template.
+    """
+    self._environment = jinja2.Environment()
+    self._environment.globals.update(**kwargs)
+    self._template = self._environment.from_string(template_str)
+
+  @abc.abstractmethod
+  def get_data(self, part: content_api.ProcessorPart) -> Any:
+    """Returns the data to render in the Jinja template.
+
+    Args:
+      part: The part containing the data to render.
+
+    Returns:
+      The data to render in the Jinja template.
+    """
+    raise NotImplementedError()
+
+  async def call(
+      self, part: content_api.ProcessorPart
+  ) -> AsyncIterable[content_api.ProcessorPart]:
+    """Renders a dataclass part in a Jinja template."""
+    yield content_api.ProcessorPart(
+        self._template.render(data=self.get_data(part)),
+        role=part.role,
+        metadata=part.metadata,
+        substream_name=part.substream_name,
+    )
+
+
+class RenderDataClass(_Render):
+  r"""PartProcessor for rendering a dataclass part using a Jinja template."""
 
   def __init__(
       self,
@@ -201,21 +228,87 @@ class RenderDataClass(processor.PartProcessor):
       data_class: The type of the dataclass to render.
       **kwargs: Keyword arguments to pass to the Jinja template.
     """
-    self._environment = jinja2.Environment()
-    self._environment.globals.update(**kwargs)
-    self._template = self._environment.from_string(template_str)
+    super().__init__(template_str, **kwargs)
     self._data_class = data_class
 
   def match(self, part: content_api.ProcessorPart) -> bool:
     return content_api.is_dataclass(part.mimetype, self._data_class)
 
-  async def call(
-      self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
-    """Renders a dataclass part in a Jinja template."""
-    yield content_api.ProcessorPart(
-        self._template.render(data=part.get_dataclass(self._data_class)),
-        role=part.role,
-        metadata=part.metadata,
-        substream_name=part.substream_name,
+  def get_data(self, part: content_api.ProcessorPart) -> Any:
+    """Returns the data to render in the Jinja template."""
+    return part.get_dataclass(self._data_class)
+
+
+class RenderJson(_Render):
+  r"""PartProcessor for rendering a JSON dictionary using a Jinja template.
+
+  The JSON dictionary must be referenced by the name `data` in the jinja
+  template, i.e. `{{ data.key_name }}`.
+  """
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return content_api.is_json(part.mimetype)
+
+  def get_data(self, part: content_api.ProcessorPart) -> Any:
+    """Returns the data to render in the Jinja template."""
+    return json.loads(part.text)
+
+
+class RenderProtoMessage(_Render):
+  r"""PartProcessor for rendering a Proto message a Jinja template.
+
+  The Proto message must be referenced by the name `data` in the jinja
+  template, i.e. `{{ data.key_name }}`.
+
+  WARNING: well known message types like Timestamp and Duration will be rendered
+  as plain string directly, i.e. if one proto field is a duration, it will be
+  rendered as a string like '10.000000500s' instead of the dictionary:
+  ```python
+  {
+      'seconds': '10',
+      'nanos': '500',
+  }
+  ```
+  Make sure you use msg.duration directly instead of msg.duration.seconds. This
+  is due to the peculiarity of the MessageToDict() for std message types.
+
+  ANOTHER NOTE:
+  `Struct` message will be rendered as a dictionary with the proto field names
+  as the dictionary key, i.e.
+  ```
+  Struct(
+    fields={
+      'name': struct_pb2.Value(string_value='John'),
+      'age': struct_pb2.Value(number_value=25),
+    }
+  )
+  ```
+
+  will be rendered assuming data is the dictionary:
+
+  ```python
+  {
+      'name': 'John',
+      'age': 25,
+  }
+  ```
+  """
+
+  def __init__(
+      self,
+      proto_message: type[pb_message.Message],
+      template_str: str,
+      **kwargs,
+  ):
+    super().__init__(template_str, **kwargs)
+    self._proto_message = proto_message
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return content_api.is_proto_message(part.mimetype, self._proto_message)
+
+  def get_data(self, part: content_api.ProcessorPart) -> Any:
+    """Returns the data to render in the Jinja template."""
+    return json_format.MessageToDict(
+        self._proto_message.FromString(part.bytes),
+        preserving_proto_field_name=True,
     )

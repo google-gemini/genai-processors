@@ -23,6 +23,8 @@ or define a custom */x-*.
 """
 
 from typing import Any
+from google.protobuf import message as pb_message
+
 
 IMAGE_PNG = 'image/png'
 IMAGE_JPEG = 'image/jpeg'
@@ -114,6 +116,8 @@ ALL_SUPPORTED_INPUT_TYPES = (
     INPUT_IMAGE_TYPES + INPUT_AUDIO_TYPES + INPUT_VIDEO_TYPES + INPUT_TEXT_TYPES
 )
 
+_PROTOBUF_MIMETYPE = 'application/x-protobuf'
+_PROTOBUF_MIMETYPE_PREFIX = f'{_PROTOBUF_MIMETYPE}; type='
 TEXT_EXCEPTION = 'text/x-exception'
 
 
@@ -214,3 +218,28 @@ def is_python(mime: str) -> bool:
 def is_exception(mime: str) -> bool:
   """Returns whether the content is an exception."""
   return mime.lower() == TEXT_EXCEPTION
+
+
+def is_proto_message(
+    mime: str, proto_message: type[pb_message.Message] | None = None
+) -> bool:
+  """Returns whether the mimetype is a proto message."""
+  # We do case insenstive comparison for the `application/x-protobuf` part of
+  # the mime type.
+  if not mime.lower().startswith(_PROTOBUF_MIMETYPE):
+    return False
+  elif proto_message is None:
+    return True
+  elif not mime.lower().startswith(_PROTOBUF_MIMETYPE_PREFIX):
+    return False
+  else:
+    mime = (
+        mime[: len(_PROTOBUF_MIMETYPE_PREFIX)].lower()
+        + mime[len(_PROTOBUF_MIMETYPE_PREFIX) :]
+    )
+    return mime == proto_message_mime_type(proto_message)
+
+
+def proto_message_mime_type(proto_message: type[pb_message.Message]) -> str:
+  """Returns the mimetype of a proto message."""
+  return f'{_PROTOBUF_MIMETYPE_PREFIX}{proto_message.DESCRIPTOR.full_name}'

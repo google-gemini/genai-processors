@@ -7,6 +7,8 @@ from genai_processors import content_api
 from genai_processors import processor
 from genai_processors.core import jinja_template
 
+from google.protobuf import struct_pb2
+
 
 class JinjaTemplateTest(unittest.IsolatedAsyncioTestCase):
 
@@ -202,6 +204,126 @@ class RenderDataClassTest(unittest.TestCase):
         ],
     )
     self.assertEqual(content_api.as_text(output), 'not a dataclass')
+
+
+class RenderJsonTest(unittest.TestCase):
+
+  def test_render_basic_json(self):
+    p = jinja_template.RenderJson(
+        template_str=(
+            'Hello {{ data.first_name }} {{ data.last_name }}, address: {{'
+            ' data.address.street }}!'
+        ),
+    )
+    output = processor.apply_sync(
+        p,
+        [
+            content_api.ProcessorPart(
+                '{"first_name": "John", "last_name": "Doe", "address":'
+                ' {"street": "123 Main St", "city": "Anytown", "state": "CA"}}',
+                mimetype='application/json',
+            )
+        ],
+    )
+    self.assertEqual(
+        content_api.as_text(output), 'Hello John Doe, address: 123 Main St!'
+    )
+
+  def test_render_json_with_additional_variables(self):
+    p = jinja_template.RenderJson(
+        template_str='Hello {{ data.name }}! {{ other_var }}',
+        other_var='Welcome',
+    )
+    output = processor.apply_sync(
+        p,
+        [
+            content_api.ProcessorPart(
+                '{"name": "John"}',
+                mimetype='application/json',
+            )
+        ],
+    )
+    self.assertEqual(content_api.as_text(output), 'Hello John! Welcome')
+
+  def test_render_json_without_json(self):
+    p = jinja_template.RenderJson(
+        template_str='Hello {{ data.name }}!',
+    )
+    output = processor.apply_sync(
+        p,
+        [
+            content_api.ProcessorPart(
+                'not a json',
+                mimetype='text/plain',
+            )
+        ],
+    )
+    self.assertEqual(content_api.as_text(output), 'not a json')
+
+
+class RenderProtoMessageTest(unittest.TestCase):
+
+  def test_render_basic_proto_message(self):
+    p = jinja_template.RenderProtoMessage(
+        proto_message=struct_pb2.Struct,
+        template_str=(
+            'Name: {{ data.name }}, age: {{'
+            ' data.age }}!'
+        ),
+    )
+    output = processor.apply_sync(
+        p,
+        [
+            content_api.ProcessorPart.from_proto_message(
+                proto_message=struct_pb2.Struct(
+                    fields={
+                        'name': struct_pb2.Value(string_value='John'),
+                        'age': struct_pb2.Value(number_value=25),
+                    }
+                )
+            )
+        ],
+    )
+    # number_value are floats.
+    self.assertEqual(content_api.as_text(output), 'Name: John, age: 25.0!')
+
+  def test_render_proto_message_with_additional_variables(self):
+    p = jinja_template.RenderProtoMessage(
+        proto_message=struct_pb2.Struct,
+        template_str=(
+            'Name: {{ data.name }}! {{ other_var }}'
+        ),
+        other_var='Welcome',
+    )
+    output = processor.apply_sync(
+        p,
+        [
+            content_api.ProcessorPart.from_proto_message(
+                proto_message=struct_pb2.Struct(
+                    fields={
+                        'name': struct_pb2.Value(string_value='John'),
+                    }
+                )
+            )
+        ],
+    )
+    self.assertEqual(content_api.as_text(output), 'Name: John! Welcome')
+
+  def test_render_proto_message_without_proto_message(self):
+    p = jinja_template.RenderProtoMessage(
+        proto_message=struct_pb2.Struct,
+        template_str='Name: {{ data.name }}!',
+    )
+    output = processor.apply_sync(
+        p,
+        [
+            content_api.ProcessorPart(
+                'not a proto',
+                mimetype='text/plain',
+            )
+        ],
+    )
+    self.assertEqual(content_api.as_text(output), 'not a proto')
 
 
 if __name__ == '__main__':

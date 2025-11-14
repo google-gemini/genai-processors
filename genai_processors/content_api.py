@@ -25,6 +25,7 @@ from typing import Any, TypeAlias, TypeVar, Union
 from absl import logging
 from genai_processors import mime_types
 from google.genai import types as genai_types
+from google.protobuf import message as pb_message
 import PIL.Image
 
 
@@ -300,6 +301,14 @@ class ProcessorPart:
           f'{json_dataclass.__name__} is not a valid json dataclass'
       ) from e
 
+  def get_proto_message(
+      self, proto_message: type[pb_message.Message]
+  ) -> pb_message.Message:
+    """Returns representation of the Part as a given proto message."""
+    if not mime_types.is_proto_message(self.mimetype, proto_message):
+      raise ValueError('Part is not a proto message.')
+    return proto_message.FromString(self.bytes)
+
   @property
   def pil_image(self) -> PIL.Image.Image:
     """Returns PIL.Image representation of the Part."""
@@ -430,6 +439,17 @@ class ProcessorPart:
     """Constructs a ProcessorPart as a blob."""
     part = genai_types.Part.from_bytes(data=data, mime_type=mimetype)
     return cls(part, **kwargs)
+
+  @classmethod
+  def from_proto_message(
+      cls, *, proto_message: pb_message.Message, **kwargs
+  ) -> 'ProcessorPart':
+    """Constructs a ProcessorPart as a proto message."""
+    kwargs['mimetype'] = mime_types.proto_message_mime_type(type(proto_message))
+    return cls(
+        proto_message.SerializeToString(),
+        **kwargs,
+    )
 
   @classmethod
   def from_tool_cancellation(
@@ -711,6 +731,7 @@ is_pdf = mime_types.is_pdf
 is_csv = mime_types.is_csv
 is_python = mime_types.is_python
 is_dataclass = mime_types.is_dataclass
+is_proto_message = mime_types.is_proto_message
 
 
 def mime_type(part: ProcessorPart) -> str:
