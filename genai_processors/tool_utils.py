@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities for implementing tools."""
 
-from typing import Collection, Union
+from typing import Any, Callable, Collection, Union
 
 from google.genai import _transformers
 from google.genai import types as genai_types
@@ -74,6 +74,71 @@ def to_schema(
   return _transformers.t_schema(  # pytype: disable=wrong-arg-types
       _FakeClient(), schema
   )
+
+
+def to_json_schema(
+    schema: Union[genai_types.SchemaUnion, genai_types.SchemaUnionDict, None],
+) -> str | None:
+  """Returns a JSON schema given a Python object representing the schema.
+
+  GenAI SDK accepts a variety of Python objects, such as Enum, dataclass or a
+  dictionary of Schema objects as schemas. This provides an easy way to
+  constrain the LLM to generate JSON compatible with the needed type. This
+  utility is useful for defining the expected structure of data for tool calling
+  or constrained decoding with a model.
+
+  Args:
+    schema: The Python object representing the schema to convert. See
+      https://ai.google.dev/gemini-api/docs/structured-output for the supported
+        types.
+
+  Returns:
+    A `genai_types.Schema` object representing the schema or None if the given
+    `schema` was None.
+  """
+
+  if schema:
+    return to_schema(schema).json_schema.model_dump(
+        mode='json', exclude_unset=True
+    )
+  else:
+    return None
+
+
+def to_function_declarations(
+    tool_list: list[genai_types.Tool | Callable[..., Any]],
+) -> list[genai_types.FunctionDeclaration]:
+  """Converts a list of tools to a list of function declarations."""
+  tools: list[genai_types.Tool] = []
+  for t in tool_list:
+    if callable(t):
+      fdecl = genai_types.FunctionDeclaration.from_callable_with_api_option(
+          callable=t, api_option='GEMINI_API'
+      )
+      tools.append(genai_types.Tool(function_declarations=[fdecl]))
+    else:
+      tools.append(t)
+  raise_for_gemini_server_side_tools(tools)
+
+  function_declarations: list[genai_types.FunctionDeclaration] = []
+  for tool in tools:
+    function_declarations.extend(tool.function_declarations or ())
+
+  return function_declarations
+
+
+def function_declaration_to_json(
+    fdecl: genai_types.FunctionDeclaration,
+) -> dict[str, Any]:
+  """Returns a JSON representation of a FunctionDeclaration."""
+  return {
+      'type': 'function',
+      'function': {
+          'name': fdecl.name,
+          'description': fdecl.description,
+          'parameters': to_json_schema(fdecl.parameters),
+      },
+  }
 
 
 # TODO(kibergus): Remove this hack once Genai SDK allows None as the client.

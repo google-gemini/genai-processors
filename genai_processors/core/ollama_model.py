@@ -147,34 +147,9 @@ class OllamaModel(processor.Processor):
     self._parser = None
 
     if tools_config := generate_content_config.get('tools'):
-      tools: list[genai_types.Tool] = []
-      for t in tools_config:
-        if callable(t):
-          fdecl = genai_types.FunctionDeclaration.from_callable_with_api_option(
-              callable=t, api_option='GEMINI_API'
-          )
-          tools.append(genai_types.Tool(function_declarations=[fdecl]))
-        else:
-          tools.append(t)
-      tool_utils.raise_for_gemini_server_side_tools(tools)
       self._tools = []
-      for tool in tools:
-        for fdecl in tool.function_declarations or ():
-          if fdecl.parameters:
-            parameters = tool_utils.to_schema(
-                fdecl.parameters
-            ).json_schema.model_dump(mode='json', exclude_unset=True)
-          else:
-            parameters = None
-
-          self._tools.append({
-              'type': 'function',
-              'function': {
-                  'name': fdecl.name,
-                  'description': fdecl.description,
-                  'parameters': parameters,
-              },
-          })
+      for fdecl in tool_utils.to_function_declarations(tools_config):
+        self._tools.append(tool_utils.function_declaration_to_json(fdecl))
     else:
       self._tools = None
 

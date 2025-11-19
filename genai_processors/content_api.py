@@ -342,7 +342,7 @@ class ProcessorPart:
       cls,
       *,
       name: str,
-      response: Union[dict[str, Any], 'ProcessorContentTypes'],
+      response: Union[Any, 'ProcessorContentTypes'],
       function_call_id: str | None = None,
       will_continue: bool | None = None,
       scheduling: genai_types.FunctionResponseScheduling | None = None,
