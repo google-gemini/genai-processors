@@ -23,8 +23,10 @@ reviewed the Gemma terms of use [https://ai.google.dev/gemma/terms].
 
 import asyncio
 from collections.abc import AsyncIterable
+import dataclasses
 import json
-from typing import Any, Callable
+import re
+from typing import Any, Callable, Literal
 
 from genai_processors import content_api
 from genai_processors import processor
@@ -94,9 +96,10 @@ class TransformersModel(processor.Processor):
     self._model = transformers.AutoModelForCausalLM.from_pretrained(
         model_name, device_map='auto'
     )
-
     self._tools = []
+    self._parse_function_calls = False
     if tools_config := self._generate_content_config.get('tools'):
+      self._parse_function_calls = True
       for fdecl in tool_utils.to_function_declarations(tools_config):
         self._tools.append(tool_utils.function_declaration_to_json(fdecl))
 
@@ -151,6 +154,7 @@ class TransformersModel(processor.Processor):
                 asyncio.get_running_loop(),
                 self._hf_processor,
                 output_queue,
+                parse_function_calls=self._parse_function_calls,
             ),
             pad_token_id=self._hf_processor.eos_token_id,
             **self._generation_kwargs,
@@ -187,7 +191,12 @@ def _to_hf_message(
     return message
   elif part.function_response:
     message['role'] = 'tool'
-    message['content'] = json.dumps(part.function_response.response)
+    if 'error' in part.function_response.response:
+      message['content'] = (
+          f'Error: {json.dumps(part.function_response.response['error'])}'
+      )
+    else:
+      message['content'] = json.dumps(part.function_response.response['result'])
     message['name'] = part.function_response.name
     return message
   elif content_api.is_text(part.mimetype):
@@ -205,6 +214,12 @@ def _to_hf_message(
   return message
 
 
+@dataclasses.dataclass(frozen=True)
+class _Tokens:
+  segment: Literal['function_call', 'text']
+  ids: list[int]
+
+
 class _Streamer(transformers.generation.BaseStreamer):
   """A utility class for streaming tokens out of a transformer models.
 
@@ -218,11 +233,116 @@ class _Streamer(transformers.generation.BaseStreamer):
       loop: asyncio.AbstractEventLoop,
       hf_processor: transformers.AutoProcessor,
       output_queue: asyncio.Queue[content_api.ProcessorPartTypes | None],
+      parse_function_calls: bool = True,
   ):
     self._skip_tokens = skip_tokens
     self._loop = loop
     self._hf_processor = hf_processor
     self._queue = output_queue
+    self._parse_function_calls = parse_function_calls
+    # To mitigate prompt injection attacks we parse function calls directly from
+    # tokens and not from text representation. This assumes that the model is
+    # trained to use dedicated tokens for the start and end of the call and
+    # prompt tokenization correctly escapes attempts to pass fake function
+    # calls.
+    self._current_function_call_tokens = None
+    # Collect the token ids for the start and end of the function call. They
+    # will be used to detect the tokens corresponding to a full function call.
+    function_call_token_ids = hf_processor.encode(
+        text='<start_function_call><end_function_call><escape>',
+        add_special_tokens=False,
+    )
+    assert len(function_call_token_ids) == 3
+    self._start_function_id = function_call_token_ids[0]
+    self._end_function_id = function_call_token_ids[1]
+    self._escape_id = function_call_token_ids[2]
+    # Pattern to capture the function name and arguments as groups.
+    self._function_call_pattern = re.compile(
+        r'^<start_function_call>call:([^{]+)(\{.*\})<end_function_call>$'
+    )
+
+  def _process_function_call_tokens(self, tokens: list[int]) -> list[_Tokens]:
+    """Extract function calls from the tokens.
+
+    The tokens list can include many function calls in a row (potentially). This
+    method will extract the function calls and return the tokens before and
+    after each function call. The returned list contains _Tokens segments
+    that are either text or a complete function call.
+
+    When _Tokens.segment == 'function_call', the tokens include the function
+    call segment corresponding to:
+    <start_function_call>call:fn_name...<end_function_call>.
+
+    Args:
+      tokens: The token ids list to extract function calls from.
+
+    Returns:
+      A list of _Tokens segments.
+    """
+    if not tokens:
+      return []
+    if not self._parse_function_calls:
+      return [_Tokens(segment='text', ids=tokens)]
+    if self._current_function_call_tokens is None:
+      # We are not in a function call.
+      try:
+        lind = tokens.index(self._start_function_id)
+      except ValueError:
+        # No function call start token id found, return the tokens as is.
+        return [_Tokens(segment='text', ids=tokens)]
+      # We have found a function call start token id, start collecting the
+      # tokens that are part of the function call.
+      self._current_function_call_tokens = []
+      remaining_tokens = self._process_function_call_tokens(tokens[lind:])
+      return [
+          _Tokens(segment='text', ids=tokens[:lind]),
+          *remaining_tokens,
+      ]
+    else:
+      try:
+        rind = tokens.index(self._end_function_id)
+      except ValueError:
+        # No function call end token id found, collect the tokens for the
+        # current function call.
+        self._current_function_call_tokens.extend(tokens)
+        return []
+      # We have found the function call end token id, yield the tokens
+      # collected so far and process the remaining tokens.
+      fc_tokens = self._current_function_call_tokens + tokens[: rind + 1]
+      self._current_function_call_tokens = None
+      remaining_tokens = self._process_function_call_tokens(tokens[rind + 1 :])
+      return [
+          _Tokens(segment='function_call', ids=fc_tokens),
+          *remaining_tokens,
+      ]
+
+  def _extract_function_call_part(
+      self, part: str
+  ) -> content_api.ProcessorPartTypes:
+    """Extracts a structured function call from its string representation."""
+    fc_match = self._function_call_pattern.match(part)
+    if not fc_match:
+      return part
+    fc_name = fc_match.group(1)
+    try:
+      fc_args = json.loads(fc_match.group(2))
+    except json.JSONDecodeError as e:
+      return content_api.ProcessorPart(
+          f'Could not parse function call arguments: {fc_match.group(2)} for'
+          f' function call {fc_name}: {e}',
+          substream_name=processor.DEBUG_STREAM,
+          role='model',
+      )
+
+    return content_api.ProcessorPart.from_function_call(
+        name=fc_name,
+        args=fc_args,
+        role='model',
+    )
+
+  def _add_quotes_on_properties(self, token_str: str) -> str:
+    """Adds quotes around the property name in a function call."""
+    return re.sub(r'([{,]\s*)(\w+)\b:', r'\1"\2":', token_str)
 
   def put(self, value):
     """Invoked to push new tokens."""
@@ -230,10 +350,49 @@ class _Streamer(transformers.generation.BaseStreamer):
     tokens_to_skip = min(len(tokens), self._skip_tokens)
     tokens = tokens[tokens_to_skip:]
     self._skip_tokens -= tokens_to_skip
-
-    part = self._hf_processor.decode(tokens, skip_special_tokens=True)
-    if part:
-      self._loop.call_soon_threadsafe(self._queue.put_nowait, part)
+    # tokens are torch tensors, we convert them to list here.
+    for tokens in self._process_function_call_tokens(tokens.cpu().tolist()):
+      if tokens.segment == 'function_call':
+        # We have found a function call, process the escape tokens.
+        text_tokens = []
+        token_ids = []
+        inside_escape = False
+        for token in tokens.ids:
+          # Function arguments may contain special symbols like " and \. While
+          # models can escape them, sometimes they get confused, especially if
+          # the tool parameter is a code and contains escaping on its own.
+          # By using a special <escape> token to separate parameters we can
+          # achieve a more robust operation: we escape all the text in between
+          # <escape> tokens and parse the result as JSON.
+          if token == self._escape_id:
+            token_str = self._hf_processor.decode(
+                token_ids, skip_special_tokens=True
+            )
+            if inside_escape:
+              # We are inside a string argument, keep things as is but escape
+              # all quotes inside to be parsed correctly as JSON.
+              text_tokens.append(json.dumps(token_str))
+            else:
+              # We are not inside a string argument, the property name should be
+              # quoted to be parsed correctly as JSON.
+              text_tokens.append(self._add_quotes_on_properties(token_str))
+            token_ids = []
+            inside_escape = not inside_escape
+          else:
+            token_ids.append(token)
+        if token_ids:
+          text_tokens.append(
+              self._add_quotes_on_properties(
+                  self._hf_processor.decode(token_ids, skip_special_tokens=True)
+              )
+          )
+        part = ''.join(text_tokens)
+        # Parse the function call arguments as plain json object.
+        part = self._extract_function_call_part(part)
+      else:
+        part = self._hf_processor.decode(tokens.ids, skip_special_tokens=True)
+      if part:
+        self._loop.call_soon_threadsafe(self._queue.put_nowait, part)
 
   def end(self):
     """Invoked to signal the end of generation."""
