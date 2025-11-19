@@ -139,34 +139,29 @@ class TransformersModel(processor.Processor):
         return_tensors='pt',
     )
 
-    streamer = transformers.AsyncTextIteratorStreamer(
-        self._hf_processor,
-        skip_prompt=True,
-        skip_special_tokens=True,
-    )
-    generate_task = asyncio.to_thread(
-        self._model.generate,
-        **inputs.to(self._model.device),
-        streamer=streamer,
-        pad_token_id=self._hf_processor.eos_token_id,
-        **self._generation_kwargs,
+    input_len = len(inputs['input_ids'][0])
+    output_queue = asyncio.Queue[content_api.ProcessorPart | None]()
+
+    generate_task = processor.create_task(
+        asyncio.to_thread(
+            self._model.generate,
+            **inputs.to(self._model.device),
+            streamer=_Streamer(
+                input_len,
+                asyncio.get_running_loop(),
+                self._hf_processor,
+                output_queue,
+            ),
+            pad_token_id=self._hf_processor.eos_token_id,
+            **self._generation_kwargs,
+        )
     )
 
-    # TODO(kibergus): This is non-streaming code, should use Streamer instead.
-    out = await generate_task
-    yield self._hf_processor.decode(
-        out[0][len(inputs['input_ids'][0]) :], skip_special_tokens=True
-    )
-
-    # try:
-    #  async for chunk in streamer:
-    #    # TODO(elisseeff): Detect tool calls and parse them to proper
-    #    # FunctionCall objects.For that we will need to wrap the
-    #    # AsyncTextIteratorStreamer and intercept everything between function
-    #    # call tokens.
-    #    yield chunk
-    # finally:
-    #  await generate_task
+    try:
+      while (part := await output_queue.get()) is not None:
+        yield part
+    finally:
+      await generate_task
 
 
 def _to_hf_message(
@@ -208,3 +203,38 @@ def _to_hf_message(
     raise ValueError(f'Unsupported Part type: {part.mimetype}')
 
   return message
+
+
+class _Streamer(transformers.generation.BaseStreamer):
+  """A utility class for streaming tokens out of a transformer models.
+
+  As the model generation is run in a separate thread we use asyncio.Queue and
+  asyncio.Loop.call_soon_threadsafe to push the output back to the event loop.
+  """
+
+  def __init__(
+      self,
+      skip_tokens: int,
+      loop: asyncio.AbstractEventLoop,
+      hf_processor: transformers.AutoProcessor,
+      output_queue: asyncio.Queue[content_api.ProcessorPartTypes | None],
+  ):
+    self._skip_tokens = skip_tokens
+    self._loop = loop
+    self._hf_processor = hf_processor
+    self._queue = output_queue
+
+  def put(self, value):
+    """Invoked to push new tokens."""
+    tokens = value.flatten()
+    tokens_to_skip = min(len(tokens), self._skip_tokens)
+    tokens = tokens[tokens_to_skip:]
+    self._skip_tokens -= tokens_to_skip
+
+    part = self._hf_processor.decode(tokens, skip_special_tokens=True)
+    if part:
+      self._loop.call_soon_threadsafe(self._queue.put_nowait, part)
+
+  def end(self):
+    """Invoked to signal the end of generation."""
+    self._loop.call_soon_threadsafe(self._queue.put_nowait, None)

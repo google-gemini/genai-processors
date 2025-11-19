@@ -27,7 +27,7 @@ class MockInputs(dict):
   """Mock inputs returned by apply_chat_template."""
 
   def __init__(self):
-    super().__init__(input_ids=[[1, 2, 3]])
+    super().__init__(input_ids=[[1, 2]])
 
   def to(self, device):
     del device  # Unused.
@@ -42,12 +42,29 @@ class TransformersModelTest(parameterized.TestCase):
     self.mock_processor = mock.Mock()
     self.mock_processor.eos_token_id = 0
     self.mock_processor.apply_chat_template.return_value = MockInputs()
-    self.mock_processor.decode.return_value = 'Hello, world!'
+
+    def mock_decode(tokens, skip_special_tokens):
+      del skip_special_tokens  # Unused.
+      if tokens == [1, 2]:
+        return 'Test prompt'
+      elif tokens == [3, 4]:
+        return 'Hello, world!'
+      else:
+        return None
+
+    self.mock_processor.decode.side_effect = mock_decode
 
     self.mock_model = mock.Mock()
     self.mock_model.device = 'cpu'
     self.mock_model.config.max_position_embeddings = 1024
-    self.mock_model.generate.return_value = [[1, 2, 3, 4, 5]]
+    def mock_generate_fn(*args, **kwargs):
+      del args  # Unused.
+      streamer = kwargs['streamer']
+      streamer.put(mock.Mock(**{'flatten.return_value': [1, 2]}))
+      streamer.put(mock.Mock(**{'flatten.return_value': [3, 4]}))
+      streamer.end()
+
+    self.mock_model.generate.side_effect = mock_generate_fn
 
     self.enter_context(
         mock.patch.object(
