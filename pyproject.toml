@@ -58,12 +58,13 @@ contrib = [
 # Installed through `pip install -e .[dev]`
 dev = [
     "aiosqlite",
-    "pytest",
-    "pytest-xdist",
-    "pylint>=2.6.0",
-    "pyink",
     "flake8",
     "google-adk",
+    "pyink",
+    "pylint>=2.6.0",
+    "pytest",
+    "pytest-xdist",
+    "transformers",
 ]
 
 [tool.pyink]
