@@ -217,9 +217,18 @@ class OllamaProcessorTest(parameterized.TestCase):
               'type': 'function',
               'function': {
                   'name': 'get_weather',
-                  'description': inspect.cleandoc(get_weather.__doc__),
+                  'description': (
+                      'Get the current weather using a weather stone.'
+                  ),
                   'parameters': {
-                      'properties': {'location': {'type': 'string'}},
+                      'properties': {
+                          'location': {
+                              'type': 'string',
+                              'description': (
+                                  'The city and state, e.g. "Craven Arms pub"'
+                              ),
+                          },
+                      },
                       'type': 'object',
                       'required': ['location'],
                   },

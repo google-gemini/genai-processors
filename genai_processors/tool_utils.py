@@ -16,6 +16,7 @@
 
 from typing import Any, Callable, Collection, Union
 
+import docstring_parser
 from google.genai import _transformers
 from google.genai import types as genai_types
 
@@ -115,7 +116,19 @@ def to_function_declarations(
       fdecl = genai_types.FunctionDeclaration.from_callable_with_api_option(
           callable=t, api_option='GEMINI_API'
       )
-      tools.append(genai_types.Tool(function_declarations=[fdecl]))
+      parsed_docstring = docstring_parser.parse(t.__doc__)
+      fdecl.description = ''
+      if parsed_docstring.short_description:
+        fdecl.description += f'{parsed_docstring.short_description}'
+      if parsed_docstring.long_description:
+        fdecl.description += f'\n\n{parsed_docstring.long_description}'
+      if fdecl.parameters:
+        for param in parsed_docstring.params:
+          if param.arg_name in fdecl.parameters.properties:
+            fdecl.parameters.properties[param.arg_name].description = (
+                param.description
+            )
+        tools.append(genai_types.Tool(function_declarations=[fdecl]))
     else:
       tools.append(t)
   raise_for_gemini_server_side_tools(tools)

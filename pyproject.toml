@@ -25,6 +25,7 @@ dependencies = [
     "absl-py>=1.0.0",
     "bs4>=0.0.2",
     "dataclasses-json>=0.6.0",
+    "docstring-parser>=0.17.0",
     "google-genai>=1.16.0",
     "google-api-python-client>=0.6.0",
     "google-cloud-texttospeech>=2.27.0",

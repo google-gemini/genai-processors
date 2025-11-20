@@ -143,9 +143,16 @@ class TransformersModelTest(parameterized.TestCase):
 
     self.output_tokens = [[1, 2], [3, 4]]
 
+    # pylint: disable=g-doc-return-or-yield
     def emulate_vigorous_thinking(thinking_budget: float) -> int:
-      """The "smart" function."""
+      """The "smart" function.
+
+      Args:
+        thinking_budget: time covered by our budget.
+      """
       return '🧠' * int(thinking_budget)
+
+    # pylint: enable=g-doc-return-or-yield
 
     model = transformers_model.TransformersModel(
         model_name='unused',
@@ -178,7 +185,12 @@ class TransformersModelTest(parameterized.TestCase):
                 'description': 'The "smart" function.',
                 'parameters': {
                     'type': 'object',
-                    'properties': {'thinking_budget': {'type': 'number'}},
+                    'properties': {
+                        'thinking_budget': {
+                            'type': 'number',
+                            'description': 'time covered by our budget.',
+                        }
+                    },
                     'required': ['thinking_budget'],
                 },
             },
@@ -195,7 +207,8 @@ class TransformersModelTest(parameterized.TestCase):
         model,
         [
             content_api.ProcessorPart.from_function_response(
-                name='emulate_vigorous_thinking', response=42,
+                name='emulate_vigorous_thinking',
+                response=42,
             )
         ],
     )
