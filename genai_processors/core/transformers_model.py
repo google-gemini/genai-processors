@@ -193,7 +193,7 @@ def _to_hf_message(
     message['role'] = 'tool'
     if 'error' in part.function_response.response:
       message['content'] = (
-          f'Error: {json.dumps(part.function_response.response['error'])}'
+          f'Error: {json.dumps(part.function_response.response["error"])}'
       )
     else:
       message['content'] = json.dumps(part.function_response.response['result'])
