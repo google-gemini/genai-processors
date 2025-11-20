@@ -64,6 +64,7 @@ dev = [
     "pylint>=2.6.0",
     "pytest",
     "pytest-xdist",
+    'torch'
     "transformers",
 ]
 
