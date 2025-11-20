@@ -174,7 +174,7 @@ class TransformersModelTest(parameterized.TestCase):
                 'type': 'function',
                 'function': {
                     'name': 'emulate_vigorous_thinking',
-                    'arguments': '{"thinking_budget": 1.5}',
+                    'arguments': {'thinking_budget': 1.5},
                 },
             }],
         }],
@@ -200,23 +200,41 @@ class TransformersModelTest(parameterized.TestCase):
         return_tensors='pt',
     )
 
-  def test_function_response(self):
+  @parameterized.named_parameters(
+      ('int', 42, 'dict', {'result': 42}),
+      ('dict', {'temp': 42}, 'dict', {'temp': 42}),
+      ('dict_with_escape', {'temp': 'foo'}, 'dict', {'temp': 'foo'}),
+      ('list', [1, 2, 3], 'dict', {'result': [1, 2, 3]}),
+      ('str', 'foo', 'dict', {'result': 'foo'}),
+      ('str_as_string', 'foo', 'string', 'foo'),
+  )
+  def test_function_response(
+      self, response, tool_response_format, expected_content
+  ):
     """Tests that function responses are correctly formatted."""
-    model = transformers_model.TransformersModel(model_name='unused')
+    model = transformers_model.TransformersModel(
+        model_name='unused',
+        tool_response_format=tool_response_format,
+    )
     processor.apply_sync(
         model,
         [
             content_api.ProcessorPart.from_function_response(
                 name='emulate_vigorous_thinking',
-                response=42,
+                response=response,
             )
         ],
+    )
+    content = (
+        response
+        if tool_response_format == 'string'
+        else {'name': 'emulate_vigorous_thinking', 'response': expected_content}
     )
     self.mock_processor.apply_chat_template.assert_called_once_with(
         [{
             'role': 'tool',
-            'content': '42',
             'name': 'emulate_vigorous_thinking',
+            'content': content,
         }],
         tools=[],
         add_generation_prompt=True,

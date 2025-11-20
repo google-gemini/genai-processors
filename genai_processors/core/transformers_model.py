@@ -1,3 +1,4 @@
+# %%
 # Copyright 2025 DeepMind Technologies Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +29,7 @@ import json
 import re
 from typing import Any, Callable, Literal
 
+from absl import logging
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import tool_utils
@@ -79,17 +81,25 @@ class TransformersModel(processor.Processor):
       *,
       model_name: str = '',
       generate_content_config: GenerateContentConfig | None = None,
+      log_chat_template: bool = False,
+      tool_response_format: Literal['dict', 'string'] = 'string',
   ):
     """Initializes the Transformers model.
 
     Args:
       model_name: Pretrained model name or path.
       generate_content_config: Inference settings.
+      log_chat_template: Whether to log the HF chat template. This is useful for
+        debugging, but can be verbose.
+      tool_response_format: The format of the tool response. By default, the tool response is returned as a
+        string.
 
     Returns:
       A `Processor` that calls Hugging Face Transformers model in turn-based
       fashion.
     """  # fmt: skip
+    self._log_chat_template = log_chat_template
+    self._tool_response_format = tool_response_format
     self._generate_content_config = generate_content_config or {}
 
     self._hf_processor = transformers.AutoProcessor.from_pretrained(model_name)
@@ -108,7 +118,11 @@ class TransformersModel(processor.Processor):
         self._generate_content_config.get('system_instruction', ())
     ):
       self._system_instruction.append(
-          _to_hf_message(part, default_role='system')
+          _to_hf_message(
+              part,
+              tool_response_format=self._tool_response_format,
+              default_role='system',
+          )
       )
     self._generation_kwargs = {}
     for arg in ['temperature', 'top_k', 'top_p']:
@@ -130,7 +144,13 @@ class TransformersModel(processor.Processor):
     """Internal method to call the Ollama API and stream results."""
     messages = list(self._system_instruction)
     async for part in content:
-      messages.append(_to_hf_message(part, default_role='user'))
+      messages.append(
+          _to_hf_message(
+              part,
+              tool_response_format=self._tool_response_format,
+              default_role='user',
+          )
+      )
     if not messages:
       return
 
@@ -141,6 +161,16 @@ class TransformersModel(processor.Processor):
         return_dict=True,
         return_tensors='pt',
     )
+
+    if self._log_chat_template:
+      inputs_str = self._hf_processor.apply_chat_template(
+          messages,
+          tools=self._tools,
+          add_generation_prompt=True,
+          return_tensors='pt',
+          tokenize=False,
+      )
+      logging.info('HF CHAT TEMPLATE: %s', inputs_str)
 
     input_len = len(inputs['input_ids'][0])
     output_queue = asyncio.Queue[content_api.ProcessorPart | None]()
@@ -169,7 +199,9 @@ class TransformersModel(processor.Processor):
 
 
 def _to_hf_message(
-    part: content_api.ProcessorPart, default_role: str = ''
+    part: content_api.ProcessorPart,
+    tool_response_format: str,
+    default_role: str = '',
 ) -> dict[str, Any]:
   """Returns HF message JSON."""
   # Gemini API uses upper case for roles, while transformers uses lower case.
@@ -185,19 +217,32 @@ def _to_hf_message(
         'type': 'function',
         'function': {
             'name': part.function_call.name,
-            'arguments': json.dumps(part.function_call.args),
+            'arguments': part.function_call.args,
         },
     }]
     return message
   elif part.function_response:
     message['role'] = 'tool'
-    if 'error' in part.function_response.response:
-      message['content'] = (
-          f'Error: {json.dumps(part.function_response.response["error"])}'
-      )
-    else:
-      message['content'] = json.dumps(part.function_response.response['result'])
     message['name'] = part.function_response.name
+    response = part.function_response.response
+    match tool_response_format:
+      case 'string':
+        if 'result' in response:
+          response = response['result']
+        message['content'] = (
+            json.dumps(response) if not isinstance(response, str) else response
+        )
+      case 'dict':
+        if 'result' in response and isinstance(response['result'], dict):
+          response = response['result']
+        message['content'] = {
+            'name': part.function_response.name,
+            'response': response,
+        }
+      case _:
+        raise ValueError(
+            f'Unsupported tool response format: {tool_response_format}'
+        )
     return message
   elif content_api.is_text(part.mimetype):
     message['content'] = [{'type': 'text', 'text': part.text}]
