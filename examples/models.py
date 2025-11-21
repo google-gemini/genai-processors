@@ -25,6 +25,8 @@ to demonstrate that examples can run with various backends.
 
 import enum
 import os
+from typing import Any, Callable
+
 from absl import flags
 from genai_processors import content_api
 from genai_processors import processor
@@ -64,6 +66,7 @@ API_KEY = os.environ['GOOGLE_API_KEY']
 
 def turn_based_model(
     system_instruction: content_api.ProcessorContentTypes,
+    tools: list[genai_types.Tool | Callable[..., Any]] | None = None,
 ) -> processor.Processor:
   """Returns a turn-based model based on command line flags.
 
@@ -98,7 +101,9 @@ def turn_based_model(
             # Adds google search as a tool. This is not needed for the model to
             # work but it is useful to ask questions that can be answered by
             # google search.
-            tools=[genai_types.Tool(google_search=genai_types.GoogleSearch())],
+            tools=tools
+            if tools is not None
+            else [genai_types.Tool(google_search=genai_types.GoogleSearch())],
         ),
         # Make the newest features available for the examples.
         http_options=genai_types.HttpOptions(api_version='v1alpha'),
@@ -110,7 +115,8 @@ def turn_based_model(
     return ollama_model.OllamaModel(
         model_name=model_name,
         generate_content_config=ollama_model.GenerateContentConfig(
-            system_instruction=system_instruction
+            system_instruction=system_instruction,
+            tools=tools,
         ),
     )
 
@@ -126,7 +132,8 @@ def turn_based_model(
     return transformers_model.TransformersModel(
         model_name=model_name,
         generate_content_config=transformers_model.GenerateContentConfig(
-            system_instruction=system_instruction
+            system_instruction=system_instruction,
+            tools=tools,
         ),
     )
 
