@@ -392,9 +392,11 @@ class FunctionCalling(processor.Processor):
     """Initializes the FunctionCalling processor.
 
     Args:
-      model: The processor to use for generation. This processor should not be a
-        bidi model like the one obtained from `realtime.py`. It should be a
-        unary-streaming model, waiting on the full input stream when called.
+      model: The processor to use for generation. The model can be a bidi or
+        unary model. If it is a unary model, the function calling processor will
+        convert it to a bidi processor. If this is a realtime model like the
+        Gemini Live API or like the `realtime.LiveProcessor`, `is_bidi_model`
+        should be set to True.
       is_bidi_model: Whether the model is a bidi model. Most Gemini API models -
         except the Live API - are unary streaming, i.e. `is_bidi_model` is
         False. If `is_bidi_model` is False, the function calling processor will
@@ -503,7 +505,6 @@ class FunctionCalling(processor.Processor):
             genai_types.FunctionResponseScheduling.WHEN_IDLE,
         ):
           case genai_types.FunctionResponseScheduling.SILENT:
-            # state.has_new_fn_calls = False
             pass
           case genai_types.FunctionResponseScheduling.WHEN_IDLE:
             if state.model_outputting:
