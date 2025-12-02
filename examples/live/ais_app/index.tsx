@@ -82,18 +82,18 @@ export class LiveCommentator extends LitElement {
     };
     this.agentWebSocket.onmessage = (event) => {
       const jsonData = JSON.parse(event.data) as {[key: string]: any};
-      const mime_type = jsonData['mime_type'];
+      const mime_type = jsonData['mimetype'];
       if (mime_type?.startsWith('audio/')) {
         this.audioOutStream.write({
-          data: aiae.base64.decode(jsonData['data']),
+          data: aiae.base64.decode(jsonData['part']['inline_data']['data']),
           metadata: {mimetype: {type: 'audio', subtype: 'pcm'}},
         });
       } else if (mime_type?.startsWith('text/')) {
-        this.transcript += jsonData['data'];
+        this.transcript += jsonData['part']['text'];
       } else if (
         mime_type === 'application/x-state' &&
-        (jsonData['data'] === 'GENERATION_COMPLETE' ||
-          jsonData['data'] === 'INTERRUPTED')
+        (jsonData['metadata']['generation_complete'] ||
+          jsonData['metadata']['interrupted'])
       ) {
         // Reset the transcript after a short delay.
         requestAnimationFrame(() => {
@@ -168,16 +168,22 @@ export class LiveCommentator extends LitElement {
     const audioChunks = aiae.content.mediaStreamToAudioChunks(this.micStream);
     for await (const chunk of audioChunks) {
       this.send({
-        data: aiae.base64.encode(chunk.data),
-        mime_type: aiae.content.stringifyMimetype(chunk.metadata.mimetype),
+        part: {
+          inline_data: {
+            data: aiae.base64.encode(chunk.data),
+            mime_type: aiae.content.stringifyMimetype(chunk.metadata.mimetype),
+          },
+        },
+        role: 'user',
+        substream_name: 'realtime',
       });
     }
   }
 
   private micOff() {
     this.send({
-      data: 'MIC_OFF',
-      mime_type: 'application/x-state',
+      mimetype: 'application/x-state',
+      metadata: {mic: 'off'},
     });
     this.mic = false;
     this.micStream?.getTracks().forEach((t) => {
@@ -207,8 +213,14 @@ export class LiveCommentator extends LitElement {
     const videoChunks = aiae.content.mediaStreamToImageChunks(this.videoStream);
     for await (const chunk of videoChunks) {
       this.send({
-        data: aiae.base64.encode(chunk.data),
-        mime_type: aiae.content.stringifyMimetype(chunk.metadata.mimetype),
+        part: {
+          inline_data: {
+            data: aiae.base64.encode(chunk.data),
+            mime_type: aiae.content.stringifyMimetype(chunk.metadata.mimetype),
+          },
+        },
+        role: 'user',
+        substream_name: 'realtime',
       });
     }
   }
@@ -239,8 +251,14 @@ export class LiveCommentator extends LitElement {
     );
     for await (const chunk of screenChunks) {
       this.send({
-        data: aiae.base64.encode(chunk.data),
-        mime_type: aiae.content.stringifyMimetype(chunk.metadata.mimetype),
+        part: {
+          inline_data: {
+            data: aiae.base64.encode(chunk.data),
+            mime_type: aiae.content.stringifyMimetype(chunk.metadata.mimetype),
+          },
+        },
+        role: 'user',
+        substream_name: 'realtime',
       });
     }
   }
@@ -265,8 +283,8 @@ export class LiveCommentator extends LitElement {
 
   private reset() {
     this.send({
-      data: 'RESET',
-      mime_type: 'application/x-command',
+      mimetype: 'application/x-command',
+      metadata: {command: 'reset'},
     });
     this.initializeAudioOut();
     this.transcript = '';
@@ -279,8 +297,8 @@ export class LiveCommentator extends LitElement {
 
   private sendChattiness() {
     this.send({
-      data: JSON.stringify({chattiness: this.chattiness}),
-      mime_type: 'application/x-config',
+      mimetype: 'application/x-config',
+      metadata: {'chattiness': this.chattiness},
     });
     this.initializeAudioOut();
     this.transcript = '';

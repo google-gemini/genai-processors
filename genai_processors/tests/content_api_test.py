@@ -150,6 +150,14 @@ class ProcessorPartTest(parameterized.TestCase):
         ),
     )
 
+  def test_bytes_from_text(self):
+    part = content_api.ProcessorPart('foo', mimetype='text/plain')
+    self.assertEqual(part.bytes, b'foo')
+    self.assertEqual(part.text, 'foo')
+    part = content_api.ProcessorPart('foo', mimetype='application/x-command')
+    self.assertEqual(part.bytes, b'foo')
+    self.assertRaises(ValueError, lambda: part.text)
+
   def test_eq_part_and_non_part(self):
     part = content_api.ProcessorPart('foo')
     self.assertNotEqual(part, object())
@@ -478,7 +486,11 @@ class ProcessorContentTest(parameterized.TestCase):
       self, original_part: content_api.ProcessorPart
   ):
     reconstructed_part = content_api.ProcessorPart.from_dict(
-        data=original_part.to_dict()
+        data=original_part.to_dict(mode='json')
+    )
+    self.assertEqual(original_part, reconstructed_part)
+    reconstructed_part = content_api.ProcessorPart.from_dict(
+        data=original_part.to_dict(mode='python')
     )
     self.assertEqual(original_part, reconstructed_part)
 
@@ -489,6 +501,29 @@ class ProcessorContentTest(parameterized.TestCase):
     }
     with self.assertRaises(Exception):
       content_api.ProcessorPart.from_dict(data=invalid_data)
+
+  @parameterized.named_parameters([
+      dict(
+          testcase_name='json_mode',
+          mode='json',
+          expected_data='YWI=',  # Base64 encoding of 'ab' is 'YWI='.
+      ),
+      dict(
+          testcase_name='python_mode',
+          mode='python',
+          expected_data=b'ab',
+      ),
+  ])
+  def test_to_dict_base64_encoding_of_image_bytes(self, mode, expected_data):
+    part = content_api.ProcessorPart(
+        b'ab',
+        role='user',
+        substream_name='chat',
+        mimetype='image/png',
+        metadata={'id': 123, 'source': 'test'},
+    )
+    part_as_dict = part.to_dict(mode=mode)
+    self.assertEqual(part_as_dict['part']['inline_data']['data'], expected_data)
 
   def test_eq_content_and_non_content(self):
     content = content_api.ProcessorContent('foo')

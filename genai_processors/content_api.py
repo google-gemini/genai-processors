@@ -194,7 +194,7 @@ class ProcessorPart:
       is a Blob.
     """
     if self.part.text:
-      return self.text.encode()
+      return self.part.text.encode()
     if isinstance(self.part.inline_data, genai_types.Blob):
       return self.part.inline_data.data
     return None
@@ -227,10 +227,10 @@ class ProcessorPart:
       The text of the part.
 
     Raises:
-      ValueError if part has no text.
+      ValueError if part is not of a text MIME type.
     """
     if not mime_types.is_text(self.mimetype):
-      raise ValueError('Part is not text.')
+      raise ValueError(f'Part is not text: {self.mimetype}')
     return self.part.text or ''
 
   @text.setter
@@ -543,11 +543,17 @@ class ProcessorPart:
         metadata=data.get('metadata'),
     )
 
-  def to_dict(self) -> dict[str, Any]:
+  def to_dict(self, mode: str = 'json') -> dict[str, Any]:
     """Serializes this ProcessorPart to a JSON-compatible dictionary.
 
     The resulting dictionary can be used with `ProcessorPart.from_dict()`
     to reconstruct an equivalent ProcessorPart instance.
+
+    Args:
+      mode: The mode in which `to_dict` should run. If mode is 'json', the
+        output will only contain JSON serializable types. Bytes are encoded as
+        base64 strings. If mode is 'python', the output may contain
+        non-JSON-serializable Python objects, i.e. bytes are left as is.
 
     Returns:
       A dictionary representing the ProcessorPart.
@@ -570,7 +576,7 @@ class ProcessorPart:
     ```
     """
     return {
-        'part': self.part.model_dump(mode='json', exclude_none=True),
+        'part': self.part.model_dump(mode=mode, exclude_none=True),
         'role': self.role,
         'substream_name': self.substream_name,
         'mimetype': self.mimetype,
