@@ -284,6 +284,7 @@ import math
 from typing import Any, Callable
 
 from genai_processors import content_api
+from genai_processors import context as context_lib
 from genai_processors import processor
 from genai_processors import streams
 from google.genai import _extra_utils
@@ -485,8 +486,13 @@ class FunctionCalling(processor.Processor):
 
     async for part in streams.dequeue(output_queue):
       if not content_api.is_end_of_turn(part):
-        # Reinject output parts into the model except EoTs (handled below).
-        await input_queue.put(part)
+        # Reinject output parts into the model when it's not bidi.
+        # EoTs are handled separately below.
+        if (
+            not context_lib.is_reserved_substream(part.substream_name)
+            and not self._is_bidi_model
+        ):
+          await input_queue.put(part)
         yield part
 
         if (
