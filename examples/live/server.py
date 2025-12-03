@@ -200,8 +200,7 @@ class AIStudioConnection:
         )
         await self._ais_ws.send(json.dumps(part.to_dict()))
       else:
-        print(f'Chunk not sent to AIS: {part}')
-        logging.debug(
+        logging.info(
             '%s - Chunk not sent to AIS: %s', time.perf_counter(), part
         )
 
@@ -228,7 +227,6 @@ class AIStudioConnection:
             metadata={'audio_stream_end': True},
         )
       elif is_reset_command(part):
-        print('reset command')
         # Stop reading from the WebSocket until the processor has been reset.
         logging.debug(
             "%s - RESET command received. Resetting the processor's state.",
@@ -236,9 +234,9 @@ class AIStudioConnection:
         )
         self.is_resetting = True
         return
-      elif is_config(part) and part.bytes:
+      elif is_config(part) and part.metadata:
         self.processor_config = part.metadata
-        logging.debug(
+        logging.info(
             '%s - Config received: %s',
             time.perf_counter(),
             self.processor_config,
@@ -263,10 +261,7 @@ async def live_server(
       live_processor = processor_factory(ais.processor_config)
       await ais.send(live_processor(ais.receive()))
     except Exception as e:  # pylint: disable=broad-exception-caught
-      print(
-          f'Error in live server: {e}\n\nTraceback:\n{traceback.format_exc()}'
-      )
-      logging.debug(
+      logging.info(
           '%s - Resetting live server after receiving error :'
           ' %s\n\nTraceback:\n%s',
           time.perf_counter(),
