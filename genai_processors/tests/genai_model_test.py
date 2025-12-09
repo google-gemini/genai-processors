@@ -1,6 +1,7 @@
 import dataclasses
 import enum
 from typing import Any, Callable, Sequence
+import unittest
 from unittest import mock
 
 from absl.testing import absltest
@@ -8,7 +9,9 @@ from absl.testing import parameterized
 import dataclasses_json
 from genai_processors import content_api
 from genai_processors import processor
+from genai_processors import streams
 from genai_processors.core import genai_model
+from google import genai
 from google.genai import types as genai_types
 
 
@@ -189,6 +192,58 @@ class GenaiModelTest(parameterized.TestCase):
     self.assertLen(passed_contents[0].parts, 2)  # Both parts should be there.
     self.assertEqual(passed_contents[0].parts[0].inline_data.data, b'imagedata')
     self.assertEqual(passed_contents[0].parts[1].text, 'what is this image?')
+
+
+class ImagePreprocessTest(unittest.IsolatedAsyncioTestCase):
+
+  def setUp(self):
+    super().setUp()
+    self.mock_client = mock.MagicMock(spec=genai.client.Client)
+    self.mock_upload = mock.MagicMock()
+    self.mock_delete = mock.MagicMock()
+    self.mock_client.files.upload = self.mock_upload
+    self.mock_client.files.delete = self.mock_delete
+    self.mock_file1 = genai_types.File(
+        name='file1', mime_type='image/png', uri='uri1'
+    )
+    self.mock_file2 = genai_types.File(
+        name='file2', mime_type='image/png', uri='uri2'
+    )
+    self.mock_file2.name = 'file2'
+    self.mock_upload.side_effect = [self.mock_file1, self.mock_file2]
+    self.enterContext(
+        mock.patch.object(
+            genai.client,
+            'Client',
+            autospec=True,
+            return_value=self.mock_client,
+        )
+    )
+
+  async def test_image_deletion(self):
+
+    preprocess = genai_model.ImagePreprocess(api_key='unused', ttl_secs=0.4)
+
+    # Delay in the stream ensures the first image will be deleted while the
+    # second should still be around when the stream ends.
+    input_stream = streams.stream_content(
+        [
+            content_api.ProcessorPart(b'img1', mimetype='image/png'),
+            content_api.ProcessorPart(b'img2', mimetype='image/png'),
+        ],
+        delay_end=False,
+        with_delay_sec=0.5,
+    )
+
+    output = await streams.gather_stream(
+        preprocess.to_processor()(input_stream)
+    )
+    expected_output = [
+        content_api.ProcessorPart(self.mock_file1),
+        content_api.ProcessorPart(self.mock_file2),
+    ]
+    self.assertEqual(output, expected_output)
+    self.mock_delete.assert_called_once_with(name='file1')
 
 
 if __name__ == '__main__':

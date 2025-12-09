@@ -78,6 +78,16 @@ class ProcessorPart:
     match value:
       case genai_types.Part():
         self._part = value
+      case genai_types.File():
+        self._part = genai_types.Part(
+            file_data=genai_types.FileData(
+                display_name=value.name,
+                mime_type=value.mime_type,
+                file_uri=value.uri or '',
+            ),
+        )
+        self._metadata['is_file'] = True
+        mimetype = value.mime_type
       case ProcessorPart():
         self._part = value.part
         role = role or value.role
@@ -168,6 +178,18 @@ class ProcessorPart:
   def part(self) -> genai_types.Part:
     """Returns the underlying Genai Part."""
     return self._part
+
+  @property
+  def file(self) -> genai_types.File | None:
+    """Returns the underlying Genai File."""
+    if self._metadata.get('is_file', False) and self._part.file_data:
+      return genai_types.File(
+          name=self._part.file_data.display_name,
+          mime_type=self._part.file_data.mime_type,
+          uri=self._part.file_data.file_uri,
+      )
+    else:
+      return None
 
   @property
   def role(self) -> str:
@@ -622,6 +644,8 @@ class ProcessorContent:
         else:
           parts = other.parts
         self += parts
+    elif isinstance(other, ProcessorPart):
+      self._all_parts.append(other)
     elif isinstance(other, ProcessorPartTypes):
       part = ProcessorPart(other)
       self._all_parts.append(part)
@@ -710,6 +734,7 @@ ProcessorPartTypes = (
     | str
     | bytes
     | PIL.Image.Image
+    | genai_types.File
 )
 
 # Types that can be appended to ProcessorContent.
@@ -936,7 +961,7 @@ def to_genai_part(
 
 def to_genai_contents(
     content: ProcessorContentTypes,
-) -> list[genai_types.Content]:
+) -> genai_types.ContentListUnion:
   """Converts a list of ProcessorParts into a list of Genai Content objects.
 
   Consecutive parts with the same role are grouped together into a single
@@ -951,10 +976,14 @@ def to_genai_contents(
   """
   processor_content = ProcessorContent(content)
   contents = []
-  for role, content_part in itertools.groupby(
-      processor_content, lambda p: p.role
+  for (role, _), parts_by_role_n_file in itertools.groupby(
+      processor_content, lambda p: (p.role, p.file is not None)
   ):
-    content_parts = [p.part for p in content_part]
-    contents.append(genai_types.Content(parts=content_parts, role=role))
+    part_list = list(parts_by_role_n_file)
+    if part_list and part_list[0].file is not None:
+      contents += [p.file for p in part_list]
+    else:
+      content_parts = [p.part for p in part_list]
+      contents.append(genai_types.Content(parts=content_parts, role=role))
 
   return contents

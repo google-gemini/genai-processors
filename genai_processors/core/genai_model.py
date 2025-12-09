@@ -50,10 +50,32 @@ async for part in p(input_stream):
   elif part.pil_image:
     display(part.pil_image)
 ```
-"""
 
+It is also possible to upload images to the server once and reuse them in
+multiple model invocations by adding ImagePreprocess processor in front of
+GenaiModel.
+
+To use it, you need to pass the API key to the ImagePreprocess constructor:
+
+```py
+img_preprocess = ImagePreprocess(api_key=API_KEY)
+model = GenaiModel(
+    api_key=API_KEY,
+    model_name="gemini-2.5-flash",
+)
+This will upload the image to the Gemini API using the File API, and then call
+# the model on the file handle, the image tokenization will be done on the API
+# side and any file handle part will be replaced by its tokenization on the API
+# side.
+p = img_preprocess + model
+
+```
+"""
+import asyncio
 from collections.abc import AsyncIterable
-from typing import Any
+import io
+import time
+from typing import Any, NamedTuple
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import streams
@@ -196,3 +218,57 @@ class GenaiModel(processor.Processor):
     else:
       async for part in api_stream:
         yield part
+
+
+class ImagePreprocess(processor.PartProcessor):
+  """Processor that prepares images for the GenaiModel."""
+
+  class ImageFile(NamedTuple):
+    """Class to represent an image file."""
+
+    file: genai_types.File
+    creation_time_sec: float
+
+  def __init__(self, api_key: str, ttl_secs: int | None = None):
+    """Initializes the ImagePreprocess.
+
+    Args:
+      api_key: The `API key <https://ai.google.dev/gemini-api/docs/api-key>`_ to
+        use for authentication. Applies to the Gemini Developer API only.
+      ttl_secs: A best-effort TTL in seconds for the uploaded image. Gemini API
+        has a server-side non-adjustable 48h TTL. If this is not enough and the
+        app exceeds the 20GB limit, this TTL can be used to keep it under
+        control.
+    """
+    self._api_key = api_key
+    self._ttl_secs = ttl_secs
+    self._client = client.Client(api_key=api_key)
+    self._files = asyncio.Queue[ImagePreprocess.ImageFile | None]()
+    self._deletion_task = (
+        asyncio.create_task(self._delete_images()) if ttl_secs else None
+    )
+
+  async def _delete_images(self):
+    """Deletes all the images uploaded by the client."""
+    while file := await self._files.get():
+      await asyncio.sleep(
+          max(0, file.creation_time_sec + self._ttl_secs - time.time())
+      )
+      await asyncio.to_thread(self._client.files.delete, name=file.file.name)
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return content_api.is_image(part.mimetype)
+
+  async def call(
+      self, part: content_api.ProcessorPart
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    image_bytes = io.BytesIO(part.bytes)
+    file_part = await asyncio.to_thread(
+        self._client.files.upload,
+        file=image_bytes,
+        config=genai_types.UploadFileConfig(mime_type=part.mimetype),
+    )
+    await self._files.put(
+        ImagePreprocess.ImageFile(file=file_part, creation_time_sec=time.time())
+    )
+    yield file_part
