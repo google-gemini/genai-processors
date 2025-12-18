@@ -87,7 +87,7 @@ class LanguageDetectProcessor(Processor):
 
         try:
             return detect(text)
-        except (LangDetectException, Exception):
+        except LangDetectException:
             return self.unknown_label
 
     async def call(
