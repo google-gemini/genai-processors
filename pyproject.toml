@@ -54,6 +54,7 @@ repository = "https://github.com/google-gemini/genai-processors"
 contrib = [
     "langchain-core>=0.3.68",
     "langchain-google-genai>=2.1.7",
+    "langdetect>=1.0.9",
 ]
 # Development deps (unittest, linting, formating,...)
 # Installed through `pip install -e .[dev]`
@@ -67,6 +68,7 @@ dev = [
     "pytest-xdist",
     "torch",
     "transformers",
+    "pytest-asyncio>=0.23.0",
 ]
 
 [tool.pyink]
@@ -87,4 +89,8 @@ name = "genai_processors"
 dir = "."
 [tool.flit.sdist]
 exclude = ["tests/", "tests/*"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
