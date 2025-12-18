@@ -15,7 +15,7 @@ except ImportError as e:
 
 # Define minimal classes if they don't exist
 try:
-    from genai_processors.core import ProcessorPart
+    from genai_processors.processor import Processor, ProcessorPart
 except ImportError:
     class ProcessorPart:
         """Minimal ProcessorPart for language detection."""
