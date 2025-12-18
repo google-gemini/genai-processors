@@ -90,7 +90,7 @@ class LanguageDetectProcessor(Processor):
         except (LangDetectException, Exception):
             return self.unknown_label
 
-    async def process(
+    async def call(
         self, part_stream: AsyncIterator[ProcessorPart]
     ) -> AsyncIterator[ProcessorPart]:
         """Process parts and add language detection to text parts.
@@ -107,11 +107,4 @@ class LanguageDetectProcessor(Processor):
                 detected_language = self._detect_language(part.text)
                 part.metadata[self.metadata_key] = detected_language
 
-            yield part
-
-    async def __call__(
-        self, part_stream: AsyncIterator[ProcessorPart]
-    ) -> AsyncIterator[ProcessorPart]:
-        """Allow calling the processor directly."""
-        async for part in self.process(part_stream):
             yield part
