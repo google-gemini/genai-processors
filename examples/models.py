@@ -87,7 +87,7 @@ def turn_based_model(
           'variable with a key obtained from AI Studio.'
       )
     if not model_name:
-      model_name = 'gemini-2.0-flash-lite'
+      model_name = 'gemini-2.5-flash'
 
     return genai_model.GenaiModel(
         api_key=API_KEY,
@@ -122,7 +122,7 @@ def turn_based_model(
 
   if _MODEL_TYPE.value == _ModelType.LANGCHAIN.value:
     if not model_name:
-      model_name = 'gemini-2.0-flash-lite'
+      model_name = 'gemini-2.5-flash'
     llm = langchain_google_genai.ChatGoogleGenerativeAI(model=model_name)
     return LangChainModel(model=llm, system_instruction=system_instruction)
 

@@ -98,7 +98,7 @@ async def run_live(video_mode: str) -> None:
   # advanced example.
   live_processor = live_model.LiveProcessor(
       api_key=API_KEY,
-      model_name='gemini-2.5-flash-preview-native-audio-dialog',
+      model_name='gemini-2.5-flash-native-audio-preview-12-2025',
       realtime_config=genai_types.LiveConnectConfig(
           system_instruction=INSTRUCTION_PARTS,
           # Ground with Google Search

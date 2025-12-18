@@ -101,7 +101,7 @@ async def run_trip_request() -> None:
       content_factory=lambda: f'Today is: {datetime.date.today()}'
   ) + genai_model.GenaiModel(
       api_key=API_KEY,
-      model_name='gemini-2.0-flash-lite',
+      model_name='gemini-2.5-flash',
       generate_content_config=genai_types.GenerateContentConfig(
           system_instruction=(
               'You are a travel agent. You are given a trip request from a'
@@ -123,7 +123,7 @@ async def run_trip_request() -> None:
       # The perceived latency of that model would be hidden by the fast answer
       # from extract_trip_request and acknowledging to the user that we've
       # started planning the trip.
-      model_name='gemini-2.0-flash-lite',
+      model_name='gemini-2.5-flash-lite',
       generate_content_config=genai_types.GenerateContentConfig(
           system_instruction=(
               'You are a travel agent. You are given a trip request from a user'

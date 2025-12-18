@@ -23,8 +23,12 @@ a Live API setup. This is audio only.
 To install the dependencies for this script, run:
 
 ```
-pip install --upgrade pyaudio genai-processors google-genai termcolor
+pip install --upgrade pyaudio genai-processors google-genai termcolor \
+    langchain-google-genai transformers google-cloud-texttospeech
 ```
+
+Note that you need to activate the Google Text-to-Speech API in your Google
+Cloud project (as well as speech to text).
 
 Before running this script, ensure the `GOOGLE_API_KEY` and `GOOGLE_PROJECT_ID`
 environment variables are set to the api-key you obtained from Google AI Studio.

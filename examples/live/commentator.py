@@ -110,10 +110,10 @@ import numpy as np
 
 
 # Model to use for the live api processor.
-MODEL_LIVE = 'gemini-2.0-flash-live-001'
+MODEL_LIVE = 'gemini-2.5-flash-native-audio-preview-12-2025'
 
 # Model to use for the event detection processor.
-MODEL_DETECTION = 'gemini-2.0-flash-lite'
+MODEL_DETECTION = 'gemini-2.5-flash-lite'
 
 # Number of times the detection should detect a "no detection" in a row before
 # stopping the commentator.
