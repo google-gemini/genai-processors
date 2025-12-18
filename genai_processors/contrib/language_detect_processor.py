@@ -31,7 +31,7 @@ def is_text(mimetype: str) -> bool:
     return mimetype and (mimetype.startswith("text/") or "text" in mimetype.lower())
 
 
-class LanguageDetectProcessor:
+class LanguageDetectProcessor(Processor):
     """Detects the language of text parts and adds it to metadata.
 
     This processor automatically detects the language of text parts using
