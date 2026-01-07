@@ -79,18 +79,20 @@ async def sql_cache(
   Yields:
     A SqlCache instance.
   """
-  engine = create_async_engine(db_url)
+  engine = create_async_engine(db_url, poolclass=sqlalchemy.pool.NullPool)
+  try:
+    async with engine.begin() as conn:
+      await conn.run_sync(_Base.metadata.create_all)
 
-  async with engine.begin() as conn:
-    await conn.run_sync(_Base.metadata.create_all)
-
-  async with AsyncSession(engine) as session:
-    yield SqlCache(
-        session=session,
-        ttl_hours=ttl_hours,
-        hash_fn=hash_fn or cache.default_processor_content_hash,
-        lock=asyncio.Lock(),
-    )
+    async with AsyncSession(engine) as session:
+      yield SqlCache(
+          session=session,
+          ttl_hours=ttl_hours,
+          hash_fn=hash_fn or cache.default_processor_content_hash,
+          lock=asyncio.Lock(),
+      )
+  finally:
+    await engine.dispose()
 
 
 class SqlCache(cache_base.CacheBase):
@@ -217,13 +219,11 @@ class SqlCache(cache_base.CacheBase):
     if self._ttl is None:
       return
     now = datetime.datetime.now(datetime.timezone.utc)
-    expired_items = await self._session.execute(
-        sqlalchemy.select(_ContentCacheEntry).where(
+    await self._session.execute(
+        sqlalchemy.delete(_ContentCacheEntry).where(
             _ContentCacheEntry.expires_at < now
         )
     )
-    for item in expired_items.scalars():
-      await self._session.delete(item)
 
 
 def _serialize_content(value: ProcessorContent) -> bytes:

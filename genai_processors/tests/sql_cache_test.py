@@ -10,7 +10,6 @@ from absl.testing import parameterized
 from genai_processors import cache_base
 from genai_processors import content_api
 from genai_processors import sql_cache
-import sqlalchemy
 
 # Test Content
 TEST_QUERY = content_api.ProcessorContent('test query')
@@ -26,6 +25,15 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
       self.db_url = f'sqlite+aiosqlite:///{tmp.name}'
     self.addCleanup(os.remove, tmp.name)
+
+  async def asyncTearDown(self):
+    # Sanity check that there are no tasks left in the event loop.
+    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
+    if tasks:
+      for task in tasks:
+        task.cancel()
+      await asyncio.gather(*tasks, return_exceptions=True)
+    await super().asyncTearDown()
 
   async def test_cache_put_and_lookup(self):
     """Tests basic put and lookup functionality."""
@@ -102,17 +110,16 @@ class SqlCacheTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         mock_datetime.timedelta.side_effect = datetime.timedelta
         mock_datetime.timezone.utc = datetime.timezone.utc
         await cache._cleanup_expired()
+        await cache._session.commit()
 
       # Check that the entry is gone
       async def _lookup():
-        stmt = sqlalchemy.select(sql_cache._ContentCacheEntry).where(
-            sql_cache._ContentCacheEntry.key == cache._hash_fn(TEST_QUERY)
-        )
-        result = await cache._session.execute(stmt)
-        return result.fetchone()
+        key = cache._hash_fn(TEST_QUERY)
+        return await cache._session.get(sql_cache._ContentCacheEntry, key)
 
       result = await _lookup()
       self.assertIsNone(result)
+
 
 if __name__ == '__main__':
   absltest.main()

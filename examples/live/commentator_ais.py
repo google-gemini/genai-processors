@@ -38,8 +38,8 @@ from absl import app
 from absl import flags
 from absl import logging
 from genai_processors import processor
+from genai_processors.examples import live_server
 import commentator
-import server
 
 _PORT = flags.DEFINE_integer(
     'port',
@@ -71,7 +71,7 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
   if _DEBUG.value:
     logging.set_verbosity(logging.DEBUG)
-  asyncio.run(server.run_server(create_live_commentator, port=_PORT.value))
+  asyncio.run(live_server.run_server(create_live_commentator, port=_PORT.value))
 
 
 if __name__ == '__main__':
