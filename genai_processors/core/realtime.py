@@ -129,7 +129,7 @@ class LiveProcessor(Processor):
       content: AsyncIterable[ProcessorPart],
       output_queue: asyncio.Queue[ProcessorPart | None],
       rolling_prompt: window.RollingPrompt,
-  ):
+  ) -> None:
     user_not_talking = asyncio.Event()
     user_not_talking.set()
     conversation_model = _RealTimeConversationModel(
@@ -246,14 +246,14 @@ class _RealTimeConversationModel:
     self._model_done.set()
     self._pending_turn_task = None
 
-  def user_input(self, part: ProcessorPart):
+  def user_input(self, part: ProcessorPart) -> None:
     """Callback for when the user has a new input."""
     if not self._model_done.is_set():
       self._prompt.stash_part(part)
     else:
       self._prompt.add_part(part)
 
-  async def cancel(self):
+  async def cancel(self) -> None:
     """Cancels the current model call and pending turn, resets the prompt."""
     if (
         self._current_generate_output is not None
@@ -280,7 +280,7 @@ class _RealTimeConversationModel:
         self._model_done.set()
         self._prompt.apply_stash()
 
-  async def finish(self):
+  async def finish(self) -> None:
     """Cancels the current model call and finishes all pending work.
 
     Finishes the pending generate task which will make a last call to the model.
@@ -303,7 +303,7 @@ class _RealTimeConversationModel:
         raise self._pending_generate_output.exception()
       await self._model_done.wait()
 
-  async def turn(self):
+  async def turn(self) -> None:
     """Finalises the pending request and creates a new one."""
     self._model_done.clear()
     # This is a model turn. Finish the current prompt and start a new one.
@@ -319,7 +319,9 @@ class _RealTimeConversationModel:
         )
     )
 
-  async def _generate_output(self, content: AsyncIterable[ProcessorPart]):
+  async def _generate_output(
+      self, content: AsyncIterable[ProcessorPart]
+  ) -> None:
     """Streams back `content` to the user."""
     try:
       await self._read_model_output(content)
@@ -330,7 +332,9 @@ class _RealTimeConversationModel:
       self._model_done.set()
       self._prompt.apply_stash()
 
-  async def _read_model_output(self, content: AsyncIterable[ProcessorPart]):
+  async def _read_model_output(
+      self, content: AsyncIterable[ProcessorPart]
+  ) -> None:
     """Sends the model output to the user, context buffer, and pending queue."""
     part_to_prompt = []
     try:
