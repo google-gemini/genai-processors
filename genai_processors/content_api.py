@@ -223,7 +223,7 @@ class ProcessorPart:
       Text encoded into bytes or bytes from inline data if the underlying part
       is a Blob.
     """
-    if self.part.text:
+    if self.part.text is not None:
       return self.part.text.encode()
     if isinstance(self.part.inline_data, genai_types.Blob):
       return self.part.inline_data.data

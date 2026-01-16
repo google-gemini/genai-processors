@@ -24,6 +24,7 @@ keywords = []
 dependencies = [
     "absl-py>=1.0.0",
     "bs4>=0.0.2",
+    "cachetools>=6.0.0",
     "dataclasses-json>=0.6.0",
     "docstring-parser>=0.17.0",
     "google-genai>=1.16.0",
