@@ -149,6 +149,14 @@ class ProcessorPart:
         and self._part.inline_data.mime_type
     ):
       self._mimetype = self._part.inline_data.mime_type
+    elif self._part.function_call:
+      self._mimetype = mime_types.proto_message_mime_type(
+          genai_content_pb2.FunctionCall
+      )
+    elif self._part.function_response:
+      self._mimetype = mime_types.proto_message_mime_type(
+          genai_content_pb2.FunctionResponse
+      )
     # Otherwise, if text is not empty, assume 'text/plain' MIME type.
     elif self._part and self._part.text:
       self._mimetype = 'text/plain'
