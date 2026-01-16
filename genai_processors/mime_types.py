@@ -119,6 +119,9 @@ ALL_SUPPORTED_INPUT_TYPES = (
 _PROTOBUF_MIMETYPE = 'application/x-protobuf'
 _PROTOBUF_MIMETYPE_PREFIX = f'{_PROTOBUF_MIMETYPE}; type='
 TEXT_EXCEPTION = 'text/x-exception'
+CONTROL_TOKEN = 'application/x-control-token'
+DIRECTIVE = 'application/x-directive'
+FUNCTION_DECLARATION = 'application/x-function-declaration'
 
 
 def is_text(mime: str) -> bool:

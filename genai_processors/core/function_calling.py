@@ -182,12 +182,12 @@ where `fns` are the python functions to be called. Note that we disable the
 automatic function calling feature here to avoid duplicate function calls with
 the GenAI automatic function calling feature.
 
-If you want to allow cancelling ongoing async functions add `cancel_fc` tool
-defined in this file:
+If you want to allow cancelling ongoing async functions add `cancel_fc` and
+`list_fc` tool defined in this file:
 
 ```python
 generate_content_config=genai_types.GenerateContentConfig(
-    tools=[fns, function_calling.cancel_fc],
+    tools=[fns, function_calling.cancel_fc, function_calling.list_fc],
     automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
         disable=True
     ),
@@ -566,6 +566,23 @@ async def cancel_fc(function_ids: list[str]) -> content_api.ProcessorPart:
   )
 
 
+def list_fc() -> str:
+  """Returns the list of function calls that are currently running.
+
+  A function call is represented as a string describing the function name, its
+  arguments, and its id.
+
+  Returns:
+    A text paragraph with one item per function call, each item describing the
+    function call that were made and are currently running.
+  """
+  raise NotImplementedError(
+      'This list_fc is an interface without implementation that can be used'
+      ' as a tool definition for models. Actual implementation is in'
+      ' FunctionCalling.list_fc.'
+  )
+
+
 class _ExecuteFunctionCall:
   """Executes a function call and returns the whole input with the result."""
 
@@ -579,11 +596,13 @@ class _ExecuteFunctionCall:
   ):
     self._fns = {fn.__name__: fn for fn in fns}
     if is_bidi_model:
-      # Cancel functions make only sense for bidi models.
+      # Cancel and list functions make only sense for bidi models.
       self._fns['cancel_fc'] = self.cancel_fc
+      self._fns['list_fc'] = self.list_fc
     self._output_queue = output_queue
     # Map from function call id to the task running the function call.
     self._task_map: dict[str, asyncio.Task] = {}
+    self._call_map: dict[str, genai_types.FunctionCall] = {}
     self._task_counter = collections.defaultdict(int)
     self._fn_state = fn_state
     self._is_bidi_model = is_bidi_model
@@ -596,6 +615,22 @@ class _ExecuteFunctionCall:
     task_id = f'{fn_name}_{self._task_counter[fn_name]}'
     self._task_counter[fn_name] += 1
     return task_id
+
+  def list_fc(self) -> content_api.ProcessorPart:
+    """Returns a list of function calls that are currently running."""
+    f_calls = ['Background Functions currently running:']
+    for k, v in self._task_map.items():
+      if not v.done() and 'list_fc' not in k:
+        f_calls.append(
+            f'Function {self._call_map[k].name} is running with args'
+            f' {self._call_map[k].args} and id: {k}'
+        )
+    return content_api.ProcessorPart.from_function_response(
+        name='list_fc',
+        response='\n'.join(f_calls) + '\n',
+        role='user',
+        substream_name=FUNCTION_CALL_SUBTREAM_NAME,
+    )
 
   async def cancel_fc(
       self, function_ids: list[str]
@@ -628,20 +663,27 @@ class _ExecuteFunctionCall:
           f'Could not find any of the following function calls: {function_ids}.'
       )
       is_error = True
-
     return content_api.ProcessorPart.from_function_response(
         name='cancel_fc',
         response=response,
         role='user',
-        substream_name=FUNCTION_CALL_SUBTREAM_NAME,
+        substream_name=self._substream_name,
         is_error=is_error,
         scheduling='SILENT',
     )
 
-  def _add_task(self, task_id: str, task: asyncio.Task) -> None:
+  def _add_task(
+      self, call: genai_types.FunctionCall, fn: Callable[..., Any]
+  ) -> None:
     """Adds the Task running a function and returns task_id."""
+    task_id = call.id
+    task = processor.create_task(
+        self._put_function_response_to_output_queue(call, fn)
+    )
     self._task_map = {k: v for k, v in self._task_map.items() if not v.done()}
     self._task_map[task_id] = task
+    self._call_map[task_id] = call
+    self._call_map = {k: self._call_map[k] for k in self._task_map.keys()}
 
   def _to_function_response(
       self,
@@ -831,15 +873,14 @@ class _ExecuteFunctionCall:
               'Running in background.',
               call,
               scheduling=genai_types.FunctionResponseScheduling.SILENT,
+              will_continue=True,
           )
       )
       # Run function in a separate task and inject the results back into the
       # output queue.
       self._add_task(
-          call.id,
-          processor.create_task(
-              self._put_function_response_to_output_queue(call, fn)
-          ),
+          call,
+          fn,
       )
       self._fn_state.async_fc_count += 1
     else:

@@ -428,6 +428,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             ),
         ]
         + [
@@ -510,6 +511,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             ),
         ]
         + [
@@ -535,6 +537,7 @@ class FunctionCallingAsyncTest(
                     role='user',
                     substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                     scheduling='SILENT',
+                    will_continue=True,
                 ),
             ]
             if is_bidi
@@ -612,6 +615,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             ),
         ]
         + [
@@ -693,6 +697,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             )
         ]
         + [
@@ -758,6 +763,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             ),
         ]
         + [
@@ -836,6 +842,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             )
         ]
         + model_output_1
@@ -936,6 +943,7 @@ class FunctionCallingAsyncTest(
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 scheduling='SILENT',
+                will_continue=True,
             ),
         ]
         + model_output_1
@@ -947,6 +955,7 @@ class FunctionCallingAsyncTest(
                 substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
                 role='user',
                 scheduling='SILENT',
+                will_continue=True,
             )
         ]
         + [
@@ -961,6 +970,118 @@ class FunctionCallingAsyncTest(
             ),
         ]
         + async_sleep_output,
+    )
+
+  async def test_list_fc(self):
+    input_content = [
+        content_api.ProcessorPart('Call sleep and list_fc'),
+        content_api.END_OF_TURN,
+        content_api.END_OF_TURN,
+    ]
+    sleep_time_sec = 3
+    model_output_0 = [
+        content_api.ProcessorPart.from_function_call(
+            name='sleep_async',
+            args={'sleep_seconds': sleep_time_sec},
+            role='model',
+        ),
+    ]
+    model_output_1 = [
+        content_api.ProcessorPart(
+            'OK, running sleep async function, now list functions',
+            role='model',
+        ),
+        content_api.ProcessorPart.from_function_call(
+            name='list_fc',
+            args={},
+            role='model',
+        ),
+    ]
+    model_output_2 = [
+        content_api.ProcessorPart(
+            'OK, obtained list of functions',
+            role='model',
+        ),
+    ]
+    model_output_3 = [
+        content_api.ProcessorPart(
+            'OK',
+            role='model',
+        ),
+    ]
+    generate_processor, delay_sec = create_model(
+        [
+            model_output_0,
+            model_output_1,
+            model_output_2,
+            model_output_3,
+        ],
+        is_bidi=True,
+    )
+    fc_processor = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[sleep_async, function_calling.list_fc],
+        is_bidi_model=True,
+    )
+    output = await streams.gather_stream(
+        fc_processor(
+            streams.stream_content(
+                input_content, with_delay_sec=delay_sec, delay_end=True
+            )
+        )
+    )
+
+    list_fc_response = (
+        'Background Functions currently running:\nFunction sleep_async is'
+        " running with args {'sleep_seconds': 3} and id: sleep_async_0\n"
+    )
+
+    self.assertEqual(
+        output,
+        model_output_0
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                function_call_id='sleep_async_0',
+                response='Running in background.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                scheduling='SILENT',
+                will_continue=True,
+            ),
+        ]
+        + model_output_1
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='list_fc',
+                function_call_id='list_fc_0',
+                response='Running in background.',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                role='user',
+                scheduling='SILENT',
+                will_continue=True,
+            )
+        ]
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='list_fc',
+                function_call_id='list_fc_0',
+                response=list_fc_response,
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            ),
+        ]
+        + model_output_2
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                function_call_id='sleep_async_0',
+                response='Slept for 3 seconds',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            ),
+        ]
+        + model_output_3,
     )
 
 

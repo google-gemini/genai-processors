@@ -26,6 +26,7 @@ from absl import logging
 from genai_processors import mime_types
 from google.genai import types as genai_types
 from google.protobuf import message as pb_message
+from google.protobuf import timestamp
 import PIL.Image
 
 
@@ -143,10 +144,13 @@ class ProcessorPart:
     if mimetype:
       self._mimetype = mimetype
     # Otherwise, if MIME type is specified using inline data, use that.
-    elif self._part.inline_data and self._part.inline_data.mime_type:
+    elif (
+        self._part.inline_data
+        and self._part.inline_data.mime_type
+    ):
       self._mimetype = self._part.inline_data.mime_type
     # Otherwise, if text is not empty, assume 'text/plain' MIME type.
-    elif self._part.text:
+    elif self._part and self._part.text:
       self._mimetype = 'text/plain'
     else:
       self._mimetype = ''
@@ -182,7 +186,11 @@ class ProcessorPart:
   @property
   def file(self) -> genai_types.File | None:
     """Returns the underlying Genai File."""
-    if self._metadata.get('is_file', False) and self._part.file_data:
+    if (
+        self._metadata.get('is_file', False)
+        and self._part
+        and self._part.file_data
+    ):
       return genai_types.File(
           name=self._part.file_data.display_name,
           mime_type=self._part.file_data.mime_type,
