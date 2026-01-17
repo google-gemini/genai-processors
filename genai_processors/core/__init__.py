@@ -12,4 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Core processors."""
+"""Core module for genai-processors."""
+
+# Just re-export what's already there, don't add broken imports
+# The actual exports should already be defined in this file

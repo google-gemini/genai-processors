@@ -12,4 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Community contributed processors."""
+"""Contrib processors for genai-processors."""
+
+from genai_processors.contrib.language_detect_processor import LanguageDetectProcessor
+
+__all__ = [
+    "LanguageDetectProcessor",
+]
