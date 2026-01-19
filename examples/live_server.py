@@ -182,15 +182,7 @@ class AIStudioConnection:
     async for part in output_stream:
       if self.is_resetting:
         return
-      if (
-          content_api.is_audio(part.mimetype)
-          or content_api.is_image(part.mimetype)
-          or (content_api.is_text(part.mimetype) and part.text)
-      ):
-        await self._ais_ws.send(
-            json.dumps(part.to_dict(mode='python'), default=clean_encoder)
-        )
-      elif part.get_metadata('generation_complete', False) or part.get_metadata(
+      if part.get_metadata('generation_complete', False) or part.get_metadata(
           'interrupted', False
       ):
         part = content_api.ProcessorPart(
@@ -200,8 +192,8 @@ class AIStudioConnection:
         )
         await self._ais_ws.send(json.dumps(part.to_dict()))
       else:
-        logging.info(
-            '%s - Chunk not sent to AIS: %s', time.perf_counter(), part
+        await self._ais_ws.send(
+            json.dumps(part.to_dict(mode='python'), default=clean_encoder)
         )
 
   async def receive(self) -> AsyncIterable[content_api.ProcessorPart]:
