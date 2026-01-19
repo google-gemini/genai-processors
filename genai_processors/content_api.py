@@ -150,12 +150,16 @@ class ProcessorPart:
     ):
       self._mimetype = self._part.inline_data.mime_type
     elif self._part.function_call:
-      self._mimetype = mime_types.proto_message_mime_type(
-          genai_content_pb2.FunctionCall
+      # OSS library can't depend on protobuf, so we hardcode literal here.
+      self._mimetype = (
+          'application/x-protobuf;'
+          ' type=google.ai.generativelanguage.v1main.FunctionCall'
       )
     elif self._part.function_response:
-      self._mimetype = mime_types.proto_message_mime_type(
-          genai_content_pb2.FunctionResponse
+      # OSS library can't depend on protobuf, so we hardcode literal here.
+      self._mimetype = (
+          'application/x-protobuf;'
+          ' type=google.ai.generativelanguage.v1main.FunctionResponse'
       )
     # Otherwise, if text is not empty, assume 'text/plain' MIME type.
     elif self._part and self._part.text:
