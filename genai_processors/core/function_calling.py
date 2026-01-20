@@ -488,9 +488,8 @@ class FunctionCalling(processor.Processor):
       if not content_api.is_end_of_turn(part):
         # Reinject output parts into the model when it's not bidi.
         # EoTs are handled separately below.
-        if (
-            not context_lib.is_reserved_substream(part.substream_name)
-            and not self._is_bidi_model
+        if not context_lib.is_reserved_substream(part.substream_name) and (
+            not self._is_bidi_model or part.function_response
         ):
           await input_queue.put(part)
         yield part

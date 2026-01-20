@@ -103,7 +103,10 @@ class LiveProcessor(Processor):
 
     Args:
       turn_processor: A processor that models a single turn. This can be a GenAI
-        model or a processor that works with a finite input stream.
+        model or a processor that works with a finite input stream. Any output
+        of this processor will be put back into the input prompt for the next
+        turn, to reduce overhead you may want to filter out any output parts
+        that are irrelevant for the next turn.
       duration_prompt_sec: the time in seconds to keep the prompt in the model
         prompt. Set to None to keep the entire prompt. Set to 10 minutes by
         default.
@@ -120,6 +123,7 @@ class LiveProcessor(Processor):
         `turn_processor` accepts audio and text inputs, quality can be improved
         by using FINAL_TRANSCRIPTION at the cost of latency.
     """
+
     self._single_turn_processor = turn_processor
     self.duration_prompt_sec = duration_prompt_sec
     self._trigger_model_mode = trigger_model_mode
@@ -340,11 +344,7 @@ class _RealTimeConversationModel:
     try:
       async for part in content:
         self._output_queue.put_nowait(part)
-        if (
-            content_api.is_text(part.mimetype)
-            or content_api.is_image(part.mimetype)
-        ) and (part.role.lower() in ['user', 'model']):
-          part_to_prompt.append(part)
+        part_to_prompt.append(part)
     finally:
       # We add the prompt whatever has been output. We do this once everything
       # is output to avoid feeding the prompt while it's used to compute the
