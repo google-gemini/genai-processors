@@ -1,0 +1,596 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Trace Viewer</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {{
+        font-family: "Roboto", sans-serif;
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        color: #202124; /* Grey 900 */
+      }}
+      #left-panel {{
+        width: 45%;
+        overflow: auto;
+        border-right: 1px solid #dadce0; /* Grey 300 */
+        padding: 10px;
+        box-sizing: border-box;
+        background-color: #f8f9fa; /* Grey 50 */
+      }}
+      #right-panel {{
+        width: 55%;
+        overflow: auto;
+        padding: 20px;
+        box-sizing: border-box;
+      }}
+      h3 {{
+        font-weight: 400;
+        color: #3c4043; /* Grey 800 */
+        margin: 10px 0 5px 0;
+        padding-bottom: 5px;
+      }}
+      .trace-subtitle {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9em;
+        color: #5f6368; /* Grey 700 */
+        margin: 0 0 15px 0;
+        padding-bottom: 5px;
+      }}
+      ul {{
+        list-style-type: none;
+        padding-left: 0;
+        margin: 0;
+      }}
+      li {{
+        padding: 0;
+        border-bottom: 1px solid #e8eaed; /* Grey 200 */
+      }}
+      li:last-child {{
+        border-bottom: none;
+      }}
+      .event-item {{
+        padding: 8px 4px;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: background-color 0.1s ease-in-out;
+        display: flex;
+        align-items: center;
+      }}
+      .event-item:hover {{
+        background-color: #f1f3f4;
+      }} /* Grey 100 */
+      .selected > .event-item {{
+        background-color: #e8f0fe;
+      }} /* Blue 50 */
+      .focused > .event-item {{
+        outline: 2px solid #1a73e8; /* Blue 600 */
+        outline-offset: -2px;
+      }}
+      .collapsible > .event-item::before {{
+        content: "-";
+        font-size: 1.5em;
+        margin-right: 4px;
+        color: #5f6368; /* Grey 700 */
+        display: inline-block;
+        width: 1em;
+        text-align: center;
+        font-weight: bold;
+        line-height: 1;
+      }}
+      .collapsed > .event-item::before {{
+        content: "+";
+      }}
+      .collapsed > .sub-trace-container {{
+        display: none;
+      }}
+      img {{
+        max-width: 100%;
+        height: auto;
+        display: block;
+        margin-bottom: 10px;
+        border: 1px solid #e8eaed;
+        border-radius: 4px;
+      }}
+      pre {{
+        white-space: pre-wrap;
+        margin: 0 0 10px 0;
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        border: 1px solid #e8eaed;
+        font-size: 0.9em;
+      }}
+      /* Left panel event item parts */
+      .event-type {{
+        font-weight: 500;
+        margin-right: 8px;
+        font-size: 0.8em;
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: white;
+        white-space: nowrap;
+        line-height: 28px; /* match height of audio/img */
+        height: 28px;
+        box-sizing: border-box;
+        text-align: center;
+        width: 35px;
+      }}
+      .event-type-in {{
+        background-color: #1a73e8; /* Blue 600 */
+      }}
+      .event-type-out {{
+        background-color: #1e8e3e; /* Green 600 */
+      }}
+      .event-type-sub {{
+        background-color: #9334e6; /* Purple 600 */
+      }}
+      .event-details {{
+        flex-grow: 1;
+        overflow: hidden;
+        font-size: 0.9em;
+        display: flex;
+        flex-direction: column;
+      }}
+      .event-line-1 {{
+        display: flex;
+        align-items: center;
+        margin-bottom: 4px;
+        overflow: hidden;
+      }}
+       .event-line-1 img.thumb {{
+         width: 28px;
+         height: 28px;
+         object-fit: cover;
+         margin-right: 8px;
+         border: none;
+         border-radius: 4px;
+         display: inline-block;
+      }}
+      .event-line-1 audio.audio-small {{
+          height: 28px;
+          margin-right: 8px;
+          display: inline-block;
+      }}
+      .event-preview {{
+        color: #3c4043; /* Grey 800 */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }}
+      .event-preview-in {{ color: #174ea6; }} /* Blue 900 */
+      .event-preview-out {{ color: #0d652d; }} /* Green 900 */
+      .event-line-2 {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85em;
+        color: #5f6368; /* Grey 700 */
+        line-height: 1.2;
+      }}
+      .event-line-3 {{
+        font-size: 0.8em;
+        line-height: 1.2;
+        margin-top: 2px;
+      }}
+      .event-substream-text {{
+        color: #e8710a; /* Orange 600 */
+      }}
+      .event-line-2-left {{
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }}
+      .event-role {{
+        margin-right: 8px;
+      }}
+      .event-mimetype {{
+         color: #80868b; /* Grey 600 */
+      }}
+      .event-time {{
+        color: #5f6368; /* Grey 700 */
+        white-space: nowrap;
+        margin-left: 8px;
+        flex-shrink: 0;
+      }}
+    </style>
+  </head>
+  <body>
+    <div id="left-panel" tabindex="0"></div>
+    <div id="right-panel"></div>
+    <script>
+      const traceData = {trace_json};
+      const eventsById = {{}};
+      let focusedLi = null;
+
+      function bytesToBase64(rawBytes) {{
+        let binary = '';
+        const len = rawBytes.byteLength;
+
+        for (let i = 0; i < len; i++) {{
+            binary += String.fromCharCode(rawBytes[i]);
+        }}
+
+        return btoa(binary);
+      }}
+
+      function getTimeDeltaMs(start, current) {{
+          const deltaMs = new Date(current).getTime() - new Date(start).getTime();
+          return deltaMs;
+      }}
+
+      function getData(partDict) {{
+          if (!partDict) return null;
+          const part = partDict.part || {{}};
+          if(part.inline_data && part.inline_data.mime_type && part.inline_data.data) {{
+              return part.inline_data.data;
+          }}
+          return partDict.data || null;
+      }}
+
+      function formatDuration(deltaMs) {{
+          if (deltaMs < 1000) {{
+              return `${{deltaMs}} msec`;
+          }}
+          if (deltaMs < 60000) {{
+              return `${{(deltaMs / 1000).toFixed(1)}} sec`;
+          }}
+
+          const totalSeconds = Math.floor(deltaMs / 1000);
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+
+          if (seconds === 0) {{
+              return `${{minutes}}min`;
+          }}
+          return `${{minutes}}min${{seconds}}sec`;
+      }}
+
+      function getTraceDuration(trace) {{
+          const startTime = new Date(trace.start_time);
+          const endTime = new Date(trace.end_time);
+          if (!trace.end_time) {{
+            return 0;
+          }}
+          return endTime.getTime() - startTime.getTime();
+      }}
+
+      function renderPart(partDict) {{
+          const div = document.createElement('div');
+          if (!partDict) {{
+              div.innerText = 'No part data';
+              return div;
+          }}
+
+          // partDict is result of ProcessorPart.to_dict(), from trace.py _add_part()
+          let mimetype = partDict.mimetype || '';
+          let data = partDict.data || ''; // base64 string
+          let text = partDict.text || '';
+          const metadata = partDict.metadata || {{}};
+          const part = partDict.part || {{}};
+
+          if(part.inline_data && part.inline_data.mime_type && part.inline_data.data) {{
+              mimetype = part.inline_data.mime_type;
+              data = part.inline_data.data; // base64 string
+              text = '';
+          }} else if (part.text && !text) {{
+              text = part.text;
+          }}
+
+          const mime_div = document.createElement('div');
+          mime_div.innerHTML = `<b>MIME-type:</b> ${{mimetype}}`;
+          div.appendChild(mime_div);
+
+          if (mimetype.startsWith('image/')) {{
+              const img = document.createElement('img');
+              img.src = `data:${{mimetype}};base64,${{data}}`;
+              div.appendChild(img);
+          }} else if (mimetype.startsWith('audio/')) {{
+              const audio = document.createElement('audio');
+              audio.controls = true;
+              audio.src = `data:${{mimetype}};base64,${{data}}`;
+              div.appendChild(audio);
+          }} else if (data) {{
+              const pre = document.createElement('pre');
+              pre.innerText = `Binary data of type ${{mimetype}}`;
+          }} else if (text) {{
+              const pre = document.createElement('pre');
+              pre.innerText = text;
+              div.appendChild(pre);
+          }}
+
+          const meta_div = document.createElement('div');
+          meta_div.innerHTML = '<b>Metadata:</b>';
+          const meta_pre = document.createElement('pre');
+          meta_pre.innerText = JSON.stringify(metadata, null, 2);
+          meta_div.appendChild(meta_pre);
+          div.appendChild(meta_div);
+
+          return div;
+      }}
+
+      function formatTimeDelta(start, current) {{
+          const deltaMs = new Date(current).getTime() - new Date(start).getTime();
+
+          if (deltaMs < 1000) {{
+              return `${{deltaMs}} msec`;
+          }}
+          if (deltaMs < 60000) {{
+              return `${{(deltaMs / 1000).toFixed(1)}} sec`;
+          }}
+
+          const totalSeconds = Math.floor(deltaMs / 1000);
+          const minutes = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+
+          if (seconds === 0) {{
+              return `${{minutes}}min`;
+          }}
+          return `${{minutes}}min${{seconds}}sec`;
+      }}
+
+      function renderEvent(event) {{
+          if (event.part_dict) {{
+              return renderPart(event.part_dict);
+          }}
+          return null;
+      }}
+
+      function getPartDict(event) {{
+          if (event.part_dict) {{
+              return event.part_dict;
+          }}
+          return null;
+      }}
+
+      function getMimeType(partDict) {{
+          if (!partDict) return null;
+          const part = partDict.part || {{}};
+          if(part.inline_data && part.inline_data.mime_type && part.inline_data.data) {{
+              return part.inline_data.mime_type;
+          }}
+          return partDict.mimetype || null;
+      }}
+
+      function getText(partDict) {{
+          if (!partDict) return null;
+          const part = partDict.part || {{}};
+          let text = partDict.text || '';
+          if(part.inline_data && part.inline_data.mime_type && part.inline_data.data) {{
+              text = '';
+          }} else if (part.text && !text) {{
+              text = part.text;
+          }}
+          return text || null;
+      }}
+
+      function buildEventsById(trace, eventsById) {{
+          trace.events.forEach(event => {{
+              eventsById[event.id] = event;
+              if(event.sub_trace) {{
+                  buildEventsById(event.sub_trace, eventsById);
+              }}
+          }});
+      }}
+
+      function createSpan(text, className) {{
+          const span = document.createElement('span');
+          span.textContent = text;
+          if (className) span.className = className;
+          return span;
+      }}
+
+      function renderLine1Content(line1, mimeType, data, text, is_input) {{
+        if (mimeType) {{
+            if (mimeType.startsWith('image/')) {{
+                const img = document.createElement('img');
+                img.src = `data:${{mimeType}};base64,${{data}}`;
+                img.className = 'thumb';
+                line1.appendChild(img);
+            }} else if (mimeType.startsWith('audio/')) {{
+                const audio = document.createElement('audio');
+                audio.controls = true;
+                audio.src = `data:${{mimeType}};base64,${{data}}`;
+                audio.className = 'audio-small';
+                line1.appendChild(audio);
+            }} else if (mimeType.startsWith('text/')) {{
+                if (text) {{
+                    let preview = text.substring(0, 100).replace(/\n/g, ' ');
+                    if (text.length > 100) preview += '...';
+                    const span = createSpan(`"${{preview}}"`, 'event-preview');
+                    if(is_input === true) span.classList.add('event-preview-in');
+                    else if(is_input === false) span.classList.add('event-preview-out');
+                    line1.appendChild(span);
+                }}
+            }} else if (data) {{
+                line1.appendChild(createSpan(`Binary data: ${{mimeType}}`, 'event-preview'));
+            }} else {{
+                line1.appendChild(createSpan(mimeType, 'event-preview'));
+            }}
+        }}
+      }}
+
+      function createTraceView(trace, eventsById) {{
+          const ul = document.createElement('ul');
+          const eventsToRender = trace.events;
+          eventsToRender.forEach(event => {{
+              const li = document.createElement('li');
+              li.dataset.eventId = event.id;
+
+              const eventItem = document.createElement('div');
+              eventItem.classList.add('event-item');
+
+              const partDict = getPartDict(event);
+              const mimeType = getMimeType(partDict);
+              const data = getData(partDict);
+              const text = getText(partDict);
+              const role = partDict?.metadata?.role || 'n/a';
+              const substream = partDict?.substream;
+
+              // Event details
+              const details = document.createElement('div');
+              details.className = 'event-details';
+              const line1 = document.createElement('div');
+              line1.className = 'event-line-1';
+              const line2 = document.createElement('div');
+              line2.className = 'event-line-2';
+
+              if (event.sub_trace) {{
+                  eventItem.appendChild(createSpan('SUB', 'event-type event-type-sub'));
+                  line1.appendChild(createSpan(event.sub_trace.name, 'event-preview'));
+
+                  const subTraceDuration = getTraceDuration(event.sub_trace);
+                  const traceDate = new Date(event.sub_trace.start_time);
+                  const line2left = document.createElement('span');
+                  line2left.className = 'event-line-2-left';
+                  line2left.appendChild(createSpan(`${{traceDate.toLocaleDateString()}} at ${{traceDate.toLocaleTimeString()}}`, ''));
+                  line2.appendChild(line2left);
+                  line2.appendChild(createSpan(`Duration: ${{formatDuration(subTraceDuration)}}`, 'event-time'));
+
+                  li.classList.add('collapsible');
+                  li.classList.add('collapsed');
+                  details.appendChild(line1);
+                  details.appendChild(line2);
+              }} else {{
+                  eventItem.appendChild(createSpan(event.is_input ? 'IN' : 'OUT', `event-type event-type-${{event.is_input ? 'in' : 'out'}}`));
+                  renderLine1Content(line1, mimeType, data, text, event.is_input);
+
+                  const line2left = document.createElement('span');
+                  line2left.className = 'event-line-2-left';
+                  line2left.appendChild(createSpan(`role: ${{role}}`, 'event-role'));
+                  if (mimeType) {{
+                      line2left.appendChild(createSpan(mimeType, 'event-mimetype'));
+                  }}
+                  line2.appendChild(line2left);
+                  line2.appendChild(createSpan(`${{getTimeDeltaMs(trace.start_time, event.timestamp)}} ms`, 'event-time'));
+                  details.appendChild(line1);
+                  details.appendChild(line2);
+              }}
+              if (substream) {{
+                const line3 = document.createElement('div');
+                line3.className = 'event-line-3';
+                line3.appendChild(createSpan(`substream: ${{substream}}`, 'event-substream-text'));
+                details.appendChild(line3);
+              }}
+              eventItem.appendChild(details);
+              li.appendChild(eventItem);
+
+              eventItem.addEventListener('click', (e) => {{
+                  if(li.classList.contains('collapsible')) {{
+                      li.classList.toggle('collapsed');
+                  }}
+                  if (!e.ctrlKey && !e.metaKey) {{
+                      document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+                  }}
+                  li.classList.add('selected');
+                  setFocused(li);
+                  renderSelectedEvents(eventsById);
+                  e.stopPropagation();
+              }});
+
+              if (event.sub_trace) {{
+                  const div = document.createElement('div');
+                  div.className = 'sub-trace-container';
+                  div.style.paddingLeft = "25px"; // indent sub-trace title and list
+                  div.appendChild(createTraceView(event.sub_trace, eventsById));
+                  li.appendChild(div);
+              }}
+              ul.appendChild(li);
+          }});
+          return ul;
+      }}
+
+      function renderSelectedEvents(eventsById) {{
+          const rightPanel = document.getElementById('right-panel');
+          rightPanel.innerHTML = '';
+          document.querySelectorAll('.selected').forEach(li => {{
+              const eventId = li.dataset.eventId;
+              const event = eventsById[eventId];
+              if(event && !event.sub_trace) {{
+                  const rendered = renderEvent(event);
+                  if (rendered) {{
+                      rightPanel.appendChild(rendered);
+                  }}
+              }}
+          }});
+      }}
+
+      function getVisibleLis() {{
+          const allLis = Array.from(document.querySelectorAll('#left-panel li'));
+          return allLis.filter(li => li.offsetParent !== null);
+      }}
+
+      function setFocused(li) {{
+          if (focusedLi) {{
+              focusedLi.classList.remove('focused');
+          }}
+          focusedLi = li;
+          if (focusedLi) {{
+              focusedLi.classList.add('focused');
+              focusedLi.scrollIntoView({{behavior: 'smooth', block: 'nearest'}});
+          }}
+      }}
+
+      function moveFocus(direction) {{
+          const visibleLis = getVisibleLis();
+          if (visibleLis.length === 0) return;
+
+          let currentIndex = -1;
+          if(focusedLi) {{
+            currentIndex = visibleLis.indexOf(focusedLi);
+          }}
+
+          let nextIndex;
+          if (direction === 'down') {{
+              nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % visibleLis.length;
+          }} else {{
+              nextIndex = currentIndex <= 0 ? visibleLis.length - 1 : currentIndex - 1;
+          }}
+          setFocused(visibleLis[nextIndex]);
+          document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+          focusedLi.classList.add('selected');
+          renderSelectedEvents(eventsById);
+      }}
+
+      function initTraceViewer() {{
+          buildEventsById(traceData, eventsById);
+          const leftPanel = document.getElementById('left-panel');
+          const traceDate = new Date(traceData.start_time);
+          const traceDuration = getTraceDuration(traceData);
+          leftPanel.innerHTML = `<h3>${{traceData.name}}</h3><div class="trace-subtitle"><span class="trace-date">${{traceDate.toLocaleDateString()}} at ${{traceDate.toLocaleTimeString()}}</span><span class="event-time">Duration: ${{formatDuration(traceDuration)}}</span></div>`;
+          leftPanel.appendChild(createTraceView(traceData, eventsById));
+
+          leftPanel.addEventListener('keydown', (e) => {{
+              if (e.key === 'ArrowDown') {{
+                  moveFocus('down');
+                  e.preventDefault();
+              }} else if (e.key === 'ArrowUp') {{
+                  moveFocus('up');
+                  e.preventDefault();
+              }} else if (e.key === 'ArrowRight' && focusedLi && focusedLi.classList.contains('collapsible')) {{
+                  focusedLi.classList.remove('collapsed');
+                  e.preventDefault();
+              }} else if (e.key === 'ArrowLeft' && focusedLi && focusedLi.classList.contains('collapsible')) {{
+                  focusedLi.classList.add('collapsed');
+                  e.preventDefault();
+              }}
+          }});
+
+          const firstLi = document.querySelector('#left-panel li');
+          if(firstLi) {{
+              setFocused(firstLi);
+              firstLi.classList.add('selected');
+              renderSelectedEvents(eventsById);
+          }}
+      }}
+
+      initTraceViewer();
+    </script>
+  </body>
+</html>

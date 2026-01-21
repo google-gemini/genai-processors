@@ -32,6 +32,7 @@ from genai_processors import context as context_lib
 from genai_processors import map_processor
 from genai_processors import mime_types
 from genai_processors import streams
+from genai_processors.dev import trace
 
 # Aliases
 context = context_lib.context
@@ -127,7 +128,8 @@ class Processor(abc.ABC):
     Yields:
       the result of processing the input content.
     """
-    content = _normalize_part_stream(content, producer=self)
+    normalized_content = _normalize_part_stream(content, producer=self)
+
     # Ensures that the same taskgroup is always added to the context and
     # includes the proper way of handling generators, i.e. use a queue inside
     # the task group instead of a generator.
@@ -143,30 +145,47 @@ class Processor(abc.ABC):
     # always executed within the task group and that the `CancelledError` is
     # handled correctly.
     tg = context_lib.task_group()
-    if tg is None:
-      output_queue = asyncio.Queue[ProcessorPart | None]()
 
-      async def _with_context():
-        async with context():
-          try:
-            async for p in _normalize_part_stream(
-                self.call(content), producer=self.call
-            ):
-              output_queue.put_nowait(p)
-          finally:
-            output_queue.put_nowait(None)
+    async with trace.call_scope(self.key_prefix) as current_trace:
 
-      task = asyncio.create_task(_with_context())
-      try:
-        async for p in streams.dequeue(output_queue):
+      if current_trace:
+
+        async def stream_input() -> AsyncIterable[ProcessorPart]:
+          async for part in normalized_content:
+            await current_trace.add_input(part)
+            yield part
+
+      else:
+        stream_input = lambda: normalized_content
+
+      if tg is None:
+        output_queue = asyncio.Queue[ProcessorPart | None]()
+
+        async def _with_context():
+          async with context():
+            try:
+              async for p in _normalize_part_stream(
+                  self.call(stream_input()), producer=self.call
+              ):
+                if current_trace:
+                  await current_trace.add_output(p)
+                output_queue.put_nowait(p)
+            finally:
+              output_queue.put_nowait(None)
+
+        task = asyncio.create_task(_with_context())
+        try:
+          async for p in streams.dequeue(output_queue):
+            yield p
+        finally:
+          await task
+      else:
+        async for p in _normalize_part_stream(
+            self.call(stream_input()), producer=self.call
+        ):
+          if current_trace:
+            await current_trace.add_output(p)
           yield p
-      finally:
-        await task
-    else:
-      async for p in _normalize_part_stream(
-          self.call(content), producer=self.call
-      ):
-        yield p
 
   @abc.abstractmethod
   async def call(
