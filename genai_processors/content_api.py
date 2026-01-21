@@ -1,4 +1,4 @@
-# Copyright 2025 DeepMind Technologies Limited. All Rights Reserved.
+# Copyright 2026 DeepMind Technologies Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,6 +44,17 @@ class ProcessorPart:
   Includes metadata such as the producer of the content, the substream the part
   belongs to, the MIME type of the content, and arbitrary metadata.
   """
+
+  # GenAI SDK part representation of the ProcessorPart.
+  _part: genai_types.Part | None = None
+  # Metadata about the part. Can store arbitrary key/value pairs.
+  _metadata: dict[str, Any] = {}
+  # Mime type of the part.
+  _mimetype: str | None = None
+  # Role of the part.
+  _role: str = ''
+  # Substream name of the part.
+  _substream_name: str = ''
 
   def __init__(
       self,
@@ -144,10 +155,7 @@ class ProcessorPart:
     if mimetype:
       self._mimetype = mimetype
     # Otherwise, if MIME type is specified using inline data, use that.
-    elif (
-        self._part.inline_data
-        and self._part.inline_data.mime_type
-    ):
+    elif self._part.inline_data and self._part.inline_data.mime_type:
       self._mimetype = self._part.inline_data.mime_type
     elif self._part.function_call:
       # OSS library can't depend on protobuf, so we hardcode literal here.
@@ -348,7 +356,9 @@ class ProcessorPart:
   ) -> pb_message.Message:
     """Returns representation of the Part as a given proto message."""
     if not mime_types.is_proto_message(self.mimetype, proto_message):
-      raise ValueError('Part is not a proto message.')
+      raise ValueError(
+          f'Part is not a {proto_message.DESCRIPTOR.name} proto message.'
+      )
     return proto_message.FromString(self.bytes)
 
   @property

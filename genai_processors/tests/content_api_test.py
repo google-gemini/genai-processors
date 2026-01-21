@@ -427,6 +427,28 @@ class ProcessorContentTest(parameterized.TestCase):
     with self.assertRaises(ValueError):
       test_part.get_proto_message(struct_pb2.Struct)
 
+  def test_get_proto_message_from_bytes(self):
+    test_proto = struct_pb2.Struct(
+        fields={'foo': struct_pb2.Value(string_value='bar')}
+    )
+    part = content_api.ProcessorPart(
+        test_proto.SerializeToString(),
+        mimetype=mime_types.proto_message_mime_type(struct_pb2.Struct),
+    )
+    self.assertEqual(part.get_proto_message(struct_pb2.Struct), test_proto)
+
+  def test_get_proto_message_raises_error_with_incorrect_proto_type(self):
+    test_proto = struct_pb2.Struct(
+        fields={'foo': struct_pb2.Value(string_value='bar')}
+    )
+    part = content_api.ProcessorPart.from_proto_message(
+        proto_message=test_proto
+    )
+    with self.assertRaisesRegex(
+        ValueError, 'Part is not a Duration proto message.'
+    ):
+      part.get_proto_message(duration_pb2.Duration)
+
   def test_is_text(self):
     text_part = content_api.ProcessorPart('hello')
     self.assertTrue(mime_types.is_text(text_part.mimetype))
