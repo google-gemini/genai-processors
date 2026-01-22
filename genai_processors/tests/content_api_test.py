@@ -12,6 +12,7 @@ from google.genai import types as genai_types
 import PIL.Image
 
 from google.protobuf import struct_pb2
+from google.protobuf import duration_pb2
 
 
 def _png_image_bytes() -> bytes:
