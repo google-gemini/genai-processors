@@ -742,7 +742,11 @@ class ProcessorContent:
 
   def __len__(self) -> int:
     """Returns the number of parts in this ProcessorContent."""
-    return sum(1 for _ in self)
+    return len(self._all_parts)
+
+  def __getitem__(self, index: int) -> ProcessorPart:
+    """Returns the part at the given index."""
+    return self._all_parts[index]
 
 
 # Prefer using ProcessorPart.end_of_turn() instead: it is too easy to mutate

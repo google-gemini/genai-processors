@@ -167,6 +167,12 @@ class ProcessorPartTest(parameterized.TestCase):
 
 class ProcessorContentTest(parameterized.TestCase):
 
+  def test_content_is_subscriptable(self):
+    content = content_api.ProcessorContent('foo', 'bar')
+    self.assertLen(content, 2)
+    self.assertEqual(content[0].text, 'foo')
+    self.assertEqual(content[1].text, 'bar')
+
   def test_construct_content_from_genai_parts(self):
     content = content_api.ProcessorContent(
         genai_types.Part(text='foo: '),
