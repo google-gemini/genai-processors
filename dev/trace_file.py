@@ -150,8 +150,9 @@ class SyncFileTrace(trace.Trace):
     self._add_part(part, is_input=False)
 
   @override
-  async def add_sub_trace(self, name: str) -> SyncFileTrace:
+  def add_sub_trace(self, name: str) -> SyncFileTrace:
     """Adds a sub-trace from a nested processor call to the trace events."""
+    # This method must not block.
     t = SyncFileTrace(name=name)
     self.events.append(TraceEvent(sub_trace=t, is_input=False))
     return t

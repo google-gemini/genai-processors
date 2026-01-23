@@ -73,7 +73,8 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     trace_path = os.path.join(self.trace_dir, json_files[0])
     self.assertTrue(os.path.exists(trace_path.replace('.json', '.html')))
 
-    trace = trace_file.SyncFileTrace.load(trace_path)
+    root_trace = trace_file.SyncFileTrace.load(trace_path)
+    trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
 
     # First event is a subtrace for the upper function. This is was is first
     # entered in the trace scope.
@@ -108,8 +109,10 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
     self.assertTrue(len(json_files), 1)
-    trace1_path = os.path.join(self.trace_dir, json_files[0])
-    trace1 = trace_file.SyncFileTrace.load(trace1_path)
+    root_trace_path = os.path.join(self.trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(root_trace_path)
+
+    trace1 = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
     self.assertTrue(trace1.events[1].is_input)
     self.assertEqual(trace1.events[1].part_dict['part']['text'], 'world')
 
@@ -125,8 +128,10 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
       await streams.gather_stream(p(streams.stream_content([input_part])))
     json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
     self.assertTrue(len(json_files), 1)
-    trace2_path = os.path.join(self.trace_dir, json_files[0])
-    trace2 = trace_file.SyncFileTrace.load(trace2_path)
+    root_trace_path = os.path.join(self.trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(root_trace_path)
+
+    trace2 = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
     self.assertTrue(trace2.events[1].is_input)
     self.assertIsNotNone(trace2.events[1].part_dict)
 
@@ -139,7 +144,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
             mimetype='image/jpeg',
         )
     )
-    sub_trace = await trace.add_sub_trace(name='sub_test')
+    sub_trace = trace.add_sub_trace(name='sub_test')
     await sub_trace.add_input(content_api.ProcessorPart('sub_in'))
     await sub_trace.add_output(content_api.ProcessorPart('sub_out'))
     await trace.add_output(content_api.ProcessorPart('out'))

@@ -19,12 +19,10 @@ changes and we do not guarantee backward compatibility at this stage.
 from __future__ import annotations
 
 import abc
-import contextlib
 import contextvars
 import datetime
 from typing import Any
 
-from absl import logging
 from genai_processors import content_api
 import pydantic
 import shortuuid
@@ -59,11 +57,6 @@ class Trace(pydantic.BaseModel, abc.ABC):
   # A unique ID for the trace.
   trace_id: str = pydantic.Field(default_factory=lambda: str(shortuuid.uuid()))
 
-  # Boolean indicating whether the trace has just been created. This is used to
-  # determine whether to create a subtrace when a processor is called or using
-  # the existing trace when it's just been created.
-  is_new: bool = False
-
   # The timestamp when the trace was started (the processor was called).
   start_time: datetime.datetime = pydantic.Field(
       default_factory=datetime.datetime.now
@@ -76,17 +69,6 @@ class Trace(pydantic.BaseModel, abc.ABC):
   )
 
   async def __aenter__(self) -> Trace:
-    parent_trace = CURRENT_TRACE.get()
-
-    if parent_trace:
-      logging.warning(
-          'Cannot enter a trace while another trace is already in scope: %s is'
-          ' ignored in favor of %s',
-          self,
-          parent_trace,
-      )
-
-    self.is_new = True
     self._token = CURRENT_TRACE.set(self)
     return self
 
@@ -114,7 +96,7 @@ class Trace(pydantic.BaseModel, abc.ABC):
     raise NotImplementedError()
 
   @abc.abstractmethod
-  async def add_sub_trace(self, name: str) -> Trace:
+  def add_sub_trace(self, name: str) -> Trace:
     """Adds a sub-trace from a nested processor call to the trace events.
 
     Args:
@@ -139,28 +121,23 @@ class Trace(pydantic.BaseModel, abc.ABC):
     raise NotImplementedError()
 
 
+# TODO(kibergus): Context managers don't work well with Generators. Correct
+# nested call tracking will be implemented later.
 CURRENT_TRACE: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
     'current_trace', default=None
 )
 
 
-@contextlib.asynccontextmanager
-async def call_scope(processor_name: str):
+def create_sub_trace(
+    processor_name: str, parent_trace: Trace | None = None
+) -> Trace | None:
   """Context manager for tracing a processor call."""
-  parent_trace = CURRENT_TRACE.get()
+  # NOTE: This interface willchange when we add nested call tracking.
+  parent_trace = parent_trace or CURRENT_TRACE.get()
 
   if parent_trace is None:
     # No tracing in scope - keep things as is.
-    yield None
-  elif parent_trace.is_new:
-    # First call to a processor - re-use the root trace. It has been created
-    # when the trace_scope was entered.
-    parent_trace.name = processor_name
-    parent_trace.is_new = False
-    yield parent_trace
+    return None
   else:
     # Parent is not None and corresponds to an existing trace: adds a new trace.
-    async with await parent_trace.add_sub_trace(
-        name=processor_name
-    ) as new_trace:
-      yield new_trace
+    return parent_trace.add_sub_trace(name=processor_name)

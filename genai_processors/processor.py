@@ -19,6 +19,7 @@ from __future__ import annotations
 import abc
 import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Callable, Sequence
+import contextlib
 import contextvars
 import functools
 import inspect
@@ -32,7 +33,7 @@ from genai_processors import context as context_lib
 from genai_processors import map_processor
 from genai_processors import mime_types
 from genai_processors import streams
-from genai_processors.dev import trace
+from genai_processors.dev import trace as trace_lib
 
 # Aliases
 context = context_lib.context
@@ -95,6 +96,29 @@ async def _normalize_part_stream(
           raise ValueError(f'{e} produced by {producer}') from e
 
 
+class ProcessorStream:
+  """An async iterable of ProcessorParts returned by a Processor.
+
+  Provides convenience methods for accessing the streamed content (not
+  implemented yet) and allows tracking the processor that produced the stream.
+
+  Attrs:
+    trace: Trace object for the processor that produces this stream.
+  """
+
+  def __init__(
+      self,
+      parts: AsyncIterable[ProcessorPart],
+      trace: trace_lib.Trace | None,
+  ):
+    self._parts = parts
+    self.trace = trace
+
+  def __aiter__(self) -> AsyncIterator[ProcessorPart]:
+    """Returns an iterator that yields all ProcessorParts from the stream."""
+    return self._parts.__aiter__()
+
+
 @typing.runtime_checkable
 class ProcessorFn(Protocol):
   """A Processor function.
@@ -113,9 +137,9 @@ class Processor(abc.ABC):
   """Any class implementing a processor should inherit from this."""
 
   @typing.final
-  async def __call__(
+  def __call__(
       self, content: AsyncIterable[ProcessorPartTypes]
-  ) -> AsyncIterable[ProcessorPart]:
+  ) -> ProcessorStream:
     """Processes the given content.
 
     Descendants should override `call` method instead of this one:
@@ -128,6 +152,21 @@ class Processor(abc.ABC):
     Yields:
       the result of processing the input content.
     """
+    trace = trace_lib.create_sub_trace(
+        self.key_prefix, getattr(content, 'trace', None)
+    )
+    return ProcessorStream(
+        self._call_impl(content, trace),
+        trace=trace,
+    )
+
+  @typing.final
+  async def _call_impl(
+      self,
+      content: AsyncIterable[ProcessorPartTypes],
+      current_trace: trace_lib.Trace | None,
+  ) -> AsyncIterable[ProcessorPart]:
+    """__call__ implementation."""
     normalized_content = _normalize_part_stream(content, producer=self)
 
     # Ensures that the same taskgroup is always added to the context and
@@ -146,18 +185,19 @@ class Processor(abc.ABC):
     # handled correctly.
     tg = context_lib.task_group()
 
-    async with trace.call_scope(self.key_prefix) as current_trace:
+    if current_trace:
+      trace_context = current_trace
 
-      if current_trace:
+      async def stream_input() -> AsyncIterable[ProcessorPart]:
+        async for part in normalized_content:
+          await current_trace.add_input(part)
+          yield part
 
-        async def stream_input() -> AsyncIterable[ProcessorPart]:
-          async for part in normalized_content:
-            await current_trace.add_input(part)
-            yield part
+    else:
+      trace_context = contextlib.nullcontext()
+      stream_input = lambda: normalized_content
 
-      else:
-        stream_input = lambda: normalized_content
-
+    async with trace_context:
       if tg is None:
         output_queue = asyncio.Queue[ProcessorPart | None]()
 
@@ -290,7 +330,7 @@ class PartProcessor(abc.ABC):
   """Any class implementing a part processor should inherit from this."""
 
   @typing.final
-  async def __call__(self, part: ProcessorPart) -> AsyncIterable[ProcessorPart]:
+  def __call__(self, part: ProcessorPart) -> ProcessorStream:
     """Processes the given part.
 
     Descendants should override `call` method instead of this one:
@@ -303,6 +343,14 @@ class PartProcessor(abc.ABC):
     Yields:
       the result of processing the input Part.
     """
+    # TODO(kibergus): Propagate parent trace from the Processor.__call__.
+    return ProcessorStream(self._call_impl(part), trace=None)
+
+  @typing.final
+  async def _call_impl(
+      self, part: ProcessorPart
+  ) -> AsyncIterable[ProcessorPart]:
+    """__call__ implementation."""
     if not self.match(part):
       yield part
       return
