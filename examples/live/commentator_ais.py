@@ -51,6 +51,11 @@ _DEBUG = flags.DEFINE_bool(
     False,
     'Enable debug logging.',
 )
+_TRACE_DIR = flags.DEFINE_string(
+    'trace_dir',
+    None,
+    'If set, enable tracing and write traces to this directory.',
+)
 
 
 def create_live_commentator(
@@ -71,7 +76,11 @@ def main(argv):
     raise app.UsageError('Too many command-line arguments.')
   if _DEBUG.value:
     logging.set_verbosity(logging.DEBUG)
-  asyncio.run(live_server.run_server(create_live_commentator, port=_PORT.value))
+  asyncio.run(live_server.run_server(
+      create_live_commentator,
+      port=_PORT.value,
+      trace_dir=_TRACE_DIR.value,
+  ))
 
 
 if __name__ == '__main__':

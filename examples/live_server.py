@@ -95,6 +95,7 @@ comply with a more stable GenAI API between clients and servers.
 import base64
 import functools
 import json
+import os
 import time
 import traceback
 from typing import Any, AsyncIterable, Callable
@@ -102,6 +103,7 @@ from typing import Any, AsyncIterable, Callable
 from absl import logging
 from genai_processors import content_api
 from genai_processors import processor
+from genai_processors.dev import trace_file
 import pydantic
 from websockets.asyncio.server import serve
 from websockets.asyncio.server import ServerConnection
@@ -241,6 +243,7 @@ class AIStudioConnection:
 
 async def live_server(
     processor_factory: Callable[[dict[str, Any]], processor.Processor],
+    trace_dir: str | None,
     ais_websocket: ServerConnection,
 ):
   """Runs the processor on AI Studio input/output streams."""
@@ -251,7 +254,11 @@ async def live_server(
   while True:
     try:
       live_processor = processor_factory(ais.processor_config)
-      await ais.send(live_processor(ais.receive()))
+      if trace_dir:
+        async with trace_file.SyncFileTrace(trace_dir=trace_dir):
+          await ais.send(live_processor(ais.receive()))
+      else:
+        await ais.send(live_processor(ais.receive()))
     except Exception as e:  # pylint: disable=broad-exception-caught
       logging.info(
           '%s - Resetting live server after receiving error :'
@@ -280,11 +287,14 @@ async def live_server(
 async def run_server(
     processor_factory: Callable[[dict[str, Any]], processor.Processor],
     port: int = 8765,
+    trace_dir: str | None = None,
 ) -> None:
   """Starts the WebSocket server."""
+  if trace_dir:
+    os.makedirs(trace_dir, exist_ok=True)
 
   async with serve(
-      handler=functools.partial(live_server, processor_factory),
+      handler=functools.partial(live_server, processor_factory, trace_dir),
       host='localhost',
       port=port,
       max_size=2 * 1024 * 1024,  # 2 MiB
