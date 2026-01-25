@@ -60,7 +60,6 @@ import abc
 import asyncio
 import dataclasses
 import functools
-import json
 import time
 import uuid
 from collections.abc import AsyncIterable
@@ -166,16 +165,6 @@ def _serialize_part(part: content_api.ProcessorPart) -> dict[str, Any]:
       'role': part.role,
       'metadata': dict(part.metadata),
   }
-
-
-def _deserialize_part(part_dict: dict[str, Any]) -> content_api.ProcessorPart:
-  """Deserialize a dictionary back to a ProcessorPart."""
-  return content_api.ProcessorPart(
-      part_dict.get('text', ''),
-      mimetype=part_dict.get('mimetype', 'text/plain'),
-      role=part_dict.get('role', ''),
-      metadata=part_dict.get('metadata', {}),
-  )
 
 
 # =============================================================================
@@ -677,9 +666,7 @@ class SemanticCacheProcessor(processor.Processor):
               'cached_query': cache_result.entry.query_text[:100],
           })
           yield content_api.ProcessorPart(
-              part.text if content_api.is_text(part.mimetype) else part,
-              mimetype=part.mimetype,
-              role=part.role,
+              part,
               metadata=updated_metadata,
           )
         else:
