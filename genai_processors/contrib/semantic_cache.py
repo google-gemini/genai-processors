@@ -35,7 +35,7 @@ from genai_processors import processor
 # Create model with semantic caching
 model = genai_model.GenaiModel(
     api_key=API_KEY,
-    model_name="gemini-2.0-flash",
+    model_name="gemini-3-flash-preview",
 )
 
 cached_model = semantic_cache.SemanticCacheProcessor(
@@ -555,7 +555,7 @@ class SemanticCacheProcessor(processor.Processor):
   # Create the wrapped model
   model = genai_model.GenaiModel(
       api_key=API_KEY,
-      model_name="gemini-2.0-flash",
+      model_name="gemini-3-flash-preview",
   )
 
   # Wrap with semantic cache

@@ -39,7 +39,7 @@ API_KEY = "your-gemini-api-key"
 # Create the base model
 model = genai_model.GenaiModel(
     api_key=API_KEY,
-    model_name="gemini-2.0-flash",
+    model_name="gemini-3-flash-preview",
 )
 
 # Wrap with semantic cache
@@ -190,7 +190,7 @@ pipeline = (
     + semantic_cache.SemanticCacheProcessor(
         wrapped_processor=genai_model.GenaiModel(
             api_key=API_KEY,
-            model_name="gemini-2.0-flash",
+            model_name="gemini-3-flash-preview",
         ),
         api_key=API_KEY,
         similarity_threshold=0.88,
