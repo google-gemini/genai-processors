@@ -96,7 +96,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     # First event is a subtrace for the upper function. This is was is first
     # entered in the trace scope.
     self.assertFalse(trace.events[0].is_input)
-    self.assertEqual(trace.events[0].relation, 'call')
+    self.assertEqual(trace.events[0].relation, 'chain')
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
     sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[0].sub_trace)
@@ -195,7 +195,6 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(len(html_files), 1)
     trace_path = os.path.join(trace_dir, html_files[0])
     self.assertTrue(os.path.exists(trace_path))
-
 
   async def test_image_resizing(self):
     img_part = content_api.ProcessorPart(

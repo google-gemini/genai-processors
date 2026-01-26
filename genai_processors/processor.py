@@ -128,7 +128,7 @@ class ProcessorFn(Protocol):
   """
 
   def __call__(
-      self, content: AsyncIterable[ProcessorPart]
+      self, content: ProcessorStream
   ) -> AsyncIterable[ProcessorPartTypes]:
     ...
 
@@ -167,7 +167,10 @@ class Processor(abc.ABC):
       current_trace: trace_lib.Trace | None,
   ) -> AsyncIterable[ProcessorPart]:
     """__call__ implementation."""
-    normalized_content = _normalize_part_stream(content, producer=self)
+    if not isinstance(content, ProcessorStream):
+      content = ProcessorStream(
+          _normalize_part_stream(content, producer=self), trace=current_trace
+      )
 
     # Ensures that the same taskgroup is always added to the context and
     # includes the proper way of handling generators, i.e. use a queue inside
@@ -188,14 +191,17 @@ class Processor(abc.ABC):
     if current_trace:
       trace_context = current_trace
 
-      async def stream_input() -> AsyncIterable[ProcessorPart]:
-        async for part in normalized_content:
+      async def stream_input_impl() -> AsyncIterable[ProcessorPart]:
+        async for part in content:
           await current_trace.add_input(part)
           yield part
 
+      stream_input = lambda: ProcessorStream(
+          stream_input_impl(), trace=current_trace
+      )
     else:
       trace_context = contextlib.nullcontext()
-      stream_input = lambda: normalized_content
+      stream_input = lambda: content
 
     async with trace_context:
       if tg is None:
@@ -229,7 +235,7 @@ class Processor(abc.ABC):
 
   @abc.abstractmethod
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
+      self, content: ProcessorStream
   ) -> AsyncIterable[ProcessorPartTypes]:
     """Implements the Processor logic.
 
@@ -799,12 +805,12 @@ class _ChainProcessor(Processor):
         fused_processors.append(p)
     self._processors = fused_processors
 
-    self._processor_list: list[ProcessorFn] = []
+    self._processor_list: list[Processor] = []
     for p in self._processors:
       if isinstance(p, PartProcessor):
-        self._processor_list.append(p.to_processor().call)
+        self._processor_list.append(p.to_processor())
       else:
-        self._processor_list.append(p.call)
+        self._processor_list.append(p)
 
     self._task_name = (
         f'_ChainProcessor({_key_prefix(self._processors[0])}...)'
@@ -819,7 +825,7 @@ class _ChainProcessor(Processor):
     return _ChainProcessor(self._processors + other_list)
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
+      self, content: ProcessorStream
   ) -> AsyncIterable[ProcessorPartTypes]:
     if not self._processor_list:
       # Empty chain = passthrough processor
@@ -858,7 +864,7 @@ async def _enqueue_content(
 
 
 def _chain_processors(
-    processors: Sequence[ProcessorFn], task_name: str
+    processors: Sequence[Processor], task_name: str
 ) -> ProcessorFn:
   """Combine processors in sequence.
 
@@ -877,14 +883,20 @@ def _chain_processors(
     return processors[0]
 
   async def processor(
-      content: AsyncIterable[ProcessorPart],
+      content: ProcessorStream,
   ) -> AsyncIterable[ProcessorPart]:
     # Create a queue to put output parts
     output_queue = asyncio.Queue()
     # Chain all processors together
     for processor in processors:
-      content = _capture_reserved_substreams(content, output_queue)
-      content = _normalize_part_stream(processor(content), producer=processor)
+      content = ProcessorStream(
+          _capture_reserved_substreams(content, output_queue),
+          trace=content.trace,
+      )
+      content = ProcessorStream(
+          _normalize_part_stream(processor.call(content), producer=processor),
+          trace=content.trace,
+      )
     # Place output processed output parts on the queue.
     create_task(_enqueue_content(content, output_queue), name=task_name)
     while (part := await output_queue.get()) is not None:
@@ -1000,7 +1012,7 @@ class _ParallelProcessor(Processor):
     return f'ParallelProcessor[{list_repr}]'
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
+      self, content: ProcessorStream
   ) -> AsyncIterable[ProcessorPart]:
     # Create a queue to put output parts
     output_queue = asyncio.Queue(maxsize=_MAX_QUEUE_SIZE)
@@ -1008,7 +1020,12 @@ class _ParallelProcessor(Processor):
     output_streams = [
         _normalize_part_stream(
             processor(
-                _capture_reserved_substreams(stream_inputs[idx], output_queue)
+                ProcessorStream(
+                    _capture_reserved_substreams(
+                        stream_inputs[idx], output_queue
+                    ),
+                    trace=content.trace,
+                )
             ),
             producer=processor,
         )
@@ -1171,7 +1188,9 @@ async def process_streams_parallel(
     content_streams: Sequence[AsyncIterable[ProcessorPart]],
 ) -> AsyncIterable[ProcessorPart]:
   """Processes a sequence of content streams using the specified processor."""
-  async for c in streams.concat(*[processor(s) for s in content_streams]):
+  async for c in streams.concat(
+      *[processor(ProcessorStream(s, trace=None)) for s in content_streams]
+  ):
     yield ProcessorPart(c)
 
 
