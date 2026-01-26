@@ -15,6 +15,7 @@ from typing import Any, override
 
 from genai_processors import content_api
 from genai_processors.dev import trace
+import PIL.Image
 import pydantic
 import shortuuid
 
@@ -105,6 +106,10 @@ class SyncFileTrace(trace.Trace):
   # The events in the trace. Collected in memory.
   events: list[TraceEvent] = []
 
+  # The size to resize images to when storing them in the trace.
+  # If None, images are not resized.
+  image_size: tuple[int, int] | None = (200, 200)
+
   def to_json_str(self) -> str:
     """Converts the trace to a JSON string."""
     try:
@@ -134,6 +139,21 @@ class SyncFileTrace(trace.Trace):
 
   def _add_part(self, part: content_api.ProcessorPart, is_input: bool) -> None:
     """Adds an input or output part to the trace events."""
+    if self.image_size and content_api.is_image(part.mimetype):
+      try:
+        img = part.pil_image
+        img.thumbnail(self.image_size)
+        part = content_api.ProcessorPart(
+            img,
+            role=part.role,
+            substream_name=part.substream_name,
+            mimetype=part.mimetype,
+            metadata=part.metadata,
+        )
+      except Exception:  # pylint: disable=broad-except
+        # If resizing fails, we just use the original part.
+        pass
+
     event = TraceEvent(
         part_dict=part.to_dict(mode='python'),
         is_input=is_input,
@@ -154,7 +174,7 @@ class SyncFileTrace(trace.Trace):
   def add_sub_trace(self, name: str, relation: str) -> SyncFileTrace:
     """Adds a sub-trace from a nested processor call to the trace events."""
     # This method must not block.
-    t = SyncFileTrace(name=name)
+    t = SyncFileTrace(name=name, image_size=self.image_size)
     self.events.append(TraceEvent(sub_trace=t, is_input=False, relation=relation))
     return t
 

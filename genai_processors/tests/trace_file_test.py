@@ -203,5 +203,22 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertTrue(os.path.exists(trace_path))
 
 
+  async def test_image_resizing(self):
+    img_part = content_api.ProcessorPart(
+        Image.new('RGB', (400, 300), color='green')
+    )
+
+    trace = trace_file.SyncFileTrace(name='test_image_resizing')
+    await trace.add_input(img_part)
+
+    self.assertEqual(len(trace.events), 1)
+    event = trace.events[0]
+    self.assertIsNotNone(event.part_dict)
+
+    part_image_bytes = event.part_dict['part']['inline_data']['data']
+    part_image = Image.open(io.BytesIO(part_image_bytes))
+    self.assertEqual(part_image.size, (200, 150))
+
+
 if __name__ == '__main__':
   absltest.main()
