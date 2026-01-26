@@ -11,7 +11,9 @@ import base64
 import datetime
 import json
 import os
-from typing import Any, override
+from typing import Any
+
+from typing_extensions import override
 
 from genai_processors import content_api
 from genai_processors.dev import trace

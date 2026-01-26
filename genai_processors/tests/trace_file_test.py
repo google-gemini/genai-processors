@@ -16,7 +16,7 @@ from genai_processors import streams
 from genai_processors.dev import trace_file
 import numpy as np
 from PIL import Image
-from scipy.io import wavfile
+import wave
 
 
 @processor.processor_function
@@ -178,7 +178,11 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     audio_data = (random_samples * 32767).astype(np.int16)
 
     audio_bytes_io = io.BytesIO()
-    wavfile.write(audio_bytes_io, sample_rate, audio_data)
+    with wave.open(audio_bytes_io, 'wb') as wf:
+      wf.setnchannels(1)
+      wf.setsampwidth(audio_data.dtype.itemsize)
+      wf.setframerate(sample_rate)
+      wf.writeframes(audio_data.tobytes())
     audio_part = content_api.ProcessorPart.from_bytes(
         data=audio_bytes_io.getvalue(),
         mimetype='audio/wav',
