@@ -39,6 +39,7 @@ dependencies = [
     "Pillow>=9.0.0",
     "termcolor>=3.0.0",
     "pypdfium2>=4.30.0",
+    "shortuuid>=1.0.0",
     "xxhash>=3.0.0",
 ]
 
