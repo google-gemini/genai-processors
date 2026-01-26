@@ -13,13 +13,12 @@ import json
 import os
 from typing import Any
 
-from typing_extensions import override
-
 from genai_processors import content_api
 from genai_processors.dev import trace
 import PIL.Image
 import pydantic
 import shortuuid
+from typing_extensions import override
 
 HTML_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), 'trace.tpl.html')
 with open(HTML_TEMPLATE_PATH, 'r') as f:
@@ -95,6 +94,7 @@ class TraceEvent(pydantic.BaseModel):
   # The relation between this trace and sub_trace. E.g. if it is a chain.
   relation: str | None = None
 
+
 class SyncFileTrace(trace.Trace):
   """A trace storing events in a file.
 
@@ -116,8 +116,9 @@ class SyncFileTrace(trace.Trace):
     """Converts the trace to a JSON string."""
     try:
       return json.dumps(
-          self.model_dump(mode='python'),
+          self.model_dump(mode='python', exclude_none=True),
           default=_bytes_encoder,
+          indent=2,
       )
     except TypeError as e:
       raise TypeError(
@@ -177,7 +178,9 @@ class SyncFileTrace(trace.Trace):
     """Adds a sub-trace from a nested processor call to the trace events."""
     # This method must not block.
     t = SyncFileTrace(name=name, image_size=self.image_size)
-    self.events.append(TraceEvent(sub_trace=t, is_input=False, relation=relation))
+    self.events.append(
+        TraceEvent(sub_trace=t, is_input=False, relation=relation)
+    )
     return t
 
   @override

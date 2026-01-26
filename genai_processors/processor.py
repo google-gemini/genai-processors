@@ -112,6 +112,11 @@ class ProcessorStream:
       trace: trace_lib.Trace | None,
   ):
     self._parts = parts
+    # Unroll the ProcessorStream to get the underlying async iterable.
+    # This is needed to avoid 2+ traces for the same async iterable content and
+    # avoids carrying around many irrelevant traces.
+    while isinstance(self._parts, ProcessorStream):
+      self._parts = self._parts._parts
     self.trace = trace
 
   def __aiter__(self) -> AsyncIterator[ProcessorPart]:
@@ -856,7 +861,8 @@ async def _capture_reserved_substreams(
 
 
 async def _enqueue_content(
-    content: AsyncIterable[ProcessorPart], queue: asyncio.Queue
+    content: AsyncIterable[ProcessorPart],
+    queue: asyncio.Queue[ProcessorPart | None],
 ) -> None:
   async for part in content:
     queue.put_nowait(part)
@@ -887,15 +893,16 @@ def _chain_processors(
   ) -> AsyncIterable[ProcessorPart]:
     # Create a queue to put output parts
     output_queue = asyncio.Queue()
+    chain_trace = content.trace
     # Chain all processors together
     for processor in processors:
       content = ProcessorStream(
           _capture_reserved_substreams(content, output_queue),
-          trace=content.trace,
+          trace=chain_trace,
       )
       content = ProcessorStream(
-          _normalize_part_stream(processor.call(content), producer=processor),
-          trace=content.trace,
+          _normalize_part_stream(processor(content), producer=processor),
+          trace=chain_trace,
       )
     # Place output processed output parts on the queue.
     create_task(_enqueue_content(content, output_queue), name=task_name)
@@ -915,7 +922,7 @@ class _CaptureReservedSubstreams(PartProcessor):
 
   def __init__(
       self,
-      queue: asyncio.Queue,
+      queue: asyncio.Queue[ProcessorPart | None],
       p: PartProcessorWithMatchFn | PartProcessorFn,
   ):
     self._queue = queue

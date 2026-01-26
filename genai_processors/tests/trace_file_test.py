@@ -6,6 +6,7 @@ import os
 import shutil
 from typing import cast
 import unittest
+import wave
 
 from absl.testing import absltest
 from genai_processors import content_api
@@ -16,7 +17,6 @@ from genai_processors import streams
 from genai_processors.dev import trace_file
 import numpy as np
 from PIL import Image
-import wave
 
 
 @processor.processor_function
@@ -82,6 +82,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
       results = await streams.gather_stream(
           p(streams.stream_content(input_parts))
       )
+    # Check we return the status part with the debug information.
     self.assertIn('TEST_SUB_PROCESSOR', results[0].text)
     self.assertEqual(results[1].text, 'HELLO_sub_trace_1_outer')
     json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
@@ -91,37 +92,48 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     root_trace = trace_file.SyncFileTrace.load(trace_path)
     self.assertEqual(root_trace.events[0].relation, 'call')
-    trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
 
-    # First event is a subtrace for the upper function. This is was is first
-    # entered in the trace scope.
+    # We have:
+    # root_trace:
+    #  \__ SubTraceProcessor (call)
+    #      \__ TTFTSingleStream
+    #           \__ _ChainProcessor
+    #               \__ log_on_close (added by TTFTSingleStream)
+    #               \__ to_upper_fn
+    #               \__ add_one
+    #               \__ log_on_first (added by TTFTSingleStream)
+
+    # Get SubTraceProcessor
+    trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
     self.assertFalse(trace.events[0].is_input)
     self.assertEqual(trace.events[0].relation, 'chain')
+    # Get TTFTSingleStream
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
+    self.assertEqual(trace.events[0].relation, 'chain')
+    # Get _ChainProcessor
     sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[0].sub_trace)
+    # Get to_upper_fn
+    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[1].sub_trace)
     self.assertIsNotNone(sub_trace)
     self.assertIn('to_upper_fn', sub_trace.name)
-    self.assertFalse(sub_trace.events[2].is_input)
+    # Check the output of to_upper_fn
+    self.assertFalse(sub_trace.events[1].is_input)
     self.assertEqual(
-        sub_trace.events[2].part_dict['part']['text'], 'HELLO_sub_trace_1'
+        sub_trace.events[1].part_dict['part']['text'], 'HELLO_sub_trace'
     )
     self.assertIsNotNone(sub_trace.start_time)
     self.assertIsNotNone(sub_trace.end_time)
     self.assertLess(sub_trace.start_time, sub_trace.end_time)
 
-    # Second input event is the input part to SubTraceProcessor.
+    # Check events from SubTraceProcessor.
     self.assertTrue(trace.events[1].is_input)
     self.assertEqual(trace.events[1].part_dict['part']['text'], 'hello')
-
-    # Third event is the debug output.
     self.assertFalse(trace.events[2].is_input)
     self.assertIn(
         'TEST_SUB_PROCESSOR',
         trace.events[2].part_dict['part']['text'],
     )
-
-    # Fourth event is the output event of SubTraceProcessor
     self.assertFalse(trace.events[3].is_input)
     self.assertEqual(
         trace.events[3].part_dict['part']['text'], 'HELLO_sub_trace_1_outer'

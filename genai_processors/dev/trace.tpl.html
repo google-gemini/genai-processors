@@ -61,7 +61,7 @@
         border-radius: 4px;
         transition: background-color 0.1s ease-in-out;
         display: flex;
-        align-items: center;
+        align-items: flex-start;
       }}
       .event-item:hover {{
         background-color: #f1f3f4;
@@ -72,6 +72,12 @@
       .focused > .event-item {{
         outline: 2px solid #1a73e8; /* Blue 600 */
         outline-offset: -2px;
+      }}
+      .event-item-out {{
+        text-align: right;
+      }}
+      .event-item-out .event-line-1 {{
+        justify-content: flex-end;
       }}
       .collapsible > .event-item::before {{
         content: "-";
@@ -166,6 +172,7 @@
       }}
       .event-preview-in {{ color: #174ea6; }} /* Blue 900 */
       .event-preview-out {{ color: #0d652d; }} /* Green 900 */
+      .event-preview-status {{ color: #e8710a; }} /* Orange 600 */
       .event-line-2 {{
         display: flex;
         justify-content: space-between;
@@ -386,7 +393,7 @@
           return span;
       }}
 
-      function renderLine1Content(line1, mimeType, data, text, is_input) {{
+      function renderLine1Content(line1, mimeType, data, text, is_input, substream) {{
         if (mimeType) {{
             if (mimeType.startsWith('image/')) {{
                 const img = document.createElement('img');
@@ -404,12 +411,15 @@
                     let preview = text.substring(0, 100).replace(/\n/g, ' ');
                     if (text.length > 100) preview += '...';
                     const span = createSpan(`"${{preview}}"`, 'event-preview');
-                    if(is_input === true) span.classList.add('event-preview-in');
+                    if (substream === 'status') span.classList.add('event-preview-status');
+                    else if(is_input === true) span.classList.add('event-preview-in');
                     else if(is_input === false) span.classList.add('event-preview-out');
                     line1.appendChild(span);
                 }}
             }} else if (data) {{
-                line1.appendChild(createSpan(`Binary data: ${{mimeType}}`, 'event-preview'));
+                const span = createSpan(`Binary data: ${{mimeType}}`, 'event-preview');
+                if (substream === 'status') span.classList.add('event-preview-status');
+                line1.appendChild(span);
             }} else {{
                 line1.appendChild(createSpan(mimeType, 'event-preview'));
             }}
@@ -461,8 +471,10 @@
                   details.appendChild(line1);
                   details.appendChild(line2);
               }} else {{
+                  if(event.is_input) eventItem.classList.add('event-item-in');
+                  else eventItem.classList.add('event-item-out');
                   eventItem.appendChild(createSpan(event.is_input ? 'IN' : 'OUT', `event-type event-type-${{event.is_input ? 'in' : 'out'}}`));
-                  renderLine1Content(line1, mimeType, data, text, event.is_input);
+                  renderLine1Content(line1, mimeType, data, text, event.is_input, substream);
 
                   const line2left = document.createElement('span');
                   line2left.className = 'event-line-2-left';
