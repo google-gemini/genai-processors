@@ -119,7 +119,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_weather',
             args={'location': 'London'},
             role='model',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         )
     ]
     model_output_1 = [
@@ -148,7 +148,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 name='get_weather',
                 response='Weather in London is sunny',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1,
@@ -188,7 +188,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_time',
             response='12:00',
             role='user',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         ),
     ]
     request_1 = request_0 + fc_output_0
@@ -197,7 +197,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_weather',
             response='Weather in Paris is sunny',
             role='user',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         ),
     ]
     request_2 = request_1 + fc_output_1
@@ -252,13 +252,13 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 name='get_time',
                 args={},
                 role='model',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='get_time',
                 response='12:00',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         * max_function_calls,
@@ -295,7 +295,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                     " 'get_time', 'get_weather'."
                 ),
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=True,
             ),
         ]
@@ -328,7 +328,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 name='failing_function',
                 args={},
                 role='model',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='failing_function',
@@ -337,7 +337,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                     ' function failed>'
                 ),
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=True,
             ),
             content_api.ProcessorPart('The function failed'),
@@ -426,7 +426,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -437,7 +437,7 @@ class FunctionCallingAsyncTest(
                 response='Slept for 1 seconds',
                 function_call_id='sleep_async-1',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1,
@@ -509,7 +509,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -520,7 +520,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 response='Slept for 1 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1
@@ -535,7 +535,7 @@ class FunctionCallingAsyncTest(
                     function_call_id='get_weather_0',
                     response='Running in background.',
                     role='user',
-                    substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                     scheduling='SILENT',
                     will_continue=True,
                 ),
@@ -549,7 +549,7 @@ class FunctionCallingAsyncTest(
                 # No function call id provided in the function call part.
                 function_call_id='get_weather_0' if is_bidi else None,
                 response='Weather in London is sunny',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 role='user',
             ),
         ]
@@ -613,7 +613,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -624,7 +624,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='Slept for 1 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 will_continue=True,
             ),
         ]
@@ -635,7 +635,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='Slept for 2 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 will_continue=True,
             ),
         ]
@@ -645,7 +645,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=False,
             )
@@ -695,7 +695,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             )
@@ -706,7 +706,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response='Slept for 1 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1[:1],
@@ -761,7 +761,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='failing_async_function_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -775,7 +775,7 @@ class FunctionCallingAsyncTest(
                     ' <this async function failed>'
                 ),
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=True,
             ),
         ]
@@ -840,7 +840,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_sync_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             )
@@ -852,7 +852,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_sync_0',
                 response='Slept for 1 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             )
         ]
         + model_output_2,
@@ -925,7 +925,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response=f'Slept for {sleep_time_sec} seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
             END_OF_STREAM,
         ]
@@ -941,7 +941,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -952,7 +952,7 @@ class FunctionCallingAsyncTest(
                 name='cancel_fc',
                 function_call_id='cancel_fc_0',
                 response='Running in background.',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 role='user',
                 scheduling='SILENT',
                 will_continue=True,
@@ -964,7 +964,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='cancel_fc_0',
                 response=response,
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=is_error,
                 scheduling='SILENT',
             ),
@@ -1045,7 +1045,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -1056,7 +1056,7 @@ class FunctionCallingAsyncTest(
                 name='list_fc',
                 function_call_id='list_fc_0',
                 response='Running in background.',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 role='user',
                 scheduling='SILENT',
                 will_continue=True,
@@ -1068,7 +1068,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='list_fc_0',
                 response=list_fc_response,
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_2
@@ -1078,7 +1078,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response='Slept for 3 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_3,
