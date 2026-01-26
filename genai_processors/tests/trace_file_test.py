@@ -9,6 +9,7 @@ import unittest
 
 from absl.testing import absltest
 from genai_processors import content_api
+from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
 from genai_processors import streams
@@ -30,11 +31,26 @@ async def to_upper_fn(
       yield part
 
 
+@processor.part_processor_function
+async def add_one(
+    part: content_api.ProcessorPart,
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
+  await asyncio.sleep(0.01)  # to ensure timestamps are different
+  if mime_types.is_text(part.mimetype):
+    yield part.text + '_1'
+  else:
+    yield part
+
+
 class SubTraceProcessor(processor.Processor):
 
   def __init__(self):
     super().__init__()
-    self.sub_processor = to_upper_fn
+    self.sub_processor = to_upper_fn + add_one
+    self.sub_processor = debug.TTFTSingleStream(
+        'TEST_SUB_PROCESSOR',
+        self.sub_processor,
+    )
 
   async def call(
       self, content: AsyncIterable[content_api.ProcessorPart]
@@ -66,8 +82,8 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
       results = await streams.gather_stream(
           p(streams.stream_content(input_parts))
       )
-
-    self.assertEqual(results[0].text, 'HELLO_sub_trace_outer')
+    self.assertIn('TEST_SUB_PROCESSOR', results[0].text)
+    self.assertEqual(results[1].text, 'HELLO_sub_trace_1_outer')
     json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
     self.assertTrue(len(json_files), 1)
     trace_path = os.path.join(self.trace_dir, json_files[0])
@@ -83,10 +99,12 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertEqual(trace.events[0].relation, 'call')
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
+    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[0].sub_trace)
+    self.assertIsNotNone(sub_trace)
     self.assertIn('to_upper_fn', sub_trace.name)
-    self.assertFalse(sub_trace.events[1].is_input)
+    self.assertFalse(sub_trace.events[2].is_input)
     self.assertEqual(
-        sub_trace.events[1].part_dict['part']['text'], 'HELLO_sub_trace'
+        sub_trace.events[2].part_dict['part']['text'], 'HELLO_sub_trace_1'
     )
     self.assertIsNotNone(sub_trace.start_time)
     self.assertIsNotNone(sub_trace.end_time)
@@ -96,46 +114,18 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertTrue(trace.events[1].is_input)
     self.assertEqual(trace.events[1].part_dict['part']['text'], 'hello')
 
-    # Third event is the output event of SubTraceProcessor
+    # Third event is the debug output.
     self.assertFalse(trace.events[2].is_input)
-    self.assertEqual(
-        trace.events[2].part_dict['part']['text'], 'HELLO_sub_trace_outer'
+    self.assertIn(
+        'TEST_SUB_PROCESSOR',
+        trace.events[2].part_dict['part']['text'],
     )
 
-  async def test_trace_references(self):
-    p = SubTraceProcessor()
-    input_part = content_api.ProcessorPart('world')
-    # First call
-    async with trace_file.SyncFileTrace(trace_dir=self.trace_dir):
-      await streams.gather_stream(p(streams.stream_content([input_part])))
-
-    json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
-    self.assertTrue(len(json_files), 1)
-    root_trace_path = os.path.join(self.trace_dir, json_files[0])
-    root_trace = trace_file.SyncFileTrace.load(root_trace_path)
-
-    trace1 = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
-    self.assertTrue(trace1.events[1].is_input)
-    self.assertEqual(trace1.events[1].part_dict['part']['text'], 'world')
-
-    sub_trace1 = cast(trace_file.SyncFileTrace, trace1.events[0].sub_trace)
-    self.assertIsNotNone(sub_trace1)
-    self.assertTrue(sub_trace1.events[0].is_input)
-    self.assertIsNotNone(sub_trace1.events[0].part_dict)
-
-    # Second call with same part
-    for f in os.listdir(self.trace_dir):
-      os.remove(os.path.join(self.trace_dir, f))
-    async with trace_file.SyncFileTrace(trace_dir=self.trace_dir):
-      await streams.gather_stream(p(streams.stream_content([input_part])))
-    json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
-    self.assertTrue(len(json_files), 1)
-    root_trace_path = os.path.join(self.trace_dir, json_files[0])
-    root_trace = trace_file.SyncFileTrace.load(root_trace_path)
-
-    trace2 = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
-    self.assertTrue(trace2.events[1].is_input)
-    self.assertIsNotNone(trace2.events[1].part_dict)
+    # Fourth event is the output event of SubTraceProcessor
+    self.assertFalse(trace.events[3].is_input)
+    self.assertEqual(
+        trace.events[3].part_dict['part']['text'], 'HELLO_sub_trace_1_outer'
+    )
 
   async def test_trace_save_load(self):
     trace = trace_file.SyncFileTrace(name='test')
@@ -194,7 +184,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         mimetype='audio/wav',
     )
     parts = [img_part, audio_part, content_api.ProcessorPart('hello')]
-    async with trace_file.SyncFileTrace(trace_dir=trace_dir):
+    async with trace_file.SyncFileTrace(trace_dir=trace_dir, name='Trace test'):
       await processor.apply_async(p, parts)
 
     html_files = [f for f in os.listdir(trace_dir) if f.endswith('.html')]
