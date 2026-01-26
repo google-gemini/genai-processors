@@ -14,12 +14,14 @@
 # ==============================================================================
 """Processors for local filesystem operations."""
 
+import asyncio
 import glob
 import mimetypes
 import os
 import re
 from typing import AsyncIterable
 
+import aiofiles
 from genai_processors import processor
 from google.genai import types as genai_types
 
@@ -52,7 +54,7 @@ async def GlobSource(  # pylint: disable=invalid-name
       Otherwise, the part will contain a FileData object pointing to the file.
   """
   glob_pattern = os.path.join(base_dir, pattern)
-  filenames = glob.glob(glob_pattern, recursive=True)
+  filenames = await asyncio.to_thread(glob.glob, glob_pattern, recursive=True)
   filenames.sort(key=_natural_sort_key)
   for filename in filenames:
     if os.path.isfile(filename):
@@ -61,9 +63,9 @@ async def GlobSource(  # pylint: disable=invalid-name
       if not mimetype:
         raise ValueError(f"Could not guess MIME type of {filename!r}.")
       if inline_file_data:
-        with open(filename, "rb") as f:
+        async with aiofiles.open(filename, "rb") as f:
           yield processor.ProcessorPart(
-              f.read(),
+              await f.read(),
               mimetype=mimetype,
               metadata={"original_file_name": original_file_name},
           )

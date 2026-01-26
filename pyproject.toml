@@ -23,6 +23,7 @@ keywords = []
 # Installed locally with `pip install -e .`
 dependencies = [
     "absl-py>=1.0.0",
+    "aiofiles>=25.1.0",
     "bs4>=0.0.2",
     "cachetools>=6.0.0",
     "dataclasses-json>=0.6.0",
