@@ -157,7 +157,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
   async def test_save_html(self):
     p = SubTraceProcessor()
-    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR')
+    trace_dir = self.trace_dir
 
     # Create a small green image using PIL
     img = Image.new('RGB', (10, 10), color='green')
@@ -192,7 +192,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
       await processor.apply_async(p, parts)
 
     html_files = [f for f in os.listdir(trace_dir) if f.endswith('.html')]
-    self.assertTrue(len(html_files), 1)
+    self.assertEqual(len(html_files), 1)
     trace_path = os.path.join(trace_dir, html_files[0])
     self.assertTrue(os.path.exists(trace_path))
 
