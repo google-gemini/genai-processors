@@ -694,9 +694,17 @@ class ProcessorContent:
     return result
 
   def __eq__(self, other: Any) -> bool:
+    if isinstance(other, (list, tuple)):
+      # This is very convenient for unit tests.
+      try:
+        other = ProcessorContent(other)
+      except ValueError:
+        return False
     if not isinstance(other, ProcessorContent):
       return False
-    for lhs, rhs in zip(self, other, strict=True):
+    if len(self) != len(other):
+      return False
+    for lhs, rhs in zip(self, other):
       if lhs != rhs:
         return False
     return True

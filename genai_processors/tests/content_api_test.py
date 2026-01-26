@@ -559,6 +559,17 @@ class ProcessorContentTest(parameterized.TestCase):
     content = content_api.ProcessorContent('foo')
     self.assertNotEqual(content, object())
 
+  def test_eq_content_with_list_and_tuple(self):
+    content = content_api.ProcessorContent('foo', 'bar')
+    self.assertEqual(content, ['foo', 'bar'])
+    self.assertEqual(content, ('foo', 'bar'))
+    self.assertNotEqual(content, ['foo', 'baz'])
+    self.assertNotEqual(content, ('foo', 'baz'))
+    self.assertNotEqual(content, ['foo'])
+    self.assertNotEqual(content, ('foo',))
+    self.assertNotEqual(content, ['foo', 'bar', 'baz'])
+    self.assertNotEqual(content, ('foo', 'bar', 'baz'))
+
   @parameterized.named_parameters([
       dict(
           testcase_name='simple_text',
