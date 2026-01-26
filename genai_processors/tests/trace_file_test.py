@@ -74,11 +74,13 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertTrue(os.path.exists(trace_path.replace('.json', '.html')))
 
     root_trace = trace_file.SyncFileTrace.load(trace_path)
+    self.assertEqual(root_trace.events[0].relation, 'call')
     trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
 
     # First event is a subtrace for the upper function. This is was is first
     # entered in the trace scope.
     self.assertFalse(trace.events[0].is_input)
+    self.assertEqual(trace.events[0].relation, 'call')
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
     self.assertIn('to_upper_fn', sub_trace.name)
@@ -144,7 +146,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
             mimetype='image/jpeg',
         )
     )
-    sub_trace = trace.add_sub_trace(name='sub_test')
+    sub_trace = trace.add_sub_trace(name='sub_test', relation='chain')
     await sub_trace.add_input(content_api.ProcessorPart('sub_in'))
     await sub_trace.add_output(content_api.ProcessorPart('sub_out'))
     await trace.add_output(content_api.ProcessorPart('out'))
@@ -159,6 +161,9 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         json.loads(trace.model_dump_json()),
         json.loads(loaded_trace.model_dump_json()),
     )
+    self.assertEqual(loaded_trace.events[2].relation, 'chain')
+    sub_trace = cast(trace_file.SyncFileTrace, loaded_trace.events[2].sub_trace)
+    self.assertEqual(sub_trace.name, 'sub_test')
 
   async def test_save_html(self):
     p = SubTraceProcessor()

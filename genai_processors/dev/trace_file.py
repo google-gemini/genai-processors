@@ -89,7 +89,8 @@ class TraceEvent(pydantic.BaseModel):
   part_dict: dict[str, Any] | None = None
   # If set, this event represents a nested processor call via its trace.
   sub_trace: SyncFileTrace | None = None
-
+  # The relation between this trace and sub_trace. E.g. if it is a chain.
+  relation: str | None = None
 
 class SyncFileTrace(trace.Trace):
   """A trace storing events in a file.
@@ -150,11 +151,11 @@ class SyncFileTrace(trace.Trace):
     self._add_part(part, is_input=False)
 
   @override
-  def add_sub_trace(self, name: str) -> SyncFileTrace:
+  def add_sub_trace(self, name: str, relation: str) -> SyncFileTrace:
     """Adds a sub-trace from a nested processor call to the trace events."""
     # This method must not block.
     t = SyncFileTrace(name=name)
-    self.events.append(TraceEvent(sub_trace=t, is_input=False))
+    self.events.append(TraceEvent(sub_trace=t, is_input=False, relation=relation))
     return t
 
   @override

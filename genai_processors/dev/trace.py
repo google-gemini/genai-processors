@@ -96,11 +96,12 @@ class Trace(pydantic.BaseModel, abc.ABC):
     raise NotImplementedError()
 
   @abc.abstractmethod
-  def add_sub_trace(self, name: str) -> Trace:
+  def add_sub_trace(self, name: str, relation: str) -> Trace:
     """Adds a sub-trace from a nested processor call to the trace events.
 
     Args:
       name: The name of the sub-trace.
+      relation: The relation between this trace and sub-trace.
 
     Returns:
       The trace that was added to the trace events.
@@ -129,10 +130,12 @@ CURRENT_TRACE: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
 
 
 def create_sub_trace(
-    processor_name: str, parent_trace: Trace | None = None
+    processor_name: str,
+    parent_trace: Trace | None,
 ) -> Trace | None:
   """Context manager for tracing a processor call."""
-  # NOTE: This interface willchange when we add nested call tracking.
+  # NOTE: This interface will change when we add nested call tracking.
+  relation = 'chain' if parent_trace else 'call'
   parent_trace = parent_trace or CURRENT_TRACE.get()
 
   if parent_trace is None:
@@ -140,4 +143,4 @@ def create_sub_trace(
     return None
   else:
     # Parent is not None and corresponds to an existing trace: adds a new trace.
-    return parent_trace.add_sub_trace(name=processor_name)
+    return parent_trace.add_sub_trace(name=processor_name, relation=relation)

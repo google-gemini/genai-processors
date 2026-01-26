@@ -449,6 +449,9 @@
                   const traceDate = new Date(event.sub_trace.start_time);
                   const line2left = document.createElement('span');
                   line2left.className = 'event-line-2-left';
+                  if (event.relation) {{
+                    line2left.appendChild(createSpan(`relation: ${{event.relation}}`, 'event-role'));
+                  }}
                   line2left.appendChild(createSpan(`${{traceDate.toLocaleDateString()}} at ${{traceDate.toLocaleTimeString()}}`, ''));
                   line2.appendChild(line2left);
                   line2.appendChild(createSpan(`Duration: ${{formatDuration(subTraceDuration)}}`, 'event-time'));
