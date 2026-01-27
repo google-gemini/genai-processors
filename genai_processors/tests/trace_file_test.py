@@ -203,6 +203,16 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         img_part,
         audio_part,
         content_api.ProcessorPart('hello', substream_name='input', role='user'),
+        content_api.ProcessorPart(
+            'how ',
+            substream_name='input',
+            role='user',
+            metadata={'is_over': False},
+        ),
+        img_part,
+        content_api.ProcessorPart('are ', substream_name='input', role='user'),
+        content_api.ProcessorPart('you?', substream_name='input', role='user'),
+        audio_part,
     ]
     async with trace_file.SyncFileTrace(trace_dir=trace_dir, name='Trace test'):
       await processor.apply_async(p, parts)
