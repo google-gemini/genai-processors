@@ -483,8 +483,7 @@ async def apply_async(
   """
   async with context():
     content_processor = processor.to_processor()
-    as_async = stream_content(ProcessorContent(content).all_parts)
-    return await gather_stream(content_processor(as_async))
+    return await gather_stream(content_processor(ProcessorContent(content)))
 
 
 def apply_sync(
@@ -1427,7 +1426,7 @@ class CachedPartProcessor(PartProcessor):
       cached_result = await part_cache.lookup(part, key=key)
 
       if isinstance(cached_result, ProcessorContent):
-        for p in cached_result.all_parts:
+        for p in cached_result:
           yield p
         return
 
@@ -1490,24 +1489,24 @@ class CachedProcessor(Processor):
     _PROCESSOR_PART_CACHE.set(cache)
 
   async def call(
-      self, content: AsyncIterable[ProcessorPartTypes]
+      self, content: ProcessorStream
   ) -> AsyncIterable[ProcessorPartTypes]:
     part_cache = _PROCESSOR_PART_CACHE.get(self._default_cache)
 
     if part_cache is not None:
-      content = await gather_stream(content)
+      content = await content.gather()
 
       part_cache = part_cache.with_key_prefix(self.key_prefix)
       key = part_cache.hash_fn(content)
       cached_result = await part_cache.lookup(content, key=key)
 
       if isinstance(cached_result, ProcessorContent):
-        for p in cached_result.all_parts:
+        for p in cached_result:
           yield p
         return
 
       results_for_caching = []
-      async for p in self._wrapped_processor(stream_content(content)):
+      async for p in self._wrapped_processor(content):
         results_for_caching.append(p)
         yield p
 

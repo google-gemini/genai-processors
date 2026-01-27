@@ -28,13 +28,9 @@ async def model_fake(
 class DebugTest(unittest.IsolatedAsyncioTestCase):
 
   async def test_ttft_status_ok(self):
-    input_stream = streams.stream_content(
-        ProcessorContent(['Hello', 'world', '!'])
-    )
+    input_stream = ProcessorContent(['Hello', 'world', '!'])
     p_with_debug = debug.TTFTSingleStream('test', model_fake)
-    actual = ProcessorContent(
-        await streams.gather_stream(p_with_debug(input_stream))
-    )
+    actual = await p_with_debug(input_stream).gather()
     # Check that the processor is called with the input stream properly
     self.assertEqual(
         actual.as_text(substream_name=''), 'model(Hello)model(world)model(!)'
@@ -48,17 +44,13 @@ class DebugTest(unittest.IsolatedAsyncioTestCase):
 
   async def test_ttft_with_async_for(self):
     p_with_debug = debug.TTFTSingleStream('test', model_fake)
-    input_stream = streams.stream_content(
-        ProcessorContent(['Hello', 'world', '!'])
-    )
+    input_stream = ProcessorContent(['Hello', 'world', '!'])
     async for _ in p_with_debug(input_stream):
       self.assertIsNotNone(p_with_debug.ttft())
       break
 
   async def test_debug_stream_in_chain(self):
-    input_stream = streams.stream_content(
-        ProcessorContent(['Hello ', 'world', '!'])
-    )
+    input_stream = ProcessorContent(['Hello ', 'world', '!'])
 
     @processor.part_processor_function
     async def p(chunk: ProcessorPart) -> AsyncIterable[ProcessorPart]:
@@ -72,8 +64,9 @@ class DebugTest(unittest.IsolatedAsyncioTestCase):
     chain = p + debug.log_stream('test') + q
     output_stream = chain(input_stream)
     with self.assertLogs(level='INFO') as log_output:
-      actual = ProcessorContent(await streams.gather_stream(output_stream))
-      self.assertEqual(actual.as_text(), 'q(p(Hello ))q(p(world))q(p(!))')
+      self.assertEqual(
+          await output_stream.text(), 'q(p(Hello ))q(p(world))q(p(!))'
+      )
       self.assertIn(
           'p(Hello )',
           ','.join(log_output.output),

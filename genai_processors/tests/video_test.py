@@ -54,7 +54,7 @@ class VideoInTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
           with_delay_sec=0.3,
       )
       video_in = video.VideoIn(substream_name=substream_name)
-      output = await streams.gather_stream(video_in(input_stream))
+      output = await video_in(input_stream).gather()
       self.assertLen(output, 3)
       self.assertEqual(output[0], content_api.ProcessorPart('hello'))
       self.assertEqual(output[2], content_api.ProcessorPart('world'))
@@ -83,7 +83,7 @@ class VideoInTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
       )
       video_in = video.VideoIn()
       with self.assertRaises(IOError):
-        await streams.gather_stream(video_in(input_stream))
+        await video_in(input_stream)
 
 
 if __name__ == '__main__':

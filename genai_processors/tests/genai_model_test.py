@@ -235,13 +235,11 @@ class ImagePreprocessTest(unittest.IsolatedAsyncioTestCase):
         with_delay_sec=0.5,
     )
 
-    output = await streams.gather_stream(
-        preprocess.to_processor()(input_stream)
-    )
-    expected_output = [
+    output = await preprocess.to_processor()(input_stream).gather()
+    expected_output = content_api.ProcessorContent([
         content_api.ProcessorPart(self.mock_file1),
         content_api.ProcessorPart(self.mock_file2),
-    ]
+    ])
     self.assertEqual(output, expected_output)
     self.mock_delete.assert_called_once_with(name='file1')
 

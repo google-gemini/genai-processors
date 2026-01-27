@@ -13,7 +13,7 @@ class TimestampTest(unittest.IsolatedAsyncioTestCase):
     img_part = content_api.ProcessorPart(b'image_bytes', mimetype='image/png')
     input_stream = streams.stream_content([img_part] * 3, with_delay_sec=0.2)
     timestamp_processor = timestamp.add_timestamps(with_ms=True)
-    output = await streams.gather_stream(timestamp_processor(input_stream))
+    output = await timestamp_processor(input_stream).gather()
     for item in output:
       if content_api.is_text(item.mimetype):
         # Remove the xx milliseconds from the timestamp to have a deterministic
@@ -44,7 +44,7 @@ class TimestampTest(unittest.IsolatedAsyncioTestCase):
     timestamp_processor = timestamp.add_timestamps(
         with_ms=False, substream_name='realtime'
     )
-    output = await streams.gather_stream(timestamp_processor(input_stream))
+    output = await timestamp_processor(input_stream).gather()
 
     self.assertEqual(
         output,

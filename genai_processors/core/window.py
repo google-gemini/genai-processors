@@ -153,14 +153,16 @@ class RollingPrompt:
       self.add_part(part)
     self._stash = []
 
-  def pending(self) -> AsyncIterable[ProcessorPart]:
+  def pending(self) -> content_api.ContentStream:
     """Returns the current pending prompt.
 
     Note that the same AsyncIterable is returned unless `finalize_pending` is
     called which creates a new pending prompt. So consuming Parts from it will
     affect all callers of `pending`.
     """
-    return streams.dequeue(self._pending)
+    return content_api.ContentStream(
+        parts_generator=streams.dequeue(self._pending)
+    )
 
   async def finalize_pending(self) -> None:
     """Close the current pending prompt and starts a new one.

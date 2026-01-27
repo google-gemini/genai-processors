@@ -43,12 +43,8 @@ class SwitchProcessorTest(
         .case('b', self.q)
         .default(processor.passthrough())
     )
-    result = await streams.gather_stream(
-        match(streams.stream_content(['a', 'b', 'c']))
-    )
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'q(b)cp(a)'
-    )
+    result = match(streams.stream_content(['a', 'b', 'c']))
+    self.assertEqual(await result.text(), 'q(b)cp(a)')
 
   async def test_switch_different_substreams(self):
     input_stream = [content_api.ProcessorPart('a', substream_name='a')] * 3
@@ -60,23 +56,17 @@ class SwitchProcessorTest(
         .case('a', self.p)
         .default(processor.passthrough())
     )
-    result = await streams.gather_stream(
-        match(streams.stream_content(input_stream))
-    )
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'bcp(a)p(a)p(a)'
-    )
+    result = match(streams.stream_content(input_stream))
+    self.assertEqual(await result.text(), 'bcp(a)p(a)p(a)')
 
     match = switch.Switch(content_api.get_substream_name).case('b', self.q)
     start_sec = time.perf_counter()
-    result = await streams.gather_stream(
-        match(streams.stream_content(input_stream))
-    )
+    result = match(streams.stream_content(input_stream))
+    # There is no default case, only b passed through.
+    self.assertEqual(await result.text(), 'q(b)')
     end_sec = time.perf_counter()
     # Check that the await in p does not slow down the switch.
     self.assertLess(end_sec - start_sec, 0.009)
-    # There is no default case, only b passed through.
-    self.assertEqual(content_api.ProcessorContent(result).as_text(), 'q(b)')
 
   async def test_switch_single_run_match_none_ok(self):
 
@@ -86,14 +76,10 @@ class SwitchProcessorTest(
         .case('b', self.q)
         .default(processor.passthrough())
     )
-    result = await streams.gather_stream(
-        match(streams.stream_content(['a1', 'b', 'c', 'a2']))
-    )
+    result = match(streams.stream_content(['a1', 'b', 'c', 'a2']))
     # p(a) is the last one as p takes longer to compute: the order is not
     # guaranteed between cases but the order within a case is guaranteed.
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'q(b)cp(a1)p(a2)'
-    )
+    self.assertEqual(await result.text(), 'q(b)cp(a1)p(a2)')
 
 
 class PartSwitchProcessorTest(
@@ -126,16 +112,12 @@ class PartSwitchProcessorTest(
         .case('b', self.q)
         .default(processor.passthrough())
     )
-    result = await streams.gather_stream(
-        match.to_processor()(
-            streams.stream_content(
-                ['a', 'b', 'c'],
-            )
+    result = match.to_processor()(
+        streams.stream_content(
+            ['a', 'b', 'c'],
         )
     )
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'p(a)q(b)c'
-    )
+    self.assertEqual(await result.text(), 'p(a)q(b)c')
 
   async def test_switch_processor_single_run_ok(self):
 
@@ -145,16 +127,12 @@ class PartSwitchProcessorTest(
         .case('text/plain', self.q)
         .default(processor.passthrough())
     )
-    result = await streams.gather_stream(
-        match.to_processor()(
-            streams.stream_content(
-                ['a', 'b', 'c'],
-            )
+    result = match.to_processor()(
+        streams.stream_content(
+            ['a', 'b', 'c'],
         )
     )
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'p(a)p(b)p(c)'
-    )
+    self.assertEqual(await result.text(), 'p(a)p(b)p(c)')
 
   async def test_switch_processor_single_run_match_none_ok(self):
 
@@ -164,16 +142,12 @@ class PartSwitchProcessorTest(
         .case('b', self.q)
         .default(processor.passthrough())
     )
-    result = await streams.gather_stream(
-        match.to_processor()(
-            streams.stream_content(
-                ['a', 'b', 'c'],
-            )
+    result = match.to_processor()(
+        streams.stream_content(
+            ['a', 'b', 'c'],
         )
     )
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'p(a)q(b)c'
-    )
+    self.assertEqual(await result.text(), 'p(a)q(b)c')
 
   async def test_switch_processor_complex_cases_ok(self):
 
@@ -183,16 +157,12 @@ class PartSwitchProcessorTest(
         .case(lambda x: x.startswith('b'), self.q)
         .default((processor.passthrough()))
     )
-    result = await streams.gather_stream(
-        match.to_processor()(
-            streams.stream_content(
-                ['ab', 'bc', 'cd'],
-            )
+    result = match.to_processor()(
+        streams.stream_content(
+            ['ab', 'bc', 'cd'],
         )
     )
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'p(ab)q(bc)cd'
-    )
+    self.assertEqual(await result.text(), 'p(ab)q(bc)cd')
 
   async def test_switch_processor_match_and_case_ok(self):
 
@@ -204,17 +174,13 @@ class PartSwitchProcessorTest(
     )
     c1 = content_api.ProcessorPart('text', mimetype='text/plain')
     c2 = content_api.ProcessorPart('audio', mimetype='audio/wav')
-    result = await streams.gather_stream(
-        match.to_processor()(
-            streams.stream_content(
-                [c1, c2],
-            )
+    result = match.to_processor()(
+        streams.stream_content(
+            [c1, c2],
         )
     )
     # empty param in `q` as `c2` is not text but audio.
-    self.assertEqual(
-        content_api.ProcessorContent(result).as_text(), 'p(text)q()'
-    )
+    self.assertEqual(await result.text(), 'p(text)q()')
 
   async def test_switch_processor_many_processors_few_parts(self):
     max_active_tasks = []

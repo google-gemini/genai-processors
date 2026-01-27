@@ -441,16 +441,16 @@ class ProcessorTest(unittest.TestCase):
 
     # Chaining sends the reserved substreams straight to the output.
     chained = (mock_processor + mock_processor).to_processor()
-    content = [
+    content = content_api.ProcessorContent([
         processor.ProcessorPart('data', substream_name='data'),
         processor.ProcessorPart('debug', substream_name='custom_debug'),
-    ]
+    ])
 
     output_substream = set()
 
     async def run_with_context():
       async with processor.context(reserved_substreams=['custom_debug']):
-        async for part in chained(streams.stream_content(content)):
+        async for part in chained(content):
           output_substream.add(part.substream_name)
 
     asyncio.run(run_with_context())
@@ -856,16 +856,16 @@ class ProcessorChainMixTest(TestWithProcessors):
 
     # Chaining sends the reserved substreams straight to the output.
     chained = (mock_processor + mock_processor).to_processor()
-    content = [
+    content = content_api.ProcessorContent([
         processor.ProcessorPart('data', substream_name='data'),
         processor.ProcessorPart('debug', substream_name='custom_debug'),
-    ]
+    ])
 
     output_substream = set()
 
     async def run_with_context():
       async with processor.context(reserved_substreams=['custom_debug']):
-        async for part in chained(streams.stream_content(content)):
+        async for part in chained(content):
           output_substream.add(part.substream_name)
 
     asyncio.run(run_with_context())
@@ -1239,16 +1239,16 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
 
     # Chaining sends the reserved substreams straight to the output.
     chained = (mock_processor // mock_processor).to_processor()
-    content = [
+    content = content_api.ProcessorContent([
         processor.ProcessorPart('data', substream_name='data'),
         processor.ProcessorPart('debug', substream_name='custom_debug'),
-    ]
+    ])
 
     output_substream = set()
 
     async def run_with_context():
       async with processor.context(reserved_substreams=['custom_debug']):
-        async for part in chained(streams.stream_content(content)):
+        async for part in chained(content):
           output_substream.add(part.substream_name)
 
     asyncio.run(run_with_context())
@@ -1450,9 +1450,7 @@ class CachedPartProcessorTest(
     )
 
     # First call (cache miss)
-    result = await streams.gather_stream(
-        cached_p(content_api.ProcessorPart('A'))
-    )
+    result = await cached_p(content_api.ProcessorPart('A')).gather()
     self.assertEqual(content_api.as_text(result), 'processed:A')
     call_tracker.assert_called_once()
 
@@ -1460,9 +1458,7 @@ class CachedPartProcessorTest(
     await asyncio.sleep(0.01)
 
     # Second call (cache hit)
-    result = await streams.gather_stream(
-        cached_p(content_api.ProcessorPart('A'))
-    )
+    result = await cached_p(content_api.ProcessorPart('A')).gather()
     self.assertEqual(content_api.as_text(result), 'processed:A')
     # Call tracker has not been called a second time.
     call_tracker.assert_called_once()
@@ -1479,9 +1475,7 @@ class CachedPartProcessorTest(
 
     cached_p = processor.CachedPartProcessor(trackable_processor)
     processor.CachedPartProcessor.set_cache(cache.InMemoryCache())
-    result = await streams.gather_stream(
-        cached_p(content_api.ProcessorPart('A'))
-    )
+    result = await cached_p(content_api.ProcessorPart('A')).gather()
     self.assertEqual(content_api.as_text(result), 'processed:A')
     call_tracker.assert_called_once()
 
@@ -1489,9 +1483,7 @@ class CachedPartProcessorTest(
     await asyncio.sleep(0.01)
 
     # Second call (cache hit)
-    result = await streams.gather_stream(
-        cached_p(content_api.ProcessorPart('A'))
-    )
+    result = await cached_p(content_api.ProcessorPart('A')).gather()
     self.assertEqual(content_api.as_text(result), 'processed:A')
     # Call tracker has not been called a second time.
     call_tracker.assert_called_once()
@@ -1518,13 +1510,13 @@ class CachedPartProcessorTest(
 
     # First call, should fail by raising the exception.
     with self.assertRaises(ValueError):
-      await streams.gather_stream(cached_p(input_part))
+      await cached_p(input_part)
     call_tracker.assert_called_once()
 
     # Second call, should be a cache miss and call the processor again,
     # failing a second time.
     with self.assertRaises(ValueError):
-      await streams.gather_stream(cached_p(input_part))
+      await cached_p(input_part)
     self.assertEqual(call_tracker.call_count, 2)
 
   async def test_cache_keys_are_isolated_by_processor(self):
@@ -1558,13 +1550,13 @@ class CachedPartProcessorTest(
     input_part = content_api.ProcessorPart('C')
 
     # Call the first processor. It should be a miss.
-    await streams.gather_stream(cached_p1(input_part))
+    await cached_p1(input_part)
     tracker1.assert_called_once()
     tracker2.assert_not_called()
 
     # Call the second processor with the SAME input part.
     # It should also be a miss because its key prefix is different.
-    await streams.gather_stream(cached_p2(input_part))
+    await cached_p2(input_part)
     tracker1.assert_called_once()  # Should not have been called again.
     tracker2.assert_called_once()  # Should be called for the first time.
 
@@ -1587,12 +1579,12 @@ class CachedPartProcessorTest(
     )
     input_part = content_api.ProcessorPart('no_cache')
 
-    results1 = await streams.gather_stream(cached_p(input_part))
+    results1 = await cached_p(input_part).gather()
     call_tracker.assert_called_once()
     self.assertEmpty(results1)
 
     # Check empty results are not cached.
-    results2 = await streams.gather_stream(cached_p(input_part))
+    results2 = await cached_p(input_part).gather()
     self.assertEqual(call_tracker.call_count, 2)
     self.assertEmpty(results2)
 
@@ -1606,11 +1598,10 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def trackable_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: content_api.ContentStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       call_tracker()
-      text = content_api.as_text(await streams.gather_stream(content))
-      yield f'processed:{text}'
+      yield f'processed:{await content.text()}'
 
     cached_p = processor.CachedProcessor(
         trackable_processor, default_cache=cache.InMemoryCache()
@@ -1672,19 +1663,17 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def processor1(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: content_api.ContentStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       tracker1()
-      text = content_api.as_text(await streams.gather_stream(content))
-      yield content_api.ProcessorPart(f'p1:{text}')
+      yield f'p1:{await content.text()}'
 
     @processor.processor_function
     async def processor2(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: content_api.ContentStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       tracker2()
-      text = content_api.as_text(await streams.gather_stream(content))
-      yield content_api.ProcessorPart(f'p2:{text}')
+      yield f'p2:{await content.text()}'
 
     # Use the SAME cache instance for both cached processors.
     shared_cache = cache.InMemoryCache()
@@ -1741,11 +1730,10 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def trackable_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: content_api.ContentStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       call_tracker()
-      text = content_api.as_text(await streams.gather_stream(content))
-      yield f'processed:{text}'
+      yield f'processed:{await content.text()}'
 
     # No default cache
     cached_p = processor.CachedProcessor(trackable_processor)

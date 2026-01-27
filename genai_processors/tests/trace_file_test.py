@@ -14,7 +14,6 @@ from genai_processors import context as context_lib
 from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
-from genai_processors import streams
 from genai_processors.dev import trace_file
 import numpy as np
 from PIL import Image
@@ -80,11 +79,9 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
   async def test_trace_generation_and_timestamps(self):
     p = SubTraceProcessor()
-    input_parts = [content_api.ProcessorPart('hello')]
+    input_parts = content_api.ProcessorContent('hello')
     async with trace_file.SyncFileTrace(trace_dir=self.trace_dir):
-      results = await streams.gather_stream(
-          p(streams.stream_content(input_parts))
-      )
+      results = await p(input_parts).gather()
     # Check we return the status part with the debug information.
     self.assertIn('TEST_SUB_PROCESSOR', results[0].text)
     self.assertEqual(results[1].text, 'HELLO_sub_trace_1_outer')
