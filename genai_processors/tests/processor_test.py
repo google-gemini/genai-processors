@@ -1588,6 +1588,38 @@ class CachedPartProcessorTest(
     self.assertEqual(call_tracker.call_count, 2)
     self.assertEmpty(results2)
 
+  async def test_does_not_cache_exception_parts(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.part_processor_function
+    async def exception_processor(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      call_tracker()
+      if part.text == 'A':
+        yield content_api.ProcessorPart(
+            'some exception', mimetype=mime_types.TEXT_EXCEPTION
+        )
+      else:
+        yield f'processed:{part.text}'
+
+    cached_p = processor.CachedPartProcessor(
+        exception_processor, default_cache=cache.InMemoryCache()
+    )
+
+    # First call (cache miss), exception result
+    result = await cached_p(content_api.ProcessorPart('A')).gather()
+    self.assertTrue(mime_types.is_exception(result[0].mimetype))
+    call_tracker.assert_called_once()
+
+    # Give some time for cache put to be skipped.
+    await asyncio.sleep(0.01)
+
+    # Second call (should be cache miss)
+    result = await cached_p(content_api.ProcessorPart('A')).gather()
+    self.assertTrue(mime_types.is_exception(result[0].mimetype))
+    self.assertEqual(call_tracker.call_count, 2)
+
 
 class CachedProcessorTest(
     parameterized.TestCase, unittest.IsolatedAsyncioTestCase
@@ -1761,6 +1793,52 @@ class CachedProcessorTest(
     result = await processor.apply_async(cached_p, ['B'])
     self.assertEqual(content_api.as_text(result), 'processed:B')
     self.assertEqual(call_tracker.call_count, 3)  # Cache hit
+
+  async def test_does_not_cache_exception_parts(self):
+    call_tracker = unittest.mock.Mock()
+
+    @processor.processor_function
+    async def exception_processor(
+        content: content_api.ContentStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      call_tracker()
+      text = await content.text()
+      if text == 'A':
+        yield content_api.ProcessorPart(
+            'some exception', mimetype=mime_types.TEXT_EXCEPTION
+        )
+      else:
+        yield f'processed:{text}'
+
+    cached_p = processor.CachedProcessor(
+        exception_processor, default_cache=cache.InMemoryCache()
+    )
+
+    # First call with 'A', returns exception, should not be cached.
+    result = await processor.apply_async(cached_p, ['A'])
+    self.assertTrue(mime_types.is_exception(result[0].mimetype))
+    call_tracker.assert_called_once()
+
+    # Give some time for cache.put to be skipped.
+    await asyncio.sleep(0.01)
+
+    # Second call with 'A', should be a cache miss and call processor again.
+    result = await processor.apply_async(cached_p, ['A'])
+    self.assertTrue(mime_types.is_exception(result[0].mimetype))
+    self.assertEqual(call_tracker.call_count, 2)
+
+    # Call with 'B', returns no exception, should be cached.
+    result = await processor.apply_async(cached_p, ['B'])
+    self.assertEqual(content_api.as_text(result), 'processed:B')
+    self.assertEqual(call_tracker.call_count, 3)
+
+    # Give some time for cache.put to complete.
+    await asyncio.sleep(0.01)
+
+    # Call with 'B' again, should be cache hit.
+    result = await processor.apply_async(cached_p, ['B'])
+    self.assertEqual(content_api.as_text(result), 'processed:B')
+    self.assertEqual(call_tracker.call_count, 3)
 
 
 if __name__ == '__main__':

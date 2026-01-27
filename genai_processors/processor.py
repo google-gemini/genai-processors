@@ -1435,7 +1435,10 @@ class CachedPartProcessor(PartProcessor):
         results_for_caching.append(p)
         yield p
 
-      create_task(part_cache.put(key=key, value=results_for_caching))
+      if results_for_caching and not any(
+          p.mimetype == mime_types.TEXT_EXCEPTION for p in results_for_caching
+      ):
+        create_task(part_cache.put(key=key, value=results_for_caching))
     else:
       async for p in self._wrapped_processor(part):
         yield p
@@ -1510,7 +1513,9 @@ class CachedProcessor(Processor):
         results_for_caching.append(p)
         yield p
 
-      if results_for_caching:
+      if results_for_caching and not any(
+          p.mimetype == mime_types.TEXT_EXCEPTION for p in results_for_caching
+      ):
         create_task(part_cache.put(key=key, value=results_for_caching))
     else:
       async for p in self._wrapped_processor(content):
