@@ -441,7 +441,7 @@
               const data = getData(partDict);
               const text = getText(partDict);
               const role = partDict?.metadata?.role || 'n/a';
-              const substream = partDict?.substream;
+              const substream = partDict?.substream_name || '';
 
               // Event details
               const details = document.createElement('div');

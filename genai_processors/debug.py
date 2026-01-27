@@ -93,10 +93,17 @@ class TTFTSingleStream(processor.Processor):
     ) -> AsyncIterable[ProcessorPart]:
       first_part = True
       async for part in content:
-        if first_part and self._start is not None:
-          duration = time.perf_counter() - self._start
-          self._ttft = duration
-          self._message += f' TTFT={duration:.2f} seconds'
+        if first_part:
+          if self._start is not None:
+            # We have finished going over all parts in the input content.
+            # We can compute a proper TTFT.
+            duration = time.perf_counter() - self._start
+            self._ttft = duration
+            self._message += f' TTFT={duration:.2f} seconds'
+          else:
+            # The input content is still being sent, typical of a bidi setup.
+            # TTFT is 0 here by convention. We can't compute it yet.
+            self._message += ' TTFT=0 - input stream still open.'
           yield processor.status(ProcessorPart(self._message))
         first_part = False
         yield part

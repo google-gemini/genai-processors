@@ -10,6 +10,7 @@ import wave
 
 from absl.testing import absltest
 from genai_processors import content_api
+from genai_processors import context as context_lib
 from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
@@ -56,8 +57,10 @@ class SubTraceProcessor(processor.Processor):
       self, content: AsyncIterable[content_api.ProcessorPart]
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     async for part in self.sub_processor(content):
-      if isinstance(part, content_api.ProcessorPart) and mime_types.is_text(
-          part.mimetype
+      if (
+          isinstance(part, content_api.ProcessorPart)
+          and mime_types.is_text(part.mimetype)
+          and not context_lib.is_reserved_substream(part.substream_name)
       ):
         yield part.text + '_outer'
       else:
@@ -199,7 +202,11 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         data=audio_bytes_io.getvalue(),
         mimetype='audio/wav',
     )
-    parts = [img_part, audio_part, content_api.ProcessorPart('hello')]
+    parts = [
+        img_part,
+        audio_part,
+        content_api.ProcessorPart('hello', substream_name='input', role='user'),
+    ]
     async with trace_file.SyncFileTrace(trace_dir=trace_dir, name='Trace test'):
       await processor.apply_async(p, parts)
 
