@@ -1,7 +1,10 @@
+from collections.abc import AsyncIterator, Iterable
 import dataclasses
 import io
 import json
 import textwrap
+from typing import TypeVar
+import unittest
 
 from absl.testing import absltest
 from absl.testing import parameterized
@@ -643,6 +646,102 @@ class ProcessorContentTest(parameterized.TestCase):
   def test_to_genai_contents(self, parts, expected_genai_contents):
     genai_contents = content_api.to_genai_contents(parts)
     self.assertEqual(genai_contents, expected_genai_contents)
+
+
+T = TypeVar('T')
+
+
+async def _to_async_iter(iterable: Iterable[T]) -> AsyncIterator[T]:
+  for item in iterable:
+    yield item
+
+
+class ContentStreamTest(
+    unittest.IsolatedAsyncioTestCase, parameterized.TestCase
+):
+
+  async def test_init_with_static_content_obj(self):
+    stream = content_api.ContentStream(
+        content=content_api.ProcessorContent('hello')
+    )
+    self.assertEqual(await stream.text(), 'hello')
+
+  async def test_init_with_static_content_list(self):
+    stream = content_api.ContentStream(content=['hello', ' world'])
+    self.assertEqual(await stream.text(), 'hello world')
+
+  async def test_init_with_parts_iterable(self):
+    parts_list = [
+        content_api.ProcessorPart('hello'),
+        content_api.ProcessorPart(' world'),
+    ]
+    stream = content_api.ContentStream(parts=_to_async_iter(parts_list))
+    self.assertEqual(await stream.text(), 'hello world')
+
+  async def test_init_with_parts_generator(self):
+    parts_list = [
+        content_api.ProcessorPart('hello'),
+        content_api.ProcessorPart(' world'),
+    ]
+    stream = content_api.ContentStream(
+        parts_generator=_to_async_iter(parts_list)
+    )
+    self.assertEqual(await stream.text(), 'hello world')
+
+    # Attempting to read the content a second time should fail.
+    with self.assertRaises(RuntimeError):
+      await stream.text()
+
+  def test_init_with_multiple_fail(self):
+    with self.assertRaises(ValueError):
+      content_api.ContentStream(content=[], parts=[])
+    with self.assertRaises(ValueError):
+      content_api.ContentStream(
+          content=[],
+          parts_generator=_to_async_iter([]),
+      )
+
+  async def test_text_with_inline_data(self):
+    stream = content_api.ContentStream(
+        content=genai_types.Part.from_bytes(
+            mime_type='text/plain', data=b'hello'
+        )
+    )
+    self.assertEqual(await stream.text(), 'hello')
+
+  async def test_text_with_non_text_part_fail(self):
+    stream = content_api.ContentStream(
+        content=genai_types.Part.from_bytes(mime_type='image/png', data=b'123')
+    )
+    with self.assertRaises(ValueError):
+      await stream.text(strict=True)
+
+  async def test_await(self):
+    parts = []
+
+    async def parts_generator():
+      for i in range(3):
+        parts.append(i)
+        yield genai_types.Part(text=str(i))
+
+    await content_api.ContentStream(parts_generator=parts_generator())
+    self.assertEqual(parts, [0, 1, 2])
+
+  async def test_content_is_iterable_twice_with_async_for(self):
+    stream = content_api.ContentStream(
+        content=content_api.ProcessorContent('hello', ' world')
+    )
+    parts1 = [part async for part in stream]
+    self.assertEqual(
+        content_api.as_text(content_api.ProcessorContent(parts1)),
+        'hello world',
+    )
+    parts2 = [part async for part in stream]
+    self.assertEqual(
+        content_api.as_text(content_api.ProcessorContent(parts2)),
+        'hello world',
+    )
+    self.assertEqual(parts1, parts2)
 
 
 if __name__ == '__main__':

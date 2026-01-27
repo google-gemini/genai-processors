@@ -96,7 +96,7 @@ async def _normalize_part_stream(
           raise ValueError(f'{e} produced by {producer}') from e
 
 
-class ProcessorStream:
+class ProcessorStream(content_api.ContentStream):
   """An async iterable of ProcessorParts returned by a Processor.
 
   Provides convenience methods for accessing the streamed content (not
@@ -111,6 +111,7 @@ class ProcessorStream:
       parts: AsyncIterable[ProcessorPart],
       trace: trace_lib.Trace | None,
   ):
+    super().__init__(parts=parts)
     self._parts = parts
     # Unroll the ProcessorStream to get the underlying async iterable.
     # This is needed to avoid 2+ traces for the same async iterable content and
@@ -118,10 +119,6 @@ class ProcessorStream:
     while isinstance(self._parts, ProcessorStream):
       self._parts = self._parts._parts
     self.trace = trace
-
-  def __aiter__(self) -> AsyncIterator[ProcessorPart]:
-    """Returns an iterator that yields all ProcessorParts from the stream."""
-    return self._parts.__aiter__()
 
 
 @typing.runtime_checkable
@@ -900,10 +897,7 @@ def _chain_processors(
           _capture_reserved_substreams(content, output_queue),
           trace=chain_trace,
       )
-      content = ProcessorStream(
-          _normalize_part_stream(processor(content), producer=processor),
-          trace=chain_trace,
-      )
+      content = processor(content)
     # Place output processed output parts on the queue.
     create_task(_enqueue_content(content, output_queue), name=task_name)
     while (part := await output_queue.get()) is not None:
