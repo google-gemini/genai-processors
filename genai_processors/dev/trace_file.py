@@ -9,10 +9,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import datetime
+import hashlib
 import json
 import os
 from typing import Any, Tuple
 
+from absl import logging
 from genai_processors import content_api
 from genai_processors.dev import trace
 import pydantic
@@ -85,14 +87,24 @@ def _resize_image_part(
   return part
 
 
+def _compute_part_hash(part_dict: dict[str, Any]) -> str:
+  """Computes a hash for a part_dict for efficient deduplication.
+
+  Args:
+    part_dict: The part dictionary to hash.
+
+  Returns:
+    A hex string hash of the part_dict content.
+  """
+  json_str = json.dumps(part_dict, sort_keys=True, default=str)
+  return hashlib.sha256(json_str.encode('utf-8')).hexdigest()
+
+
 class TraceEvent(pydantic.BaseModel):
   """A single event in a trace.
 
   An event represents an input/output part or a sub-trace from a nested
   processor call.
-
-  This class is not used in this abstract base class, but is recommend to be
-  used in the implementations of the trace.
   """
 
   model_config = {'arbitrary_types_allowed': True}
@@ -106,10 +118,8 @@ class TraceEvent(pydantic.BaseModel):
   # Whether the event is an input part to the processor or an output part.
   is_input: bool = False
 
-  # The part of the event (as dictionary). None if sub_trace is provided.
-  # By serializing the part into a dict we ensure that even if the part is
-  # mutated later, the logged value won't change.
-  part_dict: dict[str, Any] | None = None
+  # Reference to a part in the parts_store (used for deduplication).
+  part_ref: int | None = None
   # If set, this event represents a nested processor call via its trace.
   sub_trace: SyncFileTrace | None = None
   # The relation between this trace and sub_trace. E.g. if it is a chain.
@@ -120,7 +130,8 @@ class SyncFileTrace(trace.Trace):
   """A trace storing events in a file.
 
   The trace collects all events first in memory and then writes them to a file
-  when the finalize method is called.
+  when the finalize method is called. Parts are deduplicated online as they are
+  added, reducing memory footprint for traces with repeated content.
   """
 
   # Where to store the trace. Required only of the root trace.
@@ -137,6 +148,20 @@ class SyncFileTrace(trace.Trace):
   # If None, images are not resized.
   image_size: tuple[int, int] | None = (200, 200)
 
+  # Parts store for deduplication: maps part ID to a json dict representing a
+  # part. For sub-traces, this should remain empty; they use root's store.
+  parts_store: list[dict[str, Any]] = pydantic.Field(default_factory=list)
+
+  # Private attributes for deduplication (not serialized)
+  # Hash to ID mapping for O(1) deduplication lookup.
+  _hash_to_id: dict[str, int] = pydantic.PrivateAttr(default_factory=dict)
+  # Reference to root trace for sharing parts_store. None means this is root.
+  _root_trace: 'SyncFileTrace | None' = pydantic.PrivateAttr(default=None)
+
+  def _get_root(self) -> 'SyncFileTrace':
+    """Returns the root trace for parts_store access."""
+    return self._root_trace if self._root_trace is not None else self
+
   def model_post_init(self, __context: Any) -> None:
     self._queue = asyncio.Queue(maxsize=_QUEUE_MAX_SIZE)
     self._worker = asyncio.create_task(self._event_worker())
@@ -149,10 +174,29 @@ class SyncFileTrace(trace.Trace):
       self.events.append(event)
 
   def to_json_str(self) -> str:
-    """Converts the trace to a JSON string."""
+    """Converts the trace to a JSON string with deduplicated parts.
+
+    The output format is:
+    {
+      "parts_store": {"0": {...}, "1": {...}, ...},
+      "trace": { ... trace data with part_ref ... }
+    }
+
+    Returns:
+      A JSON string representing the trace with deduplicated parts.
+    """
     try:
+      trace_data = self.model_dump(
+          mode='python',
+          exclude_none=True,
+          exclude={'parts_store', '_hash_to_id'},
+      )
+      output = {
+          'parts_store': self.parts_store,
+          'trace': trace_data,
+      }
       return json.dumps(
-          self.model_dump(mode='python', exclude_none=True),
+          output,
           default=_bytes_encoder,
           indent=2,
       )
@@ -164,7 +208,7 @@ class SyncFileTrace(trace.Trace):
       ) from e
 
   @classmethod
-  def from_json_str(cls, json_str: str) -> trace.Trace:
+  def from_json_str(cls, json_str: str) -> 'SyncFileTrace':
     """Initializes the trace from a JSON string.
 
     Args:
@@ -172,21 +216,54 @@ class SyncFileTrace(trace.Trace):
         for audio and image parts are expected to be base64 + utf-8 encoded.
 
     Returns:
-      The trace initialized from the JSON string.
+      The trace initialized from the JSON string. Note that the parts store
+      cannot be reused for deduplication: a part added to the trace after
+      deserialization will not be deduplicated against parts added before
+      deserialization.
     """
-    return cls.model_validate(json.loads(json_str, object_hook=_bytes_decoder))
+    data = json.loads(json_str, object_hook=_bytes_decoder)
+    parts_store = data['parts_store']
+    trace_data = data['trace']
+    trace_data['parts_store'] = parts_store
+    trace_obj = cls.model_validate(trace_data)
+    # Set _root_trace for all sub-traces
+    cls._init_sub_traces(trace_obj, trace_obj)
+    return trace_obj
+
+  @classmethod
+  def _init_sub_traces(
+      cls, parent: 'SyncFileTrace', root: 'SyncFileTrace'
+  ) -> None:
+    """Recursively sets _root_trace for all sub-traces."""
+    for event in parent.events:
+      if event.sub_trace is not None:
+        event.sub_trace._root_trace = root
+        cls._init_sub_traces(event.sub_trace, root)
 
   async def _add_part(
       self, part: content_api.ProcessorPart, is_input: bool
   ) -> TraceEvent:
     """Adds an input or output part to the trace events."""
     if self.image_size and content_api.is_image(part.mimetype):
-      part = await asyncio.to_thread(
-          _resize_image_part, part, self.image_size
-      )
+      part = await asyncio.to_thread(_resize_image_part, part, self.image_size)
+
+    part_dict = part.to_dict(mode='python')
+    part_hash = _compute_part_hash(part_dict)
+
+    # Use root's store for global deduplication across all sub-traces
+    root = self._get_root()
+
+    # O(1) deduplication lookup
+    if part_hash in root._hash_to_id:
+      part_ref = root._hash_to_id[part_hash]
+    else:
+      # New unique part, assign sequential ID
+      part_ref = len(root.parts_store)
+      root.parts_store.append(part_dict)
+      root._hash_to_id[part_hash] = part_ref
 
     event = TraceEvent(
-        part_dict=part.to_dict(mode='python'),
+        part_ref=part_ref,
         is_input=is_input,
     )
     return event
@@ -194,11 +271,19 @@ class SyncFileTrace(trace.Trace):
   @override
   async def add_input(self, part: content_api.ProcessorPart) -> None:
     """Adds an input part to the trace events."""
+    logging.info(
+        f'TRACE DEBUG: add_input to {self.name}, queue size before:'
+        f' {self._queue.qsize()}'
+    )
     await self._queue.put((part, True))
 
   @override
   async def add_output(self, part: content_api.ProcessorPart) -> None:
     """Adds an output part to the trace events."""
+    logging.info(
+        f'TRACE DEBUG: add_output to {self.name}, queue size before:'
+        f' {self._queue.qsize()}'
+    )
     await self._queue.put((part, False))
 
   @override
@@ -206,15 +291,29 @@ class SyncFileTrace(trace.Trace):
     """Adds a sub-trace from a nested processor call to the trace events."""
     # This method must not block.
     t = SyncFileTrace(name=name, image_size=self.image_size)
+    # Sub-traces share the root's parts_store for global deduplication
+    t._root_trace = self._get_root()
     event = TraceEvent(sub_trace=t, is_input=False, relation=relation)
     self.events.append(event)
+    logging.info(
+        f'TRACE DEBUG: add_sub_trace({name}) to {self.name}, now'
+        f' {len(self.events)} events'
+    )
     return t
 
   @override
   async def _finalize(self) -> None:
     """Saves the trace to a file."""
+    logging.info(
+        f'TRACE DEBUG: _finalize {self.name}, queue size:'
+        f' {self._queue.qsize()}, events: {len(self.events)}'
+    )
     await self._queue.put(None)  # Sentinel to stop worker.
     await asyncio.shield(self._worker)
+    logging.info(
+        f'TRACE DEBUG: _finalize {self.name} worker done, events now:'
+        f' {len(self.events)}'
+    )
 
     for event in self.events:
       if sub_trace := event.sub_trace:
@@ -222,6 +321,7 @@ class SyncFileTrace(trace.Trace):
 
     if not self.trace_dir:
       return
+    logging.info(f'TRACE DEBUG: saving {self.name} to {self.trace_dir}')
     trace_filename = os.path.join(
         self.trace_dir, f'{self.name}_{self.trace_id}'
     )
@@ -231,7 +331,6 @@ class SyncFileTrace(trace.Trace):
   def save_html(self, path: str) -> None:
     """Saves an HTML rendering of the trace to a file."""
     html = HTML_TEMPLATE.format(trace_json=self.to_json_str())
-    print(f'html: {path}')
     with open(path, 'w') as html_file:
       html_file.write(html)
 
@@ -254,10 +353,8 @@ class SyncFileTrace(trace.Trace):
     Returns:
       The trace.
     """
-    with open(path, 'r') as html_file:
-      return SyncFileTrace.model_validate(
-          json.loads(html_file.read(), object_hook=_bytes_decoder)
-      )
+    with open(path, 'r') as trace_file:
+      return cls.from_json_str(trace_file.read())
 
 
 SyncFileTrace.model_rebuild(force=True)

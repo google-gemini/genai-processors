@@ -23,6 +23,7 @@ import contextvars
 import datetime
 from typing import Any
 
+from absl import logging
 from genai_processors import content_api
 import pydantic
 import shortuuid
@@ -70,6 +71,9 @@ class Trace(pydantic.BaseModel, abc.ABC):
 
   async def __aenter__(self) -> Trace:
     self._token = CURRENT_TRACE.set(self)
+    logging.info(
+        f'TRACE DEBUG: __aenter__ called, set CURRENT_TRACE to {self.name}'
+    )
     return self
 
   async def __aexit__(
@@ -137,6 +141,10 @@ def create_sub_trace(
   # NOTE: This interface will change when we add nested call tracking.
   relation = 'chain' if parent_trace else 'call'
   parent_trace = parent_trace or CURRENT_TRACE.get()
+  logging.info(
+      f'TRACE DEBUG: create_sub_trace({processor_name}),'
+      f' parent_trace={parent_trace.name if parent_trace else None}'
+  )
 
   if parent_trace is None:
     # No tracing in scope - keep things as is.
