@@ -141,17 +141,18 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
   async def test_trace_save_load(self):
     trace = trace_file.SyncFileTrace(name='test')
-    await trace.add_input(content_api.ProcessorPart('in'))
-    await trace.add_input(
-        content_api.ProcessorPart.from_bytes(
-            data=b'bytes',
-            mimetype='image/jpeg',
-        )
-    )
-    sub_trace = trace.add_sub_trace(name='sub_test', relation='chain')
-    await sub_trace.add_input(content_api.ProcessorPart('sub_in'))
-    await sub_trace.add_output(content_api.ProcessorPart('sub_out'))
-    await trace.add_output(content_api.ProcessorPart('out'))
+    async with trace:
+      await trace.add_input(content_api.ProcessorPart('in'))
+      await trace.add_input(
+          content_api.ProcessorPart.from_bytes(
+              data=b'bytes',
+              mimetype='image/jpeg',
+          )
+      )
+      sub_trace = trace.add_sub_trace(name='sub_test', relation='chain')
+      await sub_trace.add_input(content_api.ProcessorPart('sub_in'))
+      await sub_trace.add_output(content_api.ProcessorPart('sub_out'))
+      await trace.add_output(content_api.ProcessorPart('out'))
 
     tmpdir = absltest.get_default_test_tmpdir()
     trace_path = os.path.join(tmpdir, 'trace.json')
@@ -163,8 +164,11 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         json.loads(trace.model_dump_json()),
         json.loads(loaded_trace.model_dump_json()),
     )
-    self.assertEqual(loaded_trace.events[2].relation, 'chain')
-    sub_trace = cast(trace_file.SyncFileTrace, loaded_trace.events[2].sub_trace)
+
+    sub_trace_event = next(
+        event for event in loaded_trace.events if event.relation == 'chain'
+    )
+    sub_trace = cast(trace_file.SyncFileTrace, sub_trace_event.sub_trace)
     self.assertEqual(sub_trace.name, 'sub_test')
 
   async def test_save_html(self):
@@ -228,7 +232,8 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     )
 
     trace = trace_file.SyncFileTrace(name='test_image_resizing')
-    await trace.add_input(img_part)
+    async with trace:
+      await trace.add_input(img_part)
 
     self.assertEqual(len(trace.events), 1)
     event = trace.events[0]

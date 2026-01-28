@@ -11,11 +11,10 @@ import base64
 import datetime
 import json
 import os
-from typing import Any
+from typing import Any, Tuple
 
 from genai_processors import content_api
 from genai_processors.dev import trace
-import PIL.Image
 import pydantic
 import shortuuid
 from typing_extensions import override
@@ -25,6 +24,8 @@ with open(HTML_TEMPLATE_PATH, 'r') as f:
   HTML_TEMPLATE = f.read()
 
 pydantic_converter = pydantic.TypeAdapter(Any)
+
+_QUEUE_MAX_SIZE = 1000
 
 
 def _bytes_encoder(o: Any) -> Any:
@@ -62,6 +63,26 @@ def _bytes_decoder(dct: dict[str, Any]) -> Any:
       except (ValueError, TypeError):
         pass
   return dct
+
+
+def _resize_image_part(
+    part: content_api.ProcessorPart, image_size: tuple[int, int]
+) -> content_api.ProcessorPart:
+  """Resizes image part."""
+  try:
+    img = part.pil_image
+    img.thumbnail(image_size)
+    part = content_api.ProcessorPart(
+        img,
+        role=part.role,
+        substream_name=part.substream_name,
+        mimetype=part.mimetype,
+        metadata=part.metadata,
+    )
+  except Exception:  # pylint: disable=broad-except
+    # If resizing fails, we just use the original part.
+    pass
+  return part
 
 
 class TraceEvent(pydantic.BaseModel):
@@ -106,11 +127,26 @@ class SyncFileTrace(trace.Trace):
   trace_dir: str | None = None
 
   # The events in the trace. Collected in memory.
-  events: list[TraceEvent] = []
+  events: list[TraceEvent] = pydantic.Field(default_factory=list)
+  _queue: asyncio.Queue[Tuple[content_api.ProcessorPart, bool] | None] = (
+      pydantic.PrivateAttr()
+  )
+  _worker: asyncio.Task = pydantic.PrivateAttr()
 
   # The size to resize images to when storing them in the trace.
   # If None, images are not resized.
   image_size: tuple[int, int] | None = (200, 200)
+
+  def model_post_init(self, __context: Any) -> None:
+    self._queue = asyncio.Queue(maxsize=_QUEUE_MAX_SIZE)
+    self._worker = asyncio.create_task(self._event_worker())
+
+  async def _event_worker(self):
+    """Worker task to process parts from queue and create events."""
+    while item := await self._queue.get():
+      part, is_input = item
+      event = await self._add_part(part, is_input=is_input)
+      self.events.append(event)
 
   def to_json_str(self) -> str:
     """Converts the trace to a JSON string."""
@@ -140,52 +176,50 @@ class SyncFileTrace(trace.Trace):
     """
     return cls.model_validate(json.loads(json_str, object_hook=_bytes_decoder))
 
-  def _add_part(self, part: content_api.ProcessorPart, is_input: bool) -> None:
+  async def _add_part(
+      self, part: content_api.ProcessorPart, is_input: bool
+  ) -> TraceEvent:
     """Adds an input or output part to the trace events."""
     if self.image_size and content_api.is_image(part.mimetype):
-      try:
-        img = part.pil_image
-        img.thumbnail(self.image_size)
-        part = content_api.ProcessorPart(
-            img,
-            role=part.role,
-            substream_name=part.substream_name,
-            mimetype=part.mimetype,
-            metadata=part.metadata,
-        )
-      except Exception:  # pylint: disable=broad-except
-        # If resizing fails, we just use the original part.
-        pass
+      part = await asyncio.to_thread(
+          _resize_image_part, part, self.image_size
+      )
 
     event = TraceEvent(
         part_dict=part.to_dict(mode='python'),
         is_input=is_input,
     )
-    self.events.append(event)
+    return event
 
   @override
   async def add_input(self, part: content_api.ProcessorPart) -> None:
     """Adds an input part to the trace events."""
-    self._add_part(part, is_input=True)
+    await self._queue.put((part, True))
 
   @override
   async def add_output(self, part: content_api.ProcessorPart) -> None:
     """Adds an output part to the trace events."""
-    self._add_part(part, is_input=False)
+    await self._queue.put((part, False))
 
   @override
   def add_sub_trace(self, name: str, relation: str) -> SyncFileTrace:
     """Adds a sub-trace from a nested processor call to the trace events."""
     # This method must not block.
     t = SyncFileTrace(name=name, image_size=self.image_size)
-    self.events.append(
-        TraceEvent(sub_trace=t, is_input=False, relation=relation)
-    )
+    event = TraceEvent(sub_trace=t, is_input=False, relation=relation)
+    self.events.append(event)
     return t
 
   @override
   async def _finalize(self) -> None:
     """Saves the trace to a file."""
+    await self._queue.put(None)  # Sentinel to stop worker.
+    await asyncio.shield(self._worker)
+
+    for event in self.events:
+      if sub_trace := event.sub_trace:
+        await sub_trace._finalize()
+
     if not self.trace_dir:
       return
     trace_filename = os.path.join(
