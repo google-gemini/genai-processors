@@ -281,7 +281,7 @@ class ProcessorPart:
       ValueError if part is not of a text MIME type.
     """
     if not mime_types.is_text(self.mimetype):
-      raise ValueError(f'Part is not text: {self.mimetype}')
+      raise ValueError(f'Part is not text but {self._debug_string()}')
     if self.part.text:
       return self.part.text
     if self.part.inline_data:
@@ -347,7 +347,7 @@ class ProcessorPart:
       The dataclass representation of the Part.
     """
     if not mime_types.is_dataclass(self.mimetype):
-      raise ValueError('Part is not a dataclass.')
+      raise ValueError(f'Part is not a dataclass but {self._debug_string()}')
     try:
       # JSON conversions are provided by the dataclass_json decorator.
       return json_dataclass.from_json(self.text)  # pytype: disable=attribute-error
@@ -362,7 +362,8 @@ class ProcessorPart:
     """Returns representation of the Part as a given proto message."""
     if not mime_types.is_proto_message(self.mimetype, proto_message):
       raise ValueError(
-          f'Part is not a {proto_message.DESCRIPTOR.name} proto message.'
+          f'Part is not a {proto_message.DESCRIPTOR.name} proto message but'
+          f' {self._debug_string()}.'
       )
     return proto_message.FromString(self.bytes)
 
@@ -370,12 +371,17 @@ class ProcessorPart:
   def pil_image(self) -> PIL.Image.Image:
     """Returns PIL.Image representation of the Part."""
     if not mime_types.is_image(self.mimetype):
-      raise ValueError(f'Part is not an image. Mime type is {self.mimetype}.')
+      raise ValueError(f'Part is not an image but {self._debug_string()}.')
     bytes_io = io.BytesIO()
     if self.part.inline_data is not None:
       bytes_io.write(self.part.inline_data.data)
     bytes_io.seek(0)
     return PIL.Image.open(bytes_io)
+
+  def _debug_string(self) -> str:
+    if self.mimetype == mime_types.TEXT_EXCEPTION:
+      return f'an exception: {self.text}'
+    return self.mimetype
 
   # Class methods that make use of underlying Genai `Part` class methods.
   @classmethod
