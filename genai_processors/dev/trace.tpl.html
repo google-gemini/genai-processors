@@ -422,13 +422,68 @@
   <body>
     <div id="left-panel" tabindex="0"></div>
     <div id="right-panel"></div>
+    <div id="parts-cache" style="display: none;"></div>
     <script>
-      const traceData = {trace_json};
+      const rawData = {trace_json};
+      const partsStore = rawData.parts_store;
+      const traceData = rawData.trace;
+
       const eventsById = {{}};
       const eventToParentSubtrace = {{}};
       let currentSubtraceBlocks = [];
       let currentSubtraceStartTime = null;
       let focusedLi = null;
+
+      // Cache for rendered part content (keyed by part_ref)
+      const partsCache = {{}};
+      const partsCacheContainer = document.getElementById('parts-cache');
+
+      function getCachedPartContent(partRef, renderType) {{
+          // renderType: 'full' (right panel), 'thumb' (left panel thumbnail), 'audio' (audio element)
+          const cacheKey = `${{partRef}}_${{renderType}}`;
+          if (partsCache[cacheKey]) {{
+              return partsCache[cacheKey].cloneNode(true);
+          }}
+
+          const partDict = partsStore[partRef];
+          if (!partDict) return null;
+
+          let mimetype = partDict.mimetype || '';
+          let data = partDict.data || '';
+          const part = partDict.part || {{}};
+
+          if (part.inline_data && part.inline_data.mime_type && part.inline_data.data) {{
+              mimetype = part.inline_data.mime_type;
+              data = part.inline_data.data;
+          }}
+
+          let element = null;
+
+          if (mimetype.startsWith('image/')) {{
+              const img = document.createElement('img');
+              img.src = `data:${{mimetype}};base64,${{data}}`;
+              if (renderType === 'thumb') {{
+                  img.className = 'thumb';
+              }}
+              element = img;
+          }} else if (mimetype.startsWith('audio/')) {{
+              const audio = document.createElement('audio');
+              audio.controls = true;
+              audio.src = `data:${{mimetype}};base64,${{data}}`;
+              element = audio;
+          }}
+
+          if (element) {{
+              partsCache[cacheKey] = element;
+              partsCacheContainer.appendChild(element.cloneNode(true));
+              return element.cloneNode(true);
+          }}
+          return null;
+      }}
+
+      function getPartDict(event) {{
+        return event.part_hash !== undefined ? partsStore[event.part_hash] : null;
+      }}
 
       function bytesToBase64(rawBytes) {{
         let binary = '';
@@ -480,7 +535,7 @@
           return endTime.getTime() - startTime.getTime();
       }}
 
-      function renderPart(partDict) {{
+      function renderPart(partDict, partHash) {{
           const div = document.createElement('div');
           if (!partDict) {{
               div.innerText = 'No part data';
@@ -507,14 +562,28 @@
           div.appendChild(mime_div);
 
           if (mimetype.startsWith('image/')) {{
-              const img = document.createElement('img');
-              img.src = `data:${{mimetype}};base64,${{data}}`;
-              div.appendChild(img);
+              if (partHash !== undefined) {{
+                  const cachedImg = getCachedPartContent(partHash, 'full');
+                  if (cachedImg) {{
+                      div.appendChild(cachedImg);
+                  }}
+              }} else {{
+                  const img = document.createElement('img');
+                  img.src = `data:${{mimetype}};base64,${{data}}`;
+                  div.appendChild(img);
+              }}
           }} else if (mimetype.startsWith('audio/')) {{
-              const audio = document.createElement('audio');
-              audio.controls = true;
-              audio.src = `data:${{mimetype}};base64,${{data}}`;
-              div.appendChild(audio);
+              if (partHash !== undefined) {{
+                  const cachedAudio = getCachedPartContent(partHash, 'audio');
+                  if (cachedAudio) {{
+                      div.appendChild(cachedAudio);
+                  }}
+              }} else {{
+                  const audio = document.createElement('audio');
+                  audio.controls = true;
+                  audio.src = `data:${{mimetype}};base64,${{data}}`;
+                  div.appendChild(audio);
+              }}
           }} else if (data) {{
               const pre = document.createElement('pre');
               pre.innerText = `Binary data of type ${{mimetype}}`;
@@ -552,15 +621,9 @@
       }}
 
       function renderEvent(event) {{
-          if (event.part_dict) {{
-              return renderPart(event.part_dict);
-          }}
-          return null;
-      }}
-
-      function getPartDict(event) {{
-          if (event.part_dict) {{
-              return event.part_dict;
+          const partDict = getPartDict(event);
+          if (partDict) {{
+            return renderPart(partDict, event.part_hash);
           }}
           return null;
       }}
@@ -702,13 +765,13 @@
                   if (mimeType) header.appendChild(createSpan(`· ${{mimeType}}`, 'event-time'));
                   details.appendChild(header);
 
-                  if (mimeType && mimeType.startsWith('image/') && data) {{
+                  if (mimeType && mimeType.startsWith('image/') && event.part_hash !== undefined) {{
                       const content = document.createElement('div');
                       content.className = 'event-content';
-                      const img = document.createElement('img');
-                      img.src = `data:${{mimeType}};base64,${{data}}`;
-                      img.className = 'thumb';
-                      content.appendChild(img);
+                      const cachedImg = getCachedPartContent(event.part_hash, 'thumb');
+                      if (cachedImg) {{
+                          content.appendChild(cachedImg);
+                      }}
                       details.appendChild(content);
                   }} else if (mimeType && mimeType.startsWith('audio/')) {{
                       const content = document.createElement('div');
@@ -1011,13 +1074,20 @@
               content.appendChild(indicator);
           }} else if (block.modality === 'image') {{
               block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const data = getData(partDict);
-                  const mime = getMimeType(partDict);
-                  if (data) {{
-                      const img = document.createElement('img');
-                      img.src = `data:${{mime}};base64,${{data}}`;
-                      content.appendChild(img);
+                  if (event.part_hash !== undefined) {{
+                      const cachedImg = getCachedPartContent(event.part_hash, 'full');
+                      if (cachedImg) {{
+                          content.appendChild(cachedImg);
+                      }}
+                  }} else {{
+                      const partDict = getPartDict(event);
+                      const data = getData(partDict);
+                      const mime = getMimeType(partDict);
+                      if (data) {{
+                          const img = document.createElement('img');
+                          img.src = `data:${{mime}};base64,${{data}}`;
+                          content.appendChild(img);
+                      }}
                   }}
               }});
           }}

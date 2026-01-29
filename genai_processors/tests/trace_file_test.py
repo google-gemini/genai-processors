@@ -120,7 +120,8 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     # Check the output of to_upper_fn
     self.assertFalse(sub_trace.events[1].is_input)
     self.assertEqual(
-        sub_trace.events[1].part_dict['part']['text'], 'HELLO_sub_trace'
+        root_trace.parts_store[sub_trace.events[1].part_hash]['part']['text'],
+        'HELLO_sub_trace',
     )
     self.assertIsNotNone(sub_trace.start_time)
     self.assertIsNotNone(sub_trace.end_time)
@@ -128,15 +129,19 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     # Check events from SubTraceProcessor.
     self.assertTrue(trace.events[1].is_input)
-    self.assertEqual(trace.events[1].part_dict['part']['text'], 'hello')
+    self.assertEqual(
+        root_trace.parts_store[trace.events[1].part_hash]['part']['text'],
+        'hello',
+    )
     self.assertFalse(trace.events[2].is_input)
     self.assertIn(
         'TEST_SUB_PROCESSOR',
-        trace.events[2].part_dict['part']['text'],
+        root_trace.parts_store[trace.events[2].part_hash]['part']['text'],
     )
     self.assertFalse(trace.events[3].is_input)
     self.assertEqual(
-        trace.events[3].part_dict['part']['text'], 'HELLO_sub_trace_1_outer'
+        root_trace.parts_store[trace.events[3].part_hash]['part']['text'],
+        'HELLO_sub_trace_1_outer',
     )
 
   async def test_trace_save_load(self):
@@ -161,8 +166,8 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     loaded_trace = trace_file.SyncFileTrace.load(trace_path)
 
     self.assertEqual(
-        json.loads(trace.model_dump_json()),
-        json.loads(loaded_trace.model_dump_json()),
+        json.loads(trace.to_json_str()),
+        json.loads(loaded_trace.to_json_str()),
     )
 
     sub_trace_event = next(
@@ -170,6 +175,9 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     )
     sub_trace = cast(trace_file.SyncFileTrace, sub_trace_event.sub_trace)
     self.assertEqual(sub_trace.name, 'sub_test')
+    # Verify _root_trace is properly set for sub-traces after loading
+    self.assertIsNone(loaded_trace._root_trace)
+    self.assertIs(sub_trace._root_trace, loaded_trace)
 
   async def test_save_html(self):
     p = SubTraceProcessor()
@@ -237,9 +245,10 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     self.assertEqual(len(trace.events), 1)
     event = trace.events[0]
-    self.assertIsNotNone(event.part_dict)
+    self.assertIsNotNone(event.part_hash)
 
-    part_image_bytes = event.part_dict['part']['inline_data']['data']
+    part_dict = trace.parts_store[event.part_hash]
+    part_image_bytes = part_dict['part']['inline_data']['data']
     part_image = Image.open(io.BytesIO(part_image_bytes))
     self.assertEqual(part_image.size, (200, 150))
 

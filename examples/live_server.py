@@ -92,6 +92,7 @@ __WARNING__: this is a work in progress and is provided here for convenience and
 for prototyping quickly. We will likely make backwards incompatible changes to
 comply with a more stable GenAI API between clients and servers.
 """
+
 import base64
 import functools
 import json
@@ -255,7 +256,10 @@ async def live_server(
     try:
       live_processor = processor_factory(ais.processor_config)
       if trace_dir:
-        async with trace_file.SyncFileTrace(trace_dir=trace_dir):
+        async with trace_file.SyncFileTrace(
+            trace_dir=trace_dir,
+            name='live_server',
+        ):
           await ais.send(live_processor(ais.receive()))
       else:
         await ais.send(live_processor(ais.receive()))
@@ -291,7 +295,7 @@ async def run_server(
 ) -> None:
   """Starts the WebSocket server."""
   if trace_dir:
-    os.makedirs(trace_dir, exist_ok=True)
+   os.makedirs(trace_dir, exist_ok=True)
 
   async with serve(
       handler=functools.partial(live_server, processor_factory, trace_dir),
