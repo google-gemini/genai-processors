@@ -1,4 +1,19 @@
 <!doctype html>
+<!--
+  Trace Viewer Template - Renders all parts on the right panel.
+
+  Supported ProcessorPart types:
+  - Text parts (text/plain, text/*)
+  - Image parts (image/png, image/jpeg, image/webp, etc.)
+  - Audio parts (audio/wav, audio/mp3, audio/*, etc.)
+  - Function calls (name, ID, arguments)
+  - Function responses (name, ID, response content, with embedded media)
+  - Executable code (language, code block)
+  - Code execution results (outcome status, output)
+  - File data (URI links, display name, mime type)
+  - Thought parts (thought indicator badge)
+  - Unknown/custom parts (rendered as JSON fallback)
+-->
 <html>
   <head>
     <title>Trace Viewer</title>
@@ -417,6 +432,101 @@
       .collapse-btn:hover {{
         background-color: #f0f0f0;
       }}
+      .thought-badge {{
+        display: inline-block;
+        padding: 2px 6px;
+        background-color: #f0e6ff;
+        border: 1px solid #9966cc;
+        border-radius: 0;
+        color: #663399;
+        font-size: 10px;
+        font-weight: 500;
+        margin: 4px 0;
+      }}
+      .code-lang {{
+        color: #666;
+        font-size: 10px;
+        font-weight: normal;
+      }}
+      .code-block {{
+        background-color: #1e1e1e;
+        color: #d4d4d4;
+        padding: 8px;
+        border-radius: 0;
+        overflow-x: auto;
+        font-family: inherit;
+        font-size: 11px;
+      }}
+      .code-output {{
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        padding: 8px;
+        font-family: inherit;
+        font-size: 11px;
+      }}
+      .outcome-success {{
+        color: #228b22;
+        font-weight: 500;
+      }}
+      .outcome-error {{
+        color: #cc3300;
+        font-weight: 500;
+      }}
+      .file-info {{
+        padding: 4px 8px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        display: inline-block;
+        margin: 4px 0;
+      }}
+      .file-info a {{
+        color: #0066cc;
+        text-decoration: none;
+      }}
+      .file-info a:hover {{
+        text-decoration: underline;
+      }}
+      .file-mime {{
+        color: #888;
+        font-size: 10px;
+      }}
+      .media-indicator {{
+        padding: 4px 8px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        margin: 2px 0;
+        font-size: 11px;
+      }}
+      .function-call-badge {{
+        display: inline-block;
+        padding: 1px 4px;
+        background-color: #fff0e6;
+        border: 1px solid #cc6600;
+        color: #cc6600;
+        font-size: 9px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }}
+      .function-response-badge {{
+        display: inline-block;
+        padding: 1px 4px;
+        background-color: #e6fff0;
+        border: 1px solid #228b22;
+        color: #228b22;
+        font-size: 9px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }}
+      .function-block {{
+        margin: 8px 0;
+        padding: 8px;
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 0;
+      }}
+      .function-block:first-child {{
+        margin-top: 0;
+      }}
     </style>
   </head>
   <body>
@@ -561,7 +671,122 @@
           mime_div.innerHTML = `<b>MIME-type:</b> ${{mimetype}}`;
           div.appendChild(mime_div);
 
-          if (mimetype.startsWith('image/')) {{
+          if (part.thought) {{
+              const thought_div = document.createElement('div');
+              thought_div.innerHTML = '<span class="thought-badge">💭 Thought</span>';
+              div.appendChild(thought_div);
+          }}
+
+          if (part.function_call) {{
+              const fc_div = document.createElement('div');
+              fc_div.innerHTML = `<b>Function Call:</b> ${{part.function_call.name || 'unknown'}}`;
+              div.appendChild(fc_div);
+              if (part.function_call.id) {{
+                  const id_div = document.createElement('div');
+                  id_div.innerHTML = `<b>ID:</b> ${{part.function_call.id}}`;
+                  div.appendChild(id_div);
+              }}
+              if (part.function_call.args) {{
+                  const args_div = document.createElement('div');
+                  args_div.innerHTML = '<b>Arguments:</b>';
+                  const args_pre = document.createElement('pre');
+                  args_pre.innerText = JSON.stringify(part.function_call.args, null, 2);
+                  args_div.appendChild(args_pre);
+                  div.appendChild(args_div);
+              }}
+          }} else if (part.function_response) {{
+              const fr_div = document.createElement('div');
+              fr_div.innerHTML = `<b>Function Response:</b> ${{part.function_response.name || 'unknown'}}`;
+              div.appendChild(fr_div);
+              if (part.function_response.id) {{
+                  const id_div = document.createElement('div');
+                  id_div.innerHTML = `<b>ID:</b> ${{part.function_response.id}}`;
+                  div.appendChild(id_div);
+              }}
+              if (part.function_response.response) {{
+                  const resp_div = document.createElement('div');
+                  resp_div.innerHTML = '<b>Response:</b>';
+                  const resp_pre = document.createElement('pre');
+                  resp_pre.innerText = JSON.stringify(part.function_response.response, null, 2);
+                  resp_div.appendChild(resp_pre);
+                  div.appendChild(resp_div);
+              }}
+              if (part.function_response.parts && part.function_response.parts.length > 0) {{
+                  const parts_div = document.createElement('div');
+                  parts_div.innerHTML = '<b>Media Content:</b>';
+                  div.appendChild(parts_div);
+                  part.function_response.parts.forEach((frPart, idx) => {{
+                      if (frPart.inline_data && frPart.inline_data.mime_type && frPart.inline_data.data) {{
+                          const frMime = frPart.inline_data.mime_type;
+                          const frData = frPart.inline_data.data;
+                          if (frMime.startsWith('image/')) {{
+                              const img = document.createElement('img');
+                              img.src = `data:${{frMime}};base64,${{frData}}`;
+                              img.style.maxWidth = '100%';
+                              div.appendChild(img);
+                          }} else if (frMime.startsWith('audio/')) {{
+                              const audio = document.createElement('audio');
+                              audio.controls = true;
+                              audio.src = `data:${{frMime}};base64,${{frData}}`;
+                              div.appendChild(audio);
+                          }} else {{
+                              const media_info = document.createElement('div');
+                              media_info.className = 'media-indicator';
+                              media_info.innerHTML = `📎 ${{frMime}} (part ${{idx + 1}})`;
+                              div.appendChild(media_info);
+                          }}
+                      }}
+                  }});
+              }}
+          }} else if (part.executable_code) {{
+              const code_div = document.createElement('div');
+              const lang = part.executable_code.language || 'unknown';
+              code_div.innerHTML = `<b>Executable Code</b> <span class="code-lang">(${{lang}})</span>`;
+              div.appendChild(code_div);
+              if (part.executable_code.code) {{
+                  const code_pre = document.createElement('pre');
+                  code_pre.className = 'code-block';
+                  code_pre.innerText = part.executable_code.code;
+                  div.appendChild(code_pre);
+              }}
+          }} else if (part.code_execution_result) {{
+              const result_div = document.createElement('div');
+              const outcome = part.code_execution_result.outcome || 'UNKNOWN';
+              const outcomeClass = outcome === 'OUTCOME_OK' ? 'outcome-success' : 'outcome-error';
+              result_div.innerHTML = `<b>Code Execution Result:</b> <span class="${{outcomeClass}}">${{outcome}}</span>`;
+              div.appendChild(result_div);
+              if (part.code_execution_result.output) {{
+                  const output_pre = document.createElement('pre');
+                  output_pre.className = 'code-output';
+                  output_pre.innerText = part.code_execution_result.output;
+                  div.appendChild(output_pre);
+              }}
+          }} else if (part.file_data) {{
+              const file_div = document.createElement('div');
+              file_div.innerHTML = '<b>File Reference:</b>';
+              div.appendChild(file_div);
+              const fileInfo = document.createElement('div');
+              fileInfo.className = 'file-info';
+              const displayName = part.file_data.display_name || 'Unnamed file';
+              const fileUri = part.file_data.file_uri || '';
+              const fileMime = part.file_data.mime_type || '';
+              if (fileUri) {{
+                  const link = document.createElement('a');
+                  link.href = fileUri;
+                  link.target = '_blank';
+                  link.textContent = displayName;
+                  fileInfo.appendChild(link);
+              }} else {{
+                  fileInfo.textContent = displayName;
+              }}
+              if (fileMime) {{
+                  const mimeSpan = document.createElement('span');
+                  mimeSpan.className = 'file-mime';
+                  mimeSpan.textContent = ` (${{fileMime}})`;
+                  fileInfo.appendChild(mimeSpan);
+              }}
+              div.appendChild(fileInfo);
+          }} else if (mimetype.startsWith('image/')) {{
               if (partHash !== undefined) {{
                   const cachedImg = getCachedPartContent(partHash, 'full');
                   if (cachedImg) {{
@@ -587,10 +812,19 @@
           }} else if (data) {{
               const pre = document.createElement('pre');
               pre.innerText = `Binary data of type ${{mimetype}}`;
+              div.appendChild(pre);
           }} else if (text) {{
               const pre = document.createElement('pre');
               pre.innerText = text;
               div.appendChild(pre);
+          }} else {{
+              const unknown_div = document.createElement('div');
+              unknown_div.innerHTML = '<b>Part Content:</b>';
+              const unknown_pre = document.createElement('pre');
+              unknown_pre.className = 'code-output';
+              unknown_pre.innerText = JSON.stringify(part, null, 2);
+              unknown_div.appendChild(unknown_pre);
+              div.appendChild(unknown_div);
           }}
 
           const meta_div = document.createElement('div');
@@ -764,8 +998,86 @@
                   header.appendChild(createSpan(`· +${{getTimeDeltaMs(trace.start_time, event.timestamp)}}ms`, 'event-time'));
                   if (mimeType) header.appendChild(createSpan(`· ${{mimeType}}`, 'event-time'));
                   details.appendChild(header);
+                  const part = partDict?.part || {{}};
 
-                  if (mimeType && mimeType.startsWith('image/') && event.part_hash !== undefined) {{
+                  if (part.thought) {{
+                      const thoughtBadge = document.createElement('span');
+                      thoughtBadge.className = 'thought-badge';
+                      thoughtBadge.textContent = '💭 Thought';
+                      header.appendChild(thoughtBadge);
+                  }}
+
+                  if (part.function_call) {{
+                      const content = document.createElement('div');
+                      content.className = 'event-content';
+                      const fcName = part.function_call.name || 'unknown';
+                      content.innerHTML = `<span class="function-call-badge">📞 Function Call</span> <b>${{fcName}}</b>`;
+                      if (part.function_call.args) {{
+                          const argsPreview = JSON.stringify(part.function_call.args);
+                          const preview = argsPreview.length > 60 ? argsPreview.substring(0, 60) + '...' : argsPreview;
+                          const pre = document.createElement('pre');
+                          pre.textContent = preview;
+                          content.appendChild(pre);
+                      }}
+                      details.appendChild(content);
+                  }} else if (part.function_response) {{
+                      const content = document.createElement('div');
+                      content.className = 'event-content';
+                      const frName = part.function_response.name || 'unknown';
+                      let mediaIndicator = '';
+                      if (part.function_response.parts && part.function_response.parts.length > 0) {{
+                          const hasImage = part.function_response.parts.some(p => p.inline_data?.mime_type?.startsWith('image/'));
+                          const hasAudio = part.function_response.parts.some(p => p.inline_data?.mime_type?.startsWith('audio/'));
+                          if (hasImage) mediaIndicator += ' 🖼️';
+                          if (hasAudio) mediaIndicator += ' 🔊';
+                      }}
+                      content.innerHTML = `<span class="function-response-badge">📋 Function Response</span> <b>${{frName}}</b>${{mediaIndicator}}`;
+                      if (part.function_response.response) {{
+                          const respPreview = JSON.stringify(part.function_response.response);
+                          const preview = respPreview.length > 60 ? respPreview.substring(0, 60) + '...' : respPreview;
+                          const pre = document.createElement('pre');
+                          pre.textContent = preview;
+                          content.appendChild(pre);
+                      }}
+                      details.appendChild(content);
+                  }} else if (part.executable_code) {{
+                      const content = document.createElement('div');
+                      content.className = 'event-content';
+                      const lang = part.executable_code.language || 'code';
+                      content.innerHTML = `<span class="function-call-badge">💻 Code</span> <b>${{lang}}</b>`;
+                      if (part.executable_code.code) {{
+                          const codePreview = part.executable_code.code.substring(0, 80).replace(/\n/g, ' ');
+                          const preview = part.executable_code.code.length > 80 ? codePreview + '...' : codePreview;
+                          const pre = document.createElement('pre');
+                          pre.textContent = preview;
+                          content.appendChild(pre);
+                      }}
+                      details.appendChild(content);
+                  }} else if (part.code_execution_result) {{
+                      const content = document.createElement('div');
+                      content.className = 'event-content';
+                      const outcome = part.code_execution_result.outcome || 'UNKNOWN';
+                      const outcomeIcon = outcome === 'OUTCOME_OK' ? '✅' : '❌';
+                      content.innerHTML = `<span class="function-response-badge">${{outcomeIcon}} Result</span> <b>${{outcome}}</b>`;
+                      if (part.code_execution_result.output) {{
+                          const outPreview = part.code_execution_result.output.substring(0, 80).replace(/\n/g, ' ');
+                          const preview = part.code_execution_result.output.length > 80 ? outPreview + '...' : outPreview;
+                          const pre = document.createElement('pre');
+                          pre.textContent = preview;
+                          content.appendChild(pre);
+                      }}
+                      details.appendChild(content);
+                  }} else if (part.file_data) {{
+                      const content = document.createElement('div');
+                      content.className = 'event-content';
+                      const displayName = part.file_data.display_name || 'file';
+                      const fileMime = part.file_data.mime_type || '';
+                      content.innerHTML = `<span class="function-call-badge">📁 File</span> <b>${{displayName}}</b>`;
+                      if (fileMime) {{
+                          content.innerHTML += ` <span class="file-mime">${{fileMime}}</span>`;
+                      }}
+                      details.appendChild(content);
+                  }} else if (mimeType && mimeType.startsWith('image/') && event.part_hash !== undefined) {{
                       const content = document.createElement('div');
                       content.className = 'event-content';
                       const cachedImg = getCachedPartContent(event.part_hash, 'thumb');
@@ -784,6 +1096,11 @@
                       const pre = document.createElement('pre');
                       pre.textContent = text.length > 100 ? text.substring(0, 100) + '...' : text;
                       content.appendChild(pre);
+                      details.appendChild(content);
+                  }} else {{
+                      const content = document.createElement('div');
+                      content.className = 'event-content';
+                      content.innerHTML = `<span class="function-call-badge">📦 Data</span> <span class="file-mime">${{mimeType || 'unknown type'}}</span>`;
                       details.appendChild(content);
                   }}
 
@@ -859,7 +1176,13 @@
           return events;
       }}
 
-      function getModalityType(mimeType) {{
+      function getModalityType(mimeType, partDict) {{
+          const part = partDict?.part || {{}};
+          if (part.function_call) return 'function_call';
+          if (part.function_response) return 'function_response';
+          if (part.executable_code) return 'executable_code';
+          if (part.code_execution_result) return 'code_execution_result';
+          if (part.file_data) return 'file_data';
           if (!mimeType) return 'text';
           if (mimeType.startsWith('audio/')) return 'audio';
           if (mimeType.startsWith('image/')) return 'image';
@@ -876,7 +1199,7 @@
               const role = partDict?.metadata?.role || '';
               const substream = partDict?.substream_name || '';
               const isInput = event.is_input;
-              const modality = getModalityType(mimeType);
+              const modality = getModalityType(mimeType, partDict);
 
               const needsNewBlock = !currentBlock ||
                   currentBlock.role !== role ||
@@ -1089,6 +1412,146 @@
                           content.appendChild(img);
                       }}
                   }}
+              }});
+          }} else if (block.modality === 'function_call') {{
+              block.events.forEach(event => {{
+                  const partDict = getPartDict(event);
+                  const part = partDict?.part || {{}};
+                  const fc = part.function_call || {{}};
+                  const fcDiv = document.createElement('div');
+                  fcDiv.className = 'function-block';
+                  fcDiv.innerHTML = `<span class="function-call-badge">📞 Function Call</span> <b>${{fc.name || 'unknown'}}</b>`;
+                  if (fc.id) {{
+                      fcDiv.innerHTML += ` <span class="file-mime">(id: ${{fc.id}})</span>`;
+                  }}
+                  if (fc.args) {{
+                      const pre = document.createElement('pre');
+                      pre.className = 'code-output';
+                      pre.textContent = JSON.stringify(fc.args, null, 2);
+                      fcDiv.appendChild(pre);
+                  }}
+                  content.appendChild(fcDiv);
+              }});
+          }} else if (block.modality === 'function_response') {{
+              block.events.forEach(event => {{
+                  const partDict = getPartDict(event);
+                  const part = partDict?.part || {{}};
+                  const fr = part.function_response || {{}};
+                  const frDiv = document.createElement('div');
+                  frDiv.className = 'function-block';
+                  frDiv.innerHTML = `<span class="function-response-badge">📋 Function Response</span> <b>${{fr.name || 'unknown'}}</b>`;
+                  if (fr.id) {{
+                      frDiv.innerHTML += ` <span class="file-mime">(id: ${{fr.id}})</span>`;
+                  }}
+                  if (fr.response) {{
+                      const pre = document.createElement('pre');
+                      pre.className = 'code-output';
+                      pre.textContent = JSON.stringify(fr.response, null, 2);
+                      frDiv.appendChild(pre);
+                  }}
+                  if (fr.parts && fr.parts.length > 0) {{
+                      const mediaLabel = document.createElement('div');
+                      mediaLabel.innerHTML = '<b>Media Content:</b>';
+                      frDiv.appendChild(mediaLabel);
+                      fr.parts.forEach((frPart, idx) => {{
+                          if (frPart.inline_data && frPart.inline_data.mime_type && frPart.inline_data.data) {{
+                              const frMime = frPart.inline_data.mime_type;
+                              const frData = frPart.inline_data.data;
+                              if (frMime.startsWith('image/')) {{
+                                  const img = document.createElement('img');
+                                  img.src = `data:${{frMime}};base64,${{frData}}`;
+                                  img.style.maxWidth = '100%';
+                                  frDiv.appendChild(img);
+                              }} else if (frMime.startsWith('audio/')) {{
+                                  const audio = document.createElement('audio');
+                                  audio.controls = true;
+                                  audio.src = `data:${{frMime}};base64,${{frData}}`;
+                                  frDiv.appendChild(audio);
+                              }} else {{
+                                  const mediaInfo = document.createElement('div');
+                                  mediaInfo.className = 'media-indicator';
+                                  mediaInfo.innerHTML = `📎 ${{frMime}} (part ${{idx + 1}})`;
+                                  frDiv.appendChild(mediaInfo);
+                              }}
+                          }}
+                      }});
+                  }}
+                  content.appendChild(frDiv);
+              }});
+          }} else if (block.modality === 'executable_code') {{
+              block.events.forEach(event => {{
+                  const partDict = getPartDict(event);
+                  const part = partDict?.part || {{}};
+                  const ec = part.executable_code || {{}};
+                  const codeDiv = document.createElement('div');
+                  codeDiv.className = 'function-block';
+                  const lang = ec.language || 'code';
+                  codeDiv.innerHTML = `<span class="function-call-badge">💻 Code</span> <b>${{lang}}</b>`;
+                  if (ec.code) {{
+                      const pre = document.createElement('pre');
+                      pre.className = 'code-block';
+                      pre.textContent = ec.code;
+                      codeDiv.appendChild(pre);
+                  }}
+                  content.appendChild(codeDiv);
+              }});
+          }} else if (block.modality === 'code_execution_result') {{
+              block.events.forEach(event => {{
+                  const partDict = getPartDict(event);
+                  const part = partDict?.part || {{}};
+                  const cer = part.code_execution_result || {{}};
+                  const resultDiv = document.createElement('div');
+                  resultDiv.className = 'function-block';
+                  const outcome = cer.outcome || 'UNKNOWN';
+                  const outcomeIcon = outcome === 'OUTCOME_OK' ? '✅' : '❌';
+                  const outcomeClass = outcome === 'OUTCOME_OK' ? 'outcome-success' : 'outcome-error';
+                  resultDiv.innerHTML = `<span class="function-response-badge">${{outcomeIcon}} Result</span> <span class="${{outcomeClass}}">${{outcome}}</span>`;
+                  if (cer.output) {{
+                      const pre = document.createElement('pre');
+                      pre.className = 'code-output';
+                      pre.textContent = cer.output;
+                      resultDiv.appendChild(pre);
+                  }}
+                  content.appendChild(resultDiv);
+              }});
+          }} else if (block.modality === 'file_data') {{
+              block.events.forEach(event => {{
+                  const partDict = getPartDict(event);
+                  const part = partDict?.part || {{}};
+                  const fd = part.file_data || {{}};
+                  const fileDiv = document.createElement('div');
+                  fileDiv.className = 'function-block file-info';
+                  const displayName = fd.display_name || 'Unnamed file';
+                  const fileUri = fd.file_uri || '';
+                  const fileMime = fd.mime_type || '';
+                  if (fileUri) {{
+                      const link = document.createElement('a');
+                      link.href = fileUri;
+                      link.target = '_blank';
+                      link.textContent = `📁 ${{displayName}}`;
+                      fileDiv.appendChild(link);
+                  }} else {{
+                      fileDiv.innerHTML = `📁 ${{displayName}}`;
+                  }}
+                  if (fileMime) {{
+                      const mimeSpan = document.createElement('span');
+                      mimeSpan.className = 'file-mime';
+                      mimeSpan.textContent = ` (${{fileMime}})`;
+                      fileDiv.appendChild(mimeSpan);
+                  }}
+                  content.appendChild(fileDiv);
+              }});
+          }} else {{
+              block.events.forEach(event => {{
+                  const partDict = getPartDict(event);
+                  const unknownDiv = document.createElement('div');
+                  unknownDiv.className = 'function-block';
+                  unknownDiv.innerHTML = '<span class="function-call-badge">📦 Data</span>';
+                  const pre = document.createElement('pre');
+                  pre.className = 'code-output';
+                  pre.textContent = JSON.stringify(partDict?.part || {{}}, null, 2);
+                  unknownDiv.appendChild(pre);
+                  content.appendChild(unknownDiv);
               }});
           }}
 

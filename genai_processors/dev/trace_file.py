@@ -142,7 +142,7 @@ class SyncFileTrace(trace.Trace):
   _queue: asyncio.Queue[Tuple[content_api.ProcessorPart, bool] | None] = (
       pydantic.PrivateAttr()
   )
-  _worker: asyncio.Task[None] = pydantic.PrivateAttr()
+  _worker: asyncio.Task[None] | None = pydantic.PrivateAttr(default=None)
 
   # The size to resize images to when storing them in the trace.
   # If None, images are not resized.
