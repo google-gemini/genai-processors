@@ -93,6 +93,7 @@ for prototyping quickly. We will likely make backwards incompatible changes to
 comply with a more stable GenAI API between clients and servers.
 """
 
+import asyncio
 import base64
 import functools
 import json
@@ -254,6 +255,7 @@ async def live_server(
   # which case the live loop needs to be reinitialized.
   while True:
     try:
+      logging.info('Starting new server session...')
       live_processor = processor_factory(ais.processor_config)
       if trace_dir:
         async with trace_file.SyncFileTrace(
@@ -297,11 +299,14 @@ async def run_server(
   if trace_dir:
    os.makedirs(trace_dir, exist_ok=True)
 
+  # set this future to exit the server
+  stop = asyncio.get_running_loop().create_future()
+
   async with serve(
       handler=functools.partial(live_server, processor_factory, trace_dir),
       host='localhost',
       port=port,
       max_size=2 * 1024 * 1024,  # 2 MiB
-  ) as server:
+  ):
     print(f'Server started on port {port}')
-    await server.serve_forever()
+    await stop

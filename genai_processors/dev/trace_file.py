@@ -13,6 +13,7 @@ import json
 import os
 from typing import Any, Tuple
 
+from absl import logging
 from genai_processors import content_api
 from genai_processors.dev import trace
 import pydantic
@@ -160,7 +161,13 @@ class SyncFileTrace(trace.Trace):
     """Returns the root trace for parts_store access."""
     return self._root_trace if self._root_trace is not None else self
 
+  def _get_trace_filename(self) -> str:
+    """Returns the filename for the trace."""
+    return os.path.join(self.trace_dir, f'{self.name}_{self.trace_id}')
+
   def model_post_init(self, __context: Any) -> None:  # pylint: disable=invalid-name
+    if self.trace_dir:
+      logging.info('Start tracing to: %s', self._get_trace_filename())
     self._queue = asyncio.Queue(maxsize=_QUEUE_MAX_SIZE)
     self._worker = asyncio.create_task(self._event_worker())
 
@@ -295,9 +302,8 @@ class SyncFileTrace(trace.Trace):
 
     if not self.trace_dir:
       return
-    trace_filename = os.path.join(
-        self.trace_dir, f'{self.name}_{self.trace_id}'
-    )
+    trace_filename = self._get_trace_filename()
+    logging.info('Saving trace to: %s', trace_filename)
     await asyncio.to_thread(self.save, trace_filename + '.json')
     await asyncio.to_thread(self.save_html, trace_filename + '.html')
 
@@ -306,6 +312,7 @@ class SyncFileTrace(trace.Trace):
     html = HTML_TEMPLATE.format(trace_json=self.to_json_str())
     with open(path, 'w') as html_file:
       html_file.write(html)
+    logging.info('Saved HTML trace to: %s', path)
 
   def save(self, path: str) -> None:
     """Saves a trace to a file in JSON format.
@@ -315,6 +322,7 @@ class SyncFileTrace(trace.Trace):
     """
     with open(path, 'w') as html_file:
       html_file.write(self.to_json_str())
+    logging.info('Saved JSON trace to: %s', path)
 
   @classmethod
   def load(cls, path: str) -> 'SyncFileTrace':

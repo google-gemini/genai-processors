@@ -19,6 +19,7 @@ changes and we do not guarantee backward compatibility at this stage.
 from __future__ import annotations
 
 import abc
+import asyncio
 import contextvars
 import datetime
 from typing import Any
@@ -83,7 +84,10 @@ class Trace(pydantic.BaseModel, abc.ABC):
 
     self.end_time = datetime.datetime.now()
     CURRENT_TRACE.reset(self._token)
-    await self._finalize()
+    # Shield the finalize call to avoid cancellation. This is to ensure that
+    # the trace is always finalized (i.e. traces are saved), even if the context
+    # is cancelled or the task is cancelled.
+    await asyncio.shield(self._finalize())
 
   @abc.abstractmethod
   async def add_input(self, part: content_api.ProcessorPart) -> None:
