@@ -291,14 +291,30 @@ class SyncFileTrace(trace.Trace):
     return t
 
   @override
+  def cancel(self) -> None:
+    """Cancel the trace."""
+    if self._worker:
+      self._worker.cancel()
+    if all(event.is_input or event.sub_trace for event in self.events):
+      # If no output has been produced yet, clear the trace.
+      self.events = []
+      self.parts_store = {}
+
+  @override
   async def _finalize(self) -> None:
     """Saves the trace to a file."""
     await self._queue.put(None)  # Sentinel to stop worker.
     await asyncio.shield(self._worker)
 
-    for event in self.events:
+    indices_to_delete = []
+    for i, event in enumerate(self.events):
       if sub_trace := event.sub_trace:
         await sub_trace._finalize()
+        if not sub_trace.events:
+          indices_to_delete.append(i)
+    for i in reversed(indices_to_delete):
+      # Update in place
+      del self.events[i]
 
     if not self.trace_dir:
       return
