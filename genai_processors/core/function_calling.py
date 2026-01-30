@@ -720,7 +720,8 @@ class _ExecuteFunctionCall:
     """
     if isinstance(parts, content_api.ProcessorPart) and parts.function_response:
       parts.function_response.id = call.id
-      parts.substream_name = self._substream_name
+      if not parts.substream_name:
+        parts.substream_name = self._substream_name
       if will_continue is not None:
         parts.function_response.will_continue = will_continue
       if scheduling is not None:
