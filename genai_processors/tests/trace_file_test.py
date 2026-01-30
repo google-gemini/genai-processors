@@ -14,6 +14,8 @@ from genai_processors import context as context_lib
 from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
+from genai_processors import streams
+from genai_processors.core import realtime
 from genai_processors.dev import trace_file
 from google.genai import types as genai_types
 import numpy as np
@@ -76,6 +78,17 @@ def create_audio_part() -> content_api.ProcessorPart:
   )
 
 
+def collect_processor_names(t: trace_file.SyncFileTrace) -> set[str]:
+  """Collects processor names from a trace and its sub-traces."""
+  names = set()
+  if t.name:
+    names.add(t.name)
+  for event in t.events:
+    if event.sub_trace:
+      names.update(collect_processor_names(event.sub_trace))
+  return names
+
+
 class SubTraceProcessor(processor.Processor):
 
   def __init__(self):
@@ -127,39 +140,39 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     root_trace = trace_file.SyncFileTrace.load(trace_path)
     self.assertEqual(root_trace.events[0].relation, 'call')
 
-    # We have:
+    # We have (with debug module exclusion, TTFTSingleStream and its internal
+    # processors log_on_close/log_on_first are not traced):
     # root_trace:
     #  \__ SubTraceProcessor (call)
-    #      \__ TTFTSingleStream
-    #           \__ _ChainProcessor
-    #               \__ log_on_close (added by TTFTSingleStream)
-    #               \__ to_upper_fn
-    #               \__ add_one
-    #               \__ log_on_first (added by TTFTSingleStream)
+    #      \__ chain (from _ChainProcessor wrapping the user processors)
+    #          \__ to_upper_fn
+    #          \__ add_one
 
     # Get SubTraceProcessor
     trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
     self.assertFalse(trace.events[0].is_input)
     self.assertEqual(trace.events[0].relation, 'chain')
-    # Get TTFTSingleStream
+    # Get chain (was TTFTSingleStream -> _ChainProcessor, now just chain)
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
-    self.assertEqual(trace.events[0].relation, 'chain')
-    # Get _ChainProcessor
-    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[0].sub_trace)
-    # Get to_upper_fn
-    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[1].sub_trace)
-    self.assertIsNotNone(sub_trace)
-    self.assertIn('to_upper_fn', sub_trace.name)
+    self.assertIn('chain', sub_trace.name)
+    # Get to_upper_fn (first sub-trace of chain)
+    to_upper_trace = cast(
+        trace_file.SyncFileTrace, sub_trace.events[0].sub_trace
+    )
+    self.assertIsNotNone(to_upper_trace)
+    self.assertIn('to_upper_fn', to_upper_trace.name)
     # Check the output of to_upper_fn
-    self.assertFalse(sub_trace.events[1].is_input)
+    self.assertFalse(to_upper_trace.events[1].is_input)
     self.assertEqual(
-        root_trace.parts_store[sub_trace.events[1].part_hash]['part']['text'],
+        root_trace.parts_store[to_upper_trace.events[1].part_hash]['part'][
+            'text'
+        ],
         'HELLO_sub_trace',
     )
-    self.assertIsNotNone(sub_trace.start_time)
-    self.assertIsNotNone(sub_trace.end_time)
-    self.assertLess(sub_trace.start_time, sub_trace.end_time)
+    self.assertIsNotNone(to_upper_trace.start_time)
+    self.assertIsNotNone(to_upper_trace.end_time)
+    self.assertLess(to_upper_trace.start_time, to_upper_trace.end_time)
 
     # Check events from SubTraceProcessor.
     self.assertTrue(trace.events[1].is_input)
@@ -402,6 +415,264 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertIn('function_response', html_content)
     self.assertIn('executable_code', html_content)
     self.assertIn('code_execution_result', html_content)
+
+  async def test_debug_processors_excluded_from_trace(self):
+    """Test that processors from genai_processors.debug are excluded from trace.
+
+    This test verifies that when a processor is wrapped with debug utilities
+    like TTFTSingleStream or log_stream, those debug processors do not appear
+    in the trace. Only the user-defined processor chain should be traced.
+    """
+    trace_dir = self.trace_dir
+
+    # Create a simple processor chain wrapped with debug utilities
+    processor_chain = to_upper_fn + add_one
+    # Wrap with TTFTSingleStream (from debug module - should be excluded)
+    wrapped_processor = debug.TTFTSingleStream('Debug Test', processor_chain)
+    # Also wrap with log_stream (from debug module - should be excluded)
+    wrapped_processor = debug.log_stream('Test Log') + wrapped_processor
+
+    # Create mixed input: audio, image, and text
+    img_part = create_image_part()
+    audio_part = create_audio_part()
+    parts = [
+        audio_part,
+        img_part,
+        content_api.ProcessorPart('hello', role='user'),
+        content_api.ProcessorPart('world', role='user'),
+    ]
+
+    # First call
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Debug Exclusion Test'
+    ):
+      _ = await processor.apply_async(wrapped_processor, parts[:2])
+      _ = await processor.apply_async(wrapped_processor, parts[2:])
+
+    # Verify HTML file was created
+    html_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Debug Exclusion Test' in f and f.endswith('.html')
+    ]
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Debug Exclusion Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(html_files), 1)
+    self.assertEqual(len(json_files), 1)
+
+    # Load the trace and verify no debug processors are present
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    # Debug processors should NOT be in the trace
+    debug_processor_names = [
+        'TTFTSingleStream',
+        'log_stream',
+        'print_stream',
+        'log_on_close',
+        'log_on_first',
+    ]
+    for debug_name in debug_processor_names:
+      for name in all_names:
+        self.assertNotIn(
+            debug_name,
+            name,
+            f'Debug processor "{debug_name}" should not appear in trace,'
+            f' but found "{name}"',
+        )
+
+    # User-defined processors SHOULD be in the trace
+    self.assertTrue(
+        any('to_upper_fn' in name for name in all_names),
+        f'to_upper_fn should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('add_one' in name for name in all_names),
+        f'add_one should be in trace, found: {all_names}',
+    )
+
+  async def test_live_processor_trace(self):
+    """Test that LiveProcessor generates correct traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    call_counter = 0
+
+    @processor.processor_function
+    async def fake_turn_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      nonlocal call_counter
+      call_counter += 1
+      buffer = content_api.ProcessorContent()
+      async for part in content:
+        buffer += part
+      await asyncio.sleep(0.001 * call_counter)
+      yield content_api.ProcessorPart(
+          f'model({buffer.as_text()})', role='model'
+      )
+
+    live_processor = realtime.LiveProcessor(
+        turn_processor=fake_turn_model,
+        duration_prompt_sec=60,
+    )
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Live Processor Test'
+    ):
+      input_parts = []
+      for i in range(10):
+        input_parts += [
+            content_api.ProcessorPart(f'hello_{i}', role='user'),
+            content_api.ProcessorPart(f'world_{i}', role='user'),
+            content_api.END_OF_TURN,
+        ]
+      input_stream = streams.stream_content(input_parts, with_delay_sec=0.01)
+      _ = await streams.gather_stream(live_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Live Processor Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    self.assertTrue(
+        any('LiveProcessor' in name for name in all_names),
+        f'LiveProcessor should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('fake_turn_model' in name for name in all_names),
+        f'fake_turn_model should be in trace, found: {all_names}',
+    )
+
+  async def test_parallel_processor_trace_names(self):
+    """Test that parallel processors have human-readable names in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.processor_function
+    async def processor_a(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        if mime_types.is_text(part.mimetype):
+          yield part.text + '_a'
+        else:
+          yield part
+
+    @processor.processor_function
+    async def processor_b(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        if mime_types.is_text(part.mimetype):
+          yield part.text + '_b'
+        else:
+          yield part
+
+    parallel_processor = processor.parallel_concat([processor_a, processor_b])
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Parallel Processor Test'
+    ):
+      _ = await processor.apply_async(
+          parallel_processor, [content_api.ProcessorPart('hello')]
+      )
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Parallel Processor Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    self.assertTrue(
+        any('parallel' in name.lower() for name in all_names),
+        f'parallel should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('processor_a' in name for name in all_names),
+        f'processor_a should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('processor_b' in name for name in all_names),
+        f'processor_b should be in trace, found: {all_names}',
+    )
+    for name in all_names:
+      self.assertNotIn(
+          '_ParallelProcessor:',
+          name,
+          f'Trace name "{name}" should not have internal class prefix',
+      )
+
+  async def test_part_processor_chain_trace_names(self):
+    """Test that chained part processors have human-readable names in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.part_processor_function
+    async def part_proc_x(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      if mime_types.is_text(part.mimetype):
+        yield part.text + '_x'
+      else:
+        yield part
+
+    @processor.part_processor_function
+    async def part_proc_y(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      if mime_types.is_text(part.mimetype):
+        yield part.text + '_y'
+      else:
+        yield part
+
+    chained_part_processor = part_proc_x + part_proc_y
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Part Processor Chain Test'
+    ):
+      _ = await processor.apply_async(
+          chained_part_processor, [content_api.ProcessorPart('hello')]
+      )
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Part Processor Chain Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    for name in all_names:
+      self.assertNotIn(
+          '_PartProcessorWrapper:',
+          name,
+          f'Trace name "{name}" should not have internal class prefix',
+      )
+      self.assertNotIn(
+          '_ChainPartProcessor:',
+          name,
+          f'Trace name "{name}" should not have internal class prefix',
+      )
 
 
 if __name__ == '__main__':

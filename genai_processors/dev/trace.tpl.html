@@ -1204,7 +1204,8 @@
               const needsNewBlock = !currentBlock ||
                   currentBlock.role !== role ||
                   currentBlock.isInput !== isInput ||
-                  currentBlock.modality !== modality;
+                  currentBlock.modality !== modality ||
+                  currentBlock.substream !== substream;
 
               if (needsNewBlock) {{
                   if (currentBlock) blocks.push(currentBlock);

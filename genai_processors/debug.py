@@ -85,7 +85,6 @@ class TTFTSingleStream(processor.Processor):
         yield part
       self._start = time.perf_counter()
       self._model_call_event.set()
-      logging.info('ttft single stream start time: %s', self._start)
 
     @processor.processor_function
     async def log_on_first(
