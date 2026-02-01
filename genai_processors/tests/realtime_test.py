@@ -92,7 +92,7 @@ class RealTimeConversationTest(
             main_model_fake.to_processor(),
         )(input_stream)
     )
-    actual = content_api.as_text(output_parts)
+    actual = content_api.as_text(output_parts, substream_name='')
     self.assertEqual(actual, output_text)
 
   async def test_realtime_raise_exception(self):

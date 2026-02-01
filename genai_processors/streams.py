@@ -15,7 +15,7 @@
 """Utilities for managing part streams."""
 
 import asyncio
-from collections.abc import AsyncIterable, Iterable
+from collections.abc import AsyncIterable, AsyncIterator, Iterable
 import copy
 from typing import Any, TypeVar
 
@@ -180,14 +180,14 @@ async def enqueue(
     await queue.put(None)
 
 
-async def dequeue(queue: asyncio.Queue[_T | None]) -> AsyncIterable[_T]:
+async def dequeue(queue: asyncio.Queue[_T | None]) -> AsyncIterator[_T]:
   """Dequeues content from a queue.
 
   Args:
     queue: The queue to dequeue from. The queue must end with a None item.
 
   Yields:
-    The content from the queue as an AsyncIterable. The items are yielded in
+    The content from the queue as an AsyncIterator. The items are yielded in
     the order they were enqueued.
   """
   while (part := await queue.get()) is not None:

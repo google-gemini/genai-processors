@@ -23,6 +23,7 @@ keywords = []
 # Installed locally with `pip install -e .`
 dependencies = [
     "absl-py>=1.0.0",
+    "aiofiles>=25.1.0",
     "bs4>=0.0.2",
     "cachetools>=6.0.0",
     "dataclasses-json>=0.6.0",
@@ -39,6 +40,7 @@ dependencies = [
     "Pillow>=9.0.0",
     "termcolor>=3.0.0",
     "pypdfium2>=4.30.0",
+    "shortuuid>=1.0.0",
     "xxhash>=3.0.0",
 ]
 
@@ -68,6 +70,7 @@ dev = [
     "pytest-xdist",
     "torch",
     "transformers",
+    "typing_extensions",
 ]
 
 [tool.pyink]

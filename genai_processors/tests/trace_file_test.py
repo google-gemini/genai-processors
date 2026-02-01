@@ -6,16 +6,18 @@ import os
 import shutil
 from typing import cast
 import unittest
+import wave
 
 from absl.testing import absltest
 from genai_processors import content_api
+from genai_processors import context as context_lib
+from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
-from genai_processors import streams
 from genai_processors.dev import trace_file
+from google.genai import types as genai_types
 import numpy as np
 from PIL import Image
-from scipy.io import wavfile
 
 
 @processor.processor_function
@@ -30,18 +32,68 @@ async def to_upper_fn(
       yield part
 
 
+@processor.part_processor_function
+async def add_one(
+    part: content_api.ProcessorPart,
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
+  await asyncio.sleep(0.01)  # to ensure timestamps are different
+  if mime_types.is_text(part.mimetype):
+    yield part.text + '_1'
+  else:
+    yield part
+
+
+def create_image_part() -> content_api.ProcessorPart:
+  # Create a small green image using PIL
+  img = Image.new('RGB', (10, 10), color='green')
+  img_bytes_io = io.BytesIO()
+  img.save(img_bytes_io, format='PNG')
+  return content_api.ProcessorPart.from_bytes(
+      data=img_bytes_io.getvalue(),
+      mimetype='image/png',
+  )
+
+
+def create_audio_part() -> content_api.ProcessorPart:
+  # Generate a small random WAV audio part
+  sample_rate = 16000  # samples per second
+  duration = 0.1  # seconds
+  num_samples = int(sample_rate * duration)
+  # Generate random samples between -1 and 1
+  random_samples = np.random.uniform(-1, 1, num_samples)
+  # Scale to int16 range
+  audio_data = (random_samples * 32767).astype(np.int16)
+
+  audio_bytes_io = io.BytesIO()
+  with wave.open(audio_bytes_io, 'wb') as wf:
+    wf.setnchannels(1)
+    wf.setsampwidth(audio_data.dtype.itemsize)
+    wf.setframerate(sample_rate)
+    wf.writeframes(audio_data.tobytes())
+  return content_api.ProcessorPart.from_bytes(
+      data=audio_bytes_io.getvalue(),
+      mimetype='audio/wav',
+  )
+
+
 class SubTraceProcessor(processor.Processor):
 
   def __init__(self):
     super().__init__()
-    self.sub_processor = to_upper_fn
+    self.sub_processor = to_upper_fn + add_one
+    self.sub_processor = debug.TTFTSingleStream(
+        'TEST_SUB_PROCESSOR',
+        self.sub_processor,
+    )
 
   async def call(
       self, content: AsyncIterable[content_api.ProcessorPart]
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     async for part in self.sub_processor(content):
-      if isinstance(part, content_api.ProcessorPart) and mime_types.is_text(
-          part.mimetype
+      if (
+          isinstance(part, content_api.ProcessorPart)
+          and mime_types.is_text(part.mimetype)
+          and not context_lib.is_reserved_substream(part.substream_name)
       ):
         yield part.text + '_outer'
       else:
@@ -61,93 +113,85 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
   async def test_trace_generation_and_timestamps(self):
     p = SubTraceProcessor()
-    input_parts = [content_api.ProcessorPart('hello')]
+    input_parts = content_api.ProcessorContent('hello')
     async with trace_file.SyncFileTrace(trace_dir=self.trace_dir):
-      results = await streams.gather_stream(
-          p(streams.stream_content(input_parts))
-      )
-
-    self.assertEqual(results[0].text, 'HELLO_sub_trace_outer')
+      results = await p(input_parts).gather()
+    # Check we return the status part with the debug information.
+    self.assertIn('TEST_SUB_PROCESSOR', results[0].text)
+    self.assertEqual(results[1].text, 'HELLO_sub_trace_1_outer')
     json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
     self.assertTrue(len(json_files), 1)
     trace_path = os.path.join(self.trace_dir, json_files[0])
     self.assertTrue(os.path.exists(trace_path.replace('.json', '.html')))
 
     root_trace = trace_file.SyncFileTrace.load(trace_path)
-    trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
+    self.assertEqual(root_trace.events[0].relation, 'call')
 
-    # First event is a subtrace for the upper function. This is was is first
-    # entered in the trace scope.
+    # We have:
+    # root_trace:
+    #  \__ SubTraceProcessor (call)
+    #      \__ TTFTSingleStream
+    #           \__ _ChainProcessor
+    #               \__ log_on_close (added by TTFTSingleStream)
+    #               \__ to_upper_fn
+    #               \__ add_one
+    #               \__ log_on_first (added by TTFTSingleStream)
+
+    # Get SubTraceProcessor
+    trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
     self.assertFalse(trace.events[0].is_input)
+    self.assertEqual(trace.events[0].relation, 'chain')
+    # Get TTFTSingleStream
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
+    self.assertEqual(trace.events[0].relation, 'chain')
+    # Get _ChainProcessor
+    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[0].sub_trace)
+    # Get to_upper_fn
+    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[1].sub_trace)
+    self.assertIsNotNone(sub_trace)
     self.assertIn('to_upper_fn', sub_trace.name)
+    # Check the output of to_upper_fn
     self.assertFalse(sub_trace.events[1].is_input)
     self.assertEqual(
-        sub_trace.events[1].part_dict['part']['text'], 'HELLO_sub_trace'
+        root_trace.parts_store[sub_trace.events[1].part_hash]['part']['text'],
+        'HELLO_sub_trace',
     )
     self.assertIsNotNone(sub_trace.start_time)
     self.assertIsNotNone(sub_trace.end_time)
     self.assertLess(sub_trace.start_time, sub_trace.end_time)
 
-    # Second input event is the input part to SubTraceProcessor.
+    # Check events from SubTraceProcessor.
     self.assertTrue(trace.events[1].is_input)
-    self.assertEqual(trace.events[1].part_dict['part']['text'], 'hello')
-
-    # Third event is the output event of SubTraceProcessor
-    self.assertFalse(trace.events[2].is_input)
     self.assertEqual(
-        trace.events[2].part_dict['part']['text'], 'HELLO_sub_trace_outer'
+        root_trace.parts_store[trace.events[1].part_hash]['part']['text'],
+        'hello',
     )
-
-  async def test_trace_references(self):
-    p = SubTraceProcessor()
-    input_part = content_api.ProcessorPart('world')
-    # First call
-    async with trace_file.SyncFileTrace(trace_dir=self.trace_dir):
-      await streams.gather_stream(p(streams.stream_content([input_part])))
-
-    json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
-    self.assertTrue(len(json_files), 1)
-    root_trace_path = os.path.join(self.trace_dir, json_files[0])
-    root_trace = trace_file.SyncFileTrace.load(root_trace_path)
-
-    trace1 = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
-    self.assertTrue(trace1.events[1].is_input)
-    self.assertEqual(trace1.events[1].part_dict['part']['text'], 'world')
-
-    sub_trace1 = cast(trace_file.SyncFileTrace, trace1.events[0].sub_trace)
-    self.assertIsNotNone(sub_trace1)
-    self.assertTrue(sub_trace1.events[0].is_input)
-    self.assertIsNotNone(sub_trace1.events[0].part_dict)
-
-    # Second call with same part
-    for f in os.listdir(self.trace_dir):
-      os.remove(os.path.join(self.trace_dir, f))
-    async with trace_file.SyncFileTrace(trace_dir=self.trace_dir):
-      await streams.gather_stream(p(streams.stream_content([input_part])))
-    json_files = [f for f in os.listdir(self.trace_dir) if f.endswith('.json')]
-    self.assertTrue(len(json_files), 1)
-    root_trace_path = os.path.join(self.trace_dir, json_files[0])
-    root_trace = trace_file.SyncFileTrace.load(root_trace_path)
-
-    trace2 = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
-    self.assertTrue(trace2.events[1].is_input)
-    self.assertIsNotNone(trace2.events[1].part_dict)
+    self.assertFalse(trace.events[2].is_input)
+    self.assertIn(
+        'TEST_SUB_PROCESSOR',
+        root_trace.parts_store[trace.events[2].part_hash]['part']['text'],
+    )
+    self.assertFalse(trace.events[3].is_input)
+    self.assertEqual(
+        root_trace.parts_store[trace.events[3].part_hash]['part']['text'],
+        'HELLO_sub_trace_1_outer',
+    )
 
   async def test_trace_save_load(self):
     trace = trace_file.SyncFileTrace(name='test')
-    await trace.add_input(content_api.ProcessorPart('in'))
-    await trace.add_input(
-        content_api.ProcessorPart.from_bytes(
-            data=b'bytes',
-            mimetype='image/jpeg',
-        )
-    )
-    sub_trace = trace.add_sub_trace(name='sub_test')
-    await sub_trace.add_input(content_api.ProcessorPart('sub_in'))
-    await sub_trace.add_output(content_api.ProcessorPart('sub_out'))
-    await trace.add_output(content_api.ProcessorPart('out'))
+    async with trace:
+      await trace.add_input(content_api.ProcessorPart('in'))
+      await trace.add_input(
+          content_api.ProcessorPart.from_bytes(
+              data=b'bytes',
+              mimetype='image/jpeg',
+          )
+      )
+      sub_trace = trace.add_sub_trace(name='sub_test', relation='chain')
+      await sub_trace.add_input(content_api.ProcessorPart('sub_in'))
+      await sub_trace.add_output(content_api.ProcessorPart('sub_out'))
+      await trace.add_output(content_api.ProcessorPart('out'))
 
     tmpdir = absltest.get_default_test_tmpdir()
     trace_path = os.path.join(tmpdir, 'trace.json')
@@ -156,46 +200,208 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     loaded_trace = trace_file.SyncFileTrace.load(trace_path)
 
     self.assertEqual(
-        json.loads(trace.model_dump_json()),
-        json.loads(loaded_trace.model_dump_json()),
+        json.loads(trace.to_json_str()),
+        json.loads(loaded_trace.to_json_str()),
     )
+
+    sub_trace_event = next(
+        event for event in loaded_trace.events if event.relation == 'chain'
+    )
+    sub_trace = cast(trace_file.SyncFileTrace, sub_trace_event.sub_trace)
+    self.assertEqual(sub_trace.name, 'sub_test')
+    # Verify _root_trace is properly set for sub-traces after loading
+    self.assertIsNone(loaded_trace._root_trace)
+    self.assertIs(sub_trace._root_trace, loaded_trace)
 
   async def test_save_html(self):
     p = SubTraceProcessor()
-    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR')
+    trace_dir = self.trace_dir
 
-    # Create a small green image using PIL
-    img = Image.new('RGB', (10, 10), color='green')
-    img_bytes_io = io.BytesIO()
-    img.save(img_bytes_io, format='PNG')
-    img_part = content_api.ProcessorPart.from_bytes(
-        data=img_bytes_io.getvalue(),
-        mimetype='image/png',
-    )
-
-    # Generate a small random WAV audio part
-    sample_rate = 16000  # samples per second
-    duration = 0.1  # seconds
-    num_samples = int(sample_rate * duration)
-    # Generate random samples between -1 and 1
-    random_samples = np.random.uniform(-1, 1, num_samples)
-    # Scale to int16 range
-    audio_data = (random_samples * 32767).astype(np.int16)
-
-    audio_bytes_io = io.BytesIO()
-    wavfile.write(audio_bytes_io, sample_rate, audio_data)
-    audio_part = content_api.ProcessorPart.from_bytes(
-        data=audio_bytes_io.getvalue(),
-        mimetype='audio/wav',
-    )
-    parts = [img_part, audio_part, content_api.ProcessorPart('hello')]
-    async with trace_file.SyncFileTrace(trace_dir=trace_dir):
+    img_part = create_image_part()
+    audio_part = create_audio_part()
+    parts = [
+        img_part,
+        audio_part,
+        content_api.ProcessorPart('hello', substream_name='input', role='user'),
+        content_api.ProcessorPart(
+            'how ',
+            substream_name='input',
+            role='user',
+            metadata={'is_over': False},
+        ),
+        img_part,
+        content_api.ProcessorPart('are ', substream_name='input', role='user'),
+        content_api.ProcessorPart('you?', substream_name='input', role='user'),
+        audio_part,
+    ]
+    async with trace_file.SyncFileTrace(trace_dir=trace_dir, name='Trace test'):
       await processor.apply_async(p, parts)
 
-    html_files = [f for f in os.listdir(trace_dir) if f.endswith('.html')]
-    self.assertTrue(len(html_files), 1)
+    html_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if f.endswith('.html') and 'Trace test' in f
+    ]
+    self.assertEqual(len(html_files), 1)
     trace_path = os.path.join(trace_dir, html_files[0])
     self.assertTrue(os.path.exists(trace_path))
+
+  async def test_image_resizing(self):
+    img_part = content_api.ProcessorPart(
+        Image.new('RGB', (400, 300), color='green')
+    )
+
+    trace = trace_file.SyncFileTrace(name='test_image_resizing')
+    async with trace:
+      await trace.add_input(img_part)
+
+    self.assertEqual(len(trace.events), 1)
+    event = trace.events[0]
+    self.assertIsNotNone(event.part_hash)
+
+    part_dict = trace.parts_store[event.part_hash]
+    part_image_bytes = part_dict['part']['inline_data']['data']
+    part_image = Image.open(io.BytesIO(part_image_bytes))
+    self.assertEqual(part_image.size, (200, 150))
+
+  async def test_html_with_complex_parts(self):
+    """Test that HTML is generated correctly for all ProcessorPart types."""
+    trace_dir = self.trace_dir
+
+    img_part = create_image_part()
+    audio_part = create_audio_part()
+    exec_code_part = genai_types.Part.from_executable_code(
+        code=(
+            'print("Hello from Python!")\nresult = 2 + 2\nprint(f"Result:'
+            ' {result}")'
+        ),
+        language=genai_types.Language.PYTHON,
+    )
+    code_result_part = genai_types.Part.from_code_execution_result(
+        outcome=genai_types.Outcome.OUTCOME_OK,
+        output='Hello from Python!\nResult: 4',
+    )
+    root_trace = trace_file.SyncFileTrace(
+        trace_dir=trace_dir,
+        name='Complex Parts Test',
+    )
+    async with root_trace:
+      trace = root_trace.add_sub_trace(name='sub_trace', relation='call')
+      await trace.add_input(
+          content_api.ProcessorPart('User query: what is the weather?')
+      )
+      await trace.add_input(img_part)
+      await trace.add_input(audio_part)
+      await trace.add_output(
+          content_api.ProcessorPart.from_function_call(
+              name='get_weather',
+              args={'location': 'San Francisco', 'units': 'celsius'},
+              role='model',
+          )
+      )
+      await trace.add_input(
+          content_api.ProcessorPart.from_function_response(
+              name='get_weather',
+              response={'temperature': 22, 'conditions': 'sunny'},
+              function_call_id='call_12345',
+              role='user',
+          )
+      )
+      await trace.add_output(
+          content_api.ProcessorPart(
+              'The weather in San Francisco is 22°C and sunny.',
+              role='model',
+          )
+      )
+      await trace.add_output(
+          content_api.ProcessorPart.from_function_call(
+              name='generate_image',
+              args={'prompt': 'A sunny day in San Francisco'},
+              role='model',
+          )
+      )
+      await trace.add_output(
+          content_api.ProcessorPart(exec_code_part, role='model')
+      )
+      await trace.add_output(
+          content_api.ProcessorPart(code_result_part, role='model')
+      )
+      sub_trace = trace.add_sub_trace(name='tool_execution', relation='call')
+      await sub_trace.add_input(
+          content_api.ProcessorPart('Executing tool: generate_image')
+      )
+      await sub_trace.add_output(img_part)
+      await trace.add_output(img_part)
+      await trace.add_output(
+          content_api.ProcessorPart(
+              'Here is the generated image of a sunny day in San Francisco.',
+              role='model',
+              metadata={'generation_complete': True, 'turn_id': 123},
+          )
+      )
+
+    # Find the files matching our trace name
+    complex_html = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Complex Parts Test' in f and f.endswith('.html')
+    ]
+    complex_json = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Complex Parts Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(complex_html), 1)
+    self.assertEqual(len(complex_json), 1)
+
+    # Load and verify the JSON structure
+    json_path = os.path.join(trace_dir, complex_json[0])
+    loaded_root_trace = trace_file.SyncFileTrace.load(json_path)
+    loaded_trace = loaded_root_trace.events[0].sub_trace
+    self.assertIsNotNone(loaded_trace)
+
+    # Verify we have the expected number of events
+    self.assertGreater(len(loaded_trace.events), 5)
+
+    # Verify function call is present
+    function_call_found = False
+    function_response_found = False
+    executable_code_found = False
+    code_result_found = False
+    sub_trace_found = False
+
+    for event in loaded_trace.events:
+      if event.sub_trace:
+        sub_trace_found = True
+        continue
+      part_dict = loaded_root_trace.parts_store.get(event.part_hash)
+      if part_dict:
+        part = part_dict.get('part', {})
+        if part.get('function_call'):
+          function_call_found = True
+        if part.get('function_response'):
+          function_response_found = True
+        if part.get('executable_code'):
+          executable_code_found = True
+        if part.get('code_execution_result'):
+          code_result_found = True
+
+    self.assertTrue(function_call_found)
+    self.assertTrue(function_response_found)
+    self.assertTrue(executable_code_found)
+    self.assertTrue(code_result_found)
+    self.assertTrue(sub_trace_found)
+
+    # Verify HTML file exists and has content
+    html_path = os.path.join(trace_dir, complex_html[0])
+    self.assertTrue(os.path.exists(html_path))
+    with open(html_path, 'r') as f:
+      html_content = f.read()
+    self.assertIn('Complex Parts Test', html_content)
+    self.assertIn('function_call', html_content)
+    self.assertIn('function_response', html_content)
+    self.assertIn('executable_code', html_content)
+    self.assertIn('code_execution_result', html_content)
 
 
 if __name__ == '__main__':

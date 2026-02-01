@@ -293,7 +293,7 @@ from google.genai import types as genai_types
 # All function call parts (calls and responses) are emitted in a substream
 # with this name. This is to help downstream processors to identify function
 # calls that were executed from function calls returned directly by the model.
-FUNCTION_CALL_SUBTREAM_NAME = 'function_call'
+FUNCTION_CALL_SUBSTREAM_NAME = 'function_call'
 
 # Internal metadata key to carry the scheduling of a function call in an
 # EndOfTurn part.
@@ -383,7 +383,7 @@ class FunctionCalling(processor.Processor):
       model: processor.Processor,
       *,
       is_bidi_model: bool = False,
-      substream_name: str = FUNCTION_CALL_SUBTREAM_NAME,
+      substream_name: str = FUNCTION_CALL_SUBSTREAM_NAME,
       pre_processor: (
           processor.Processor | processor.PartProcessor | None
       ) = None,
@@ -502,7 +502,7 @@ class FunctionCalling(processor.Processor):
           # Only for sync function calls.
           state.has_new_fn_calls = True
 
-      elif part.substream_name == FUNCTION_CALL_SUBTREAM_NAME:
+      elif part.substream_name == FUNCTION_CALL_SUBSTREAM_NAME:
         # EoT is requested by function calls. We need to schedule the next
         # function call or stop the loop.
         match part.get_metadata(
@@ -628,7 +628,7 @@ class _ExecuteFunctionCall:
         name='list_fc',
         response='\n'.join(f_calls) + '\n',
         role='user',
-        substream_name=FUNCTION_CALL_SUBTREAM_NAME,
+        substream_name=FUNCTION_CALL_SUBSTREAM_NAME,
     )
 
   async def cancel_fc(
@@ -785,7 +785,7 @@ class _ExecuteFunctionCall:
       await self._output_queue.put(fc_part)
       # return an EoT to request a model call in function calling loop.
       eot = content_api.ProcessorPart.end_of_turn(
-          substream_name=FUNCTION_CALL_SUBTREAM_NAME,
+          substream_name=FUNCTION_CALL_SUBSTREAM_NAME,
           metadata={
               _SCHEDULING_METADATA_KEY: fc_part.function_response.scheduling,
           },
@@ -833,7 +833,7 @@ class _ExecuteFunctionCall:
     if self._fn_state.fn_call_count > self._fn_state.fn_call_count_limit:
       return
 
-    part.substream_name = FUNCTION_CALL_SUBTREAM_NAME
+    part.substream_name = FUNCTION_CALL_SUBSTREAM_NAME
     call = part.function_call
 
     await self._output_queue.put(part)

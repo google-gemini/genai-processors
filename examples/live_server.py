@@ -92,6 +92,8 @@ __WARNING__: this is a work in progress and is provided here for convenience and
 for prototyping quickly. We will likely make backwards incompatible changes to
 comply with a more stable GenAI API between clients and servers.
 """
+
+import asyncio
 import base64
 import functools
 import json
@@ -213,6 +215,10 @@ class AIStudioConnection:
         part.substream_name = 'realtime'
         part.role = 'user'
         yield part
+      if content_api.is_text(part.mimetype):
+        part.role = 'user'
+        part.metadata['turn_complete'] = True
+        yield part
       elif is_mic_off(part):
         yield content_api.ProcessorPart(
             '',
@@ -253,9 +259,13 @@ async def live_server(
   # which case the live loop needs to be reinitialized.
   while True:
     try:
+      logging.info('Starting new server session...')
       live_processor = processor_factory(ais.processor_config)
       if trace_dir:
-        async with trace_file.SyncFileTrace(trace_dir=trace_dir):
+        async with trace_file.SyncFileTrace(
+            trace_dir=trace_dir,
+            name='live_server',
+        ):
           await ais.send(live_processor(ais.receive()))
       else:
         await ais.send(live_processor(ais.receive()))
@@ -291,13 +301,16 @@ async def run_server(
 ) -> None:
   """Starts the WebSocket server."""
   if trace_dir:
-    os.makedirs(trace_dir, exist_ok=True)
+   os.makedirs(trace_dir, exist_ok=True)
+
+  # set this future to exit the server
+  stop = asyncio.get_running_loop().create_future()
 
   async with serve(
       handler=functools.partial(live_server, processor_factory, trace_dir),
       host='localhost',
       port=port,
       max_size=2 * 1024 * 1024,  # 2 MiB
-  ) as server:
+  ):
     print(f'Server started on port {port}')
-    await server.serve_forever()
+    await stop

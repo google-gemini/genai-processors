@@ -63,9 +63,7 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
               metadata={'turn_complete': False},
           ),
       ]
-      await streams.gather_stream(
-          model(streams.stream_content(content, with_delay_sec=0.1))
-      )
+      await model(streams.stream_content(content, with_delay_sec=0.1))
 
       client_connection.send_client_content.assert_has_calls([
           mock.call(
@@ -408,11 +406,9 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
           model_name='test_model_name',
       )
       with self.assertRaises(IOError):
-        await streams.gather_stream(
-            model(
-                streams.stream_content(
-                    [content_api.ProcessorPart('test_content_1')]
-                )
+        await model(
+            streams.stream_content(
+                [content_api.ProcessorPart('test_content_1')]
             )
         )
 

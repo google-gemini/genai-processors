@@ -90,15 +90,12 @@ class TopicResearcher(processor.PartProcessor):
   ) -> AsyncIterable[ProcessorPart]:
 
     input_topic = part.get_dataclass(interfaces.Topic)
-    input_stream = processor.stream_content([part])
-    response_parts = []
-    async for content_part in self._pipeline(input_stream):
-      response_parts.append(content_part)
+    response = self._pipeline(content_api.ProcessorContent(part))
 
     updated_topic = interfaces.Topic(
         topic=input_topic.topic,
         relationship_to_user_content=input_topic.relationship_to_user_content,
-        research_text=content_api.as_text(response_parts),
+        research_text=await response.text(),
     )
     yield ProcessorPart.from_dataclass(dataclass=updated_topic)
     yield processor.status(f"""Researched topic!

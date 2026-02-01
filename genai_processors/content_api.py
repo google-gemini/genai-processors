@@ -20,7 +20,7 @@ import functools
 import io
 import itertools
 import json
-from typing import Any, TypeAlias, TypeVar, Union
+from typing import Any, AsyncIterable, AsyncIterator, Generator, Generic, Optional, TypeAlias, TypeVar, Union
 
 from absl import logging
 from genai_processors import mime_types
@@ -274,14 +274,19 @@ class ProcessorPart:
     """Returns part text as string.
 
     Returns:
-      The text of the part.
+      The text of the part, which might be either in part.text or in
+      part.inline_data.data if inline data contains a text file.
 
     Raises:
       ValueError if part is not of a text MIME type.
     """
     if not mime_types.is_text(self.mimetype):
-      raise ValueError(f'Part is not text: {self.mimetype}')
-    return self.part.text or ''
+      raise ValueError(f'Part is not text but {self._debug_string()}')
+    if self.part.text:
+      return self.part.text
+    if self.part.inline_data:
+      return self.part.inline_data.data.decode('utf-8')
+    return ''
 
   @text.setter
   def text(self, value: str) -> None:
@@ -342,7 +347,7 @@ class ProcessorPart:
       The dataclass representation of the Part.
     """
     if not mime_types.is_dataclass(self.mimetype):
-      raise ValueError('Part is not a dataclass.')
+      raise ValueError(f'Part is not a dataclass but {self._debug_string()}')
     try:
       # JSON conversions are provided by the dataclass_json decorator.
       return json_dataclass.from_json(self.text)  # pytype: disable=attribute-error
@@ -357,7 +362,8 @@ class ProcessorPart:
     """Returns representation of the Part as a given proto message."""
     if not mime_types.is_proto_message(self.mimetype, proto_message):
       raise ValueError(
-          f'Part is not a {proto_message.DESCRIPTOR.name} proto message.'
+          f'Part is not a {proto_message.DESCRIPTOR.name} proto message but'
+          f' {self._debug_string()}.'
       )
     return proto_message.FromString(self.bytes)
 
@@ -365,12 +371,17 @@ class ProcessorPart:
   def pil_image(self) -> PIL.Image.Image:
     """Returns PIL.Image representation of the Part."""
     if not mime_types.is_image(self.mimetype):
-      raise ValueError(f'Part is not an image. Mime type is {self.mimetype}.')
+      raise ValueError(f'Part is not an image but {self._debug_string()}.')
     bytes_io = io.BytesIO()
     if self.part.inline_data is not None:
       bytes_io.write(self.part.inline_data.data)
     bytes_io.seek(0)
     return PIL.Image.open(bytes_io)
+
+  def _debug_string(self) -> str:
+    if self.mimetype == mime_types.TEXT_EXCEPTION:
+      return f'an exception: {self.text}'
+    return self.mimetype
 
   # Class methods that make use of underlying Genai `Part` class methods.
   @classmethod
@@ -635,8 +646,173 @@ class ProcessorPart:
         'metadata': self.metadata,
     }
 
+T = TypeVar('T')
 
-class ProcessorContent:
+
+class _StreamOnce(Generic[T]):
+  """An AsyncIterable that can be iterated over only once."""
+
+  def __init__(self, stream: AsyncIterator[T]):
+    self._stream = stream
+    self._exhausted = False
+
+  def __aiter__(self) -> AsyncIterator[T]:
+    if self._exhausted:
+      raise RuntimeError(
+          'This ContentStream is backed by a generator and can only be'
+          ' iterated over once.'
+      )
+    self._exhausted = True
+    return self._stream
+
+
+class ContentStream:
+  """A syntax sugar mixin for streams of Content / Parts.
+
+  AsyncIterable[Part], list[Part] or similar are common in LLM and agent
+  interfaces. But there is mismatch between consumer and producer needs, which
+  this class addresses.
+
+  Models and agents need to work with multimodal streaming. They have to offer
+  corresponding API to satisfy advanced users. But many consumers would benefit
+  from simpler "I just need a string" interfaces. It works the other way too: if
+  consumer can deal with streaming multimodal content, it should be able to
+  ingest a plain string.
+
+  ContentStream is an adaptor: it can be constructed from ProcessorContentTypes
+  or Iterable/AsyncIterable/Collection of ProcessorContentTypes and then be
+  consumed in a convient way through accessors like .text() which reduce the
+  content to the given modality.
+
+  Whether ContentStream can be iterated over only once (like generator) or
+  multiple times (like a list) depends on the specific implementation.
+  It is advised to allow reading content multiple times as this allows consumers
+  to retry failures and tee response to multiple consumers. But if the
+  ContentStream is backed by a generator, attempt to get content again (through
+  any method) will raise a RuntimeError.
+
+  Producers may chose to subclass ContentStream and provide additional methods.
+  """
+
+  def __init__(
+      self,
+      *,
+      parts: Optional[AsyncIterable[ProcessorPart]] = None,
+      parts_generator: Optional[AsyncIterator[ProcessorPart]] = None,
+      content: Optional['ProcessorContentTypes'] = None,
+  ):
+    """Initializes the stream.
+
+    Only one of parts, parts_generator or content can be set.
+    Use `parts_generator` if content can be iterated over only once. `parts*` is
+    more efficient than `content` if you already have ProcessorParts objects.
+
+    Args:
+      parts: Optimized version if you already have ProcessorParts. Constructs a
+        stream that can be iterated over multiple times.
+      parts_generator: Constructs a stream which can be iterated only once. The
+        stream will raise a RuntimeError on consecutive access attempts. Use it
+        if the underlying iterable discards the content as soon as it is
+        consumed.
+      content: Constructs the stream from a static content object.
+    """
+    if sum(x is not None for x in [content, parts, parts_generator]) > 1:
+      raise ValueError(
+          'At most one of content, content_generator, parts, parts_generator'
+          ' can be provided.'
+      )
+
+    if content:
+      parts = ProcessorContent(content)
+    if parts_generator:
+      parts = _StreamOnce(parts_generator)
+
+    if parts:
+      self._parts = parts
+
+  def __aiter__(self) -> AsyncIterator[ProcessorPart]:
+    """Returns an iterator that yields all genai.Parts from the stream.
+
+    Consecutive calls to this method return independent iterators that start
+    from the beginning of the stream. If the stream can only be iterated once,
+    a RuntimeError will be risen on the second attempt.
+    """
+    return self._parts.__aiter__()
+
+  async def text(
+      self,
+      *,
+      # TODO(kibergus): Discuss whether default value should be true.
+      strict: bool = False,
+      substream_name: str | None = None,
+  ) -> str:
+    """Returns the stream contents as string.
+
+    Args:
+      strict: If True, unsupported content types will raise a ValueError.
+        Otherwise, they will be ignored.
+      substream_name: If set, only text parts with the given substream name will
+        be returned.
+
+    Returns:
+      The text of the part.
+
+    Raises:
+      ValueError the underlying content contains non-text parts.
+    """
+    return as_text(
+        await self.gather(), strict=strict, substream_name=substream_name
+    )
+
+  T = TypeVar('T')
+
+  async def get_dataclass(self, json_dataclass: type[T]) -> T:
+    """Returns representation of the stream as a given dataclass.
+
+    Verifies that the stream contains just a single JSON Part (which is what
+    models produce when constrained decoding is enabled) and instantiates the
+    provided dataclass from it.
+
+    Args:
+      json_dataclass: A dataclass that can be converted to/from JSON.
+
+    Returns:
+      The dataclass representation of the Part.
+    """
+    content = await self.gather()
+    if len(content) != 1:
+      raise ValueError(
+          'get_dataclass requires the stream to contain a single Part.'
+      )
+    return content[0].get_dataclass(json_dataclass)
+
+  async def gather(self) -> 'ProcessorContent':
+    """Returns all the contents of the stream as a list."""
+    content = ProcessorContent()
+    async for part in self:
+      content += part
+    return content
+
+  def __await__(self) -> Generator[Any, None, None]:
+    """Awaits until the stream is finished.
+
+    Useful if we are not interested in the content itself, but in the side
+    effect of the code that produces it.
+
+    Returns:
+      An awaitable that completes when the stream is finished.
+    """
+
+    async def await_parts() -> None:
+      async for _ in self:
+        pass
+
+    return await_parts().__await__()
+
+  # More accessor methods will be added here on as-needed basis.
+
+
+class ProcessorContent(ContentStream):
   """A wrapper around `Content` with additional metadata.
 
   Serves as a convenience adaptor between various native representations and
@@ -655,6 +831,7 @@ class ProcessorContent:
       *parts: 'ProcessorContentTypes',
   ) -> None:
     """Constructs a new Content object from the given inputs."""
+    super().__init__()
     self.replace_parts(*parts)
 
     self.as_text = functools.partial(as_text, self)
@@ -694,9 +871,17 @@ class ProcessorContent:
     return result
 
   def __eq__(self, other: Any) -> bool:
+    if isinstance(other, (list, tuple)):
+      # This is very convenient for unit tests.
+      try:
+        other = ProcessorContent(other)
+      except ValueError:
+        return False
     if not isinstance(other, ProcessorContent):
       return False
-    for lhs, rhs in zip(self, other, strict=True):
+    if len(self) != len(other):
+      return False
+    for lhs, rhs in zip(self, other):
       if lhs != rhs:
         return False
     return True
@@ -724,6 +909,15 @@ class ProcessorContent:
     """
     for _, part in self.items():
       yield part
+
+  def __aiter__(self) -> AsyncIterator[ProcessorPart]:
+    """Returns an iterator that yields all genai.Parts from the content."""
+
+    async def to_async_iter() -> AsyncIterator[ProcessorPart]:
+      for item in self:
+        yield item
+
+    return to_async_iter()
 
   @property
   def all_parts(self) -> Iterator[ProcessorPart]:

@@ -42,9 +42,9 @@ class MockGenerateProcessor(processor.Processor):
     self._call_count = 0
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
+      self, content: content_api.ContentStream
   ) -> AsyncIterable[content_api.ProcessorPart]:
-    self._requests.append(await streams.gather_stream(content))
+    self._requests.append(list(await content.gather()))
     if self._call_count < len(self._responses):
       response_parts = self._responses[self._call_count]
       self._call_count += 1
@@ -107,11 +107,10 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         generate_processor,
         fns=[get_weather, get_time],
     )
-    input_content = [content_api.ProcessorPart('Hi')]
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
+    self.assertEqual(
+        await fc_processor(content_api.ProcessorContent('Hi')).gather(),
+        model_output,
     )
-    self.assertEqual(output, model_output)
 
   async def test_one_function_call(self):
     model_output_0 = [
@@ -119,7 +118,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_weather',
             args={'location': 'London'},
             role='model',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         )
     ]
     model_output_1 = [
@@ -134,21 +133,18 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         generate_processor,
         fns=[get_weather],
     )
-    input_content = [
-        content_api.ProcessorPart('What is the weather in London?')
-    ]
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
+    input_content = content_api.ProcessorContent(
+        'What is the weather in London?'
     )
     self.assertEqual(
-        output,
+        await fc_processor(input_content).gather(),
         model_output_0
         + [
             content_api.ProcessorPart.from_function_response(
                 name='get_weather',
                 response='Weather in London is sunny',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1,
@@ -188,7 +184,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_time',
             response='12:00',
             role='user',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         ),
     ]
     request_1 = request_0 + fc_output_0
@@ -197,7 +193,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_weather',
             response='Weather in Paris is sunny',
             role='user',
-            substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         ),
     ]
     request_2 = request_1 + fc_output_1
@@ -211,9 +207,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         generate_processor,
         fns=[get_weather, get_time],
     )
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
-    )
+    output = await fc_processor(streams.stream_content(input_content)).gather()
     self.assertEqual(output, fc_output_0 + fc_output_1 + model_output_2)
     self.assertEqual(
         generate_processor._requests,
@@ -242,9 +236,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         max_function_calls=max_function_calls,
     )
     input_content = [content_api.ProcessorPart('What is the time?')]
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
-    )
+    output = await fc_processor(streams.stream_content(input_content)).gather()
     self.assertEqual(
         output,
         [
@@ -252,13 +244,13 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 name='get_time',
                 args={},
                 role='model',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='get_time',
                 response='12:00',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         * max_function_calls,
@@ -281,9 +273,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         fns=[get_weather, get_time],
     )
     input_content = [content_api.ProcessorPart('What is the time?')]
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
-    )
+    output = await fc_processor(streams.stream_content(input_content)).gather()
     self.assertEqual(
         output,
         model_output_0
@@ -295,7 +285,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                     " 'get_time', 'get_weather'."
                 ),
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=True,
             ),
         ]
@@ -318,9 +308,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         fns=[failing_function],
     )
     input_content = [content_api.ProcessorPart('Call failing function')]
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
-    )
+    output = await fc_processor(streams.stream_content(input_content)).gather()
     self.assertEqual(
         output,
         [
@@ -328,7 +316,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 name='failing_function',
                 args={},
                 role='model',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
             content_api.ProcessorPart.from_function_response(
                 name='failing_function',
@@ -337,7 +325,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                     ' function failed>'
                 ),
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=True,
             ),
             content_api.ProcessorPart('The function failed'),
@@ -408,13 +396,11 @@ class FunctionCallingAsyncTest(
         fns=[sleep_async],
         is_bidi_model=is_bidi,
     )
-    output = await streams.gather_stream(
-        fc_processor(
-            streams.stream_content(
-                input_content, with_delay_sec=delay_sec, delay_end=True
-            )
+    output = await fc_processor(
+        streams.stream_content(
+            input_content, with_delay_sec=delay_sec, delay_end=True
         )
-    )
+    ).gather()
     # The function calling is similar to the sync version except that the model
     # waits for the function to finish before yielding the next part.
     self.assertEqual(
@@ -426,7 +412,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -437,7 +423,7 @@ class FunctionCallingAsyncTest(
                 response='Slept for 1 seconds',
                 function_call_id='sleep_async-1',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1,
@@ -493,13 +479,11 @@ class FunctionCallingAsyncTest(
         fns=[sleep_async, get_weather],
         is_bidi_model=is_bidi,
     )
-    output = await streams.gather_stream(
-        fc_processor(
-            streams.stream_content(
-                input_content, with_delay_sec=delay_sec, delay_end=True
-            )
+    output = await fc_processor(
+        streams.stream_content(
+            input_content, with_delay_sec=delay_sec, delay_end=True
         )
-    )
+    ).gather()
     self.assertEqual(
         output,
         model_output_0
@@ -509,7 +493,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -520,7 +504,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async-1',
                 response='Slept for 1 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
         + model_output_1
@@ -535,7 +519,7 @@ class FunctionCallingAsyncTest(
                     function_call_id='get_weather_0',
                     response='Running in background.',
                     role='user',
-                    substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                     scheduling='SILENT',
                     will_continue=True,
                 ),
@@ -549,7 +533,7 @@ class FunctionCallingAsyncTest(
                 # No function call id provided in the function call part.
                 function_call_id='get_weather_0' if is_bidi else None,
                 response='Weather in London is sunny',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 role='user',
             ),
         ]
@@ -597,13 +581,11 @@ class FunctionCallingAsyncTest(
         fns=[sleep_async_generator],
         is_bidi_model=is_bidi,
     )
-    output = await streams.gather_stream(
-        fc_processor(
-            streams.stream_content(
-                input_content, with_delay_sec=delay_sec * 2, delay_end=True
-            )
+    output = await fc_processor(
+        streams.stream_content(
+            input_content, with_delay_sec=delay_sec * 2, delay_end=True
         )
-    )
+    ).gather()
     self.assertEqual(
         output,
         model_output_0
@@ -613,7 +595,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='Running in background.',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=True,
             ),
@@ -624,7 +606,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='Slept for 1 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 will_continue=True,
             ),
         ]
@@ -635,7 +617,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='Slept for 2 seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 will_continue=True,
             ),
         ]
@@ -645,7 +627,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_generator_0',
                 response='',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 scheduling='SILENT',
                 will_continue=False,
             )
@@ -683,33 +665,33 @@ class FunctionCallingAsyncTest(
         fns=[sleep_async],
         max_function_calls=1,
     )
-    output = await streams.gather_stream(
-        fc_processor(streams.stream_content(input_content))
-    )
+    output = await fc_processor(streams.stream_content(input_content)).gather()
     self.assertEqual(
         output,
-        model_output_0
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_async',
-                function_call_id='sleep_async_0',
-                response='Running in background.',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='SILENT',
-                will_continue=True,
-            )
-        ]
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_async',
-                function_call_id='sleep_async_0',
-                response='Slept for 1 seconds',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-            ),
-        ]
-        + model_output_1[:1],
+        content_api.ProcessorContent(*(
+            model_output_0
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_async',
+                    function_call_id='sleep_async_0',
+                    response='Running in background.',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    scheduling='SILENT',
+                    will_continue=True,
+                )
+            ]
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_async',
+                    function_call_id='sleep_async_0',
+                    response='Slept for 1 seconds',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                ),
+            ]
+            + model_output_1[:1]
+        )),
     )
 
   @parameterized.named_parameters(
@@ -745,41 +727,41 @@ class FunctionCallingAsyncTest(
         fns=[failing_async_function],
         is_bidi_model=is_bidi,
     )
-    output = await streams.gather_stream(
-        fc_processor(
-            streams.stream_content(
-                input_content, with_delay_sec=delay_sec, delay_end=True
-            )
+    output = await fc_processor(
+        streams.stream_content(
+            input_content, with_delay_sec=delay_sec, delay_end=True
         )
-    )
+    ).gather()
     self.assertEqual(
         output,
-        model_output_0
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='failing_async_function',
-                function_call_id='failing_async_function_0',
-                response='Running in background.',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='SILENT',
-                will_continue=True,
-            ),
-        ]
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='failing_async_function',
-                function_call_id='failing_async_function_0',
-                response=(
-                    'Failed to invoke function failing_async_function({}):'
-                    ' <this async function failed>'
+        content_api.ProcessorContent(*(
+            model_output_0
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='failing_async_function',
+                    function_call_id='failing_async_function_0',
+                    response='Running in background.',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    scheduling='SILENT',
+                    will_continue=True,
                 ),
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                is_error=True,
-            ),
-        ]
-        + model_output_1,
+            ]
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='failing_async_function',
+                    function_call_id='failing_async_function_0',
+                    response=(
+                        'Failed to invoke function failing_async_function({}):'
+                        ' <this async function failed>'
+                    ),
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    is_error=True,
+                ),
+            ]
+            + model_output_1
+        )),
     )
 
   async def test_bidi_streaming_with_sync_function(self):
@@ -829,33 +811,35 @@ class FunctionCallingAsyncTest(
         fns=[sleep_sync],
         is_bidi_model=True,
     )
-    output = await streams.gather_stream(fc_processor(input_generator()))
+    output = await fc_processor(input_generator()).gather()
 
     self.assertEqual(
         output,
-        model_output_0
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_sync',
-                function_call_id='sleep_sync_0',
-                response='Running in background.',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='SILENT',
-                will_continue=True,
-            )
-        ]
-        + model_output_1
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_sync',
-                function_call_id='sleep_sync_0',
-                response='Slept for 1 seconds',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-            )
-        ]
-        + model_output_2,
+        content_api.ProcessorContent(*(
+            model_output_0
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_sync',
+                    function_call_id='sleep_sync_0',
+                    response='Running in background.',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    scheduling='SILENT',
+                    will_continue=True,
+                )
+            ]
+            + model_output_1
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_sync',
+                    function_call_id='sleep_sync_0',
+                    response='Slept for 1 seconds',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                )
+            ]
+            + model_output_2
+        )),
     )
 
   @parameterized.named_parameters(
@@ -909,13 +893,11 @@ class FunctionCallingAsyncTest(
         fns=[sleep_async, function_calling.cancel_fc],
         is_bidi_model=True,
     )
-    output = await streams.gather_stream(
-        fc_processor(
-            streams.stream_content(
-                input_content, with_delay_sec=delay_sec, delay_end=True
-            )
+    output = await fc_processor(
+        streams.stream_content(
+            input_content, with_delay_sec=delay_sec, delay_end=True
         )
-    )
+    ).gather()
     # When no cancellation happens, the async sleep function should return
     # the result.
     async_sleep_output = (
@@ -925,7 +907,7 @@ class FunctionCallingAsyncTest(
                 function_call_id='sleep_async_0',
                 response=f'Slept for {sleep_time_sec} seconds',
                 role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
             END_OF_STREAM,
         ]
@@ -934,42 +916,44 @@ class FunctionCallingAsyncTest(
     )
     self.assertEqual(
         output,
-        model_output_0
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_async',
-                function_call_id='sleep_async_0',
-                response='Running in background.',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='SILENT',
-                will_continue=True,
-            ),
-        ]
-        + model_output_1
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='cancel_fc',
-                function_call_id='cancel_fc_0',
-                response='Running in background.',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                role='user',
-                scheduling='SILENT',
-                will_continue=True,
-            )
-        ]
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='cancel_fc',
-                function_call_id='cancel_fc_0',
-                response=response,
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                is_error=is_error,
-                scheduling='SILENT',
-            ),
-        ]
-        + async_sleep_output,
+        content_api.ProcessorContent(*(
+            model_output_0
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_async',
+                    function_call_id='sleep_async_0',
+                    response='Running in background.',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    scheduling='SILENT',
+                    will_continue=True,
+                ),
+            ]
+            + model_output_1
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='cancel_fc',
+                    function_call_id='cancel_fc_0',
+                    response='Running in background.',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    role='user',
+                    scheduling='SILENT',
+                    will_continue=True,
+                )
+            ]
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='cancel_fc',
+                    function_call_id='cancel_fc_0',
+                    response=response,
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    is_error=is_error,
+                    scheduling='SILENT',
+                ),
+            ]
+            + async_sleep_output
+        )),
     )
 
   async def test_list_fc(self):
@@ -1023,13 +1007,11 @@ class FunctionCallingAsyncTest(
         fns=[sleep_async, function_calling.list_fc],
         is_bidi_model=True,
     )
-    output = await streams.gather_stream(
-        fc_processor(
-            streams.stream_content(
-                input_content, with_delay_sec=delay_sec, delay_end=True
-            )
+    output = await fc_processor(
+        streams.stream_content(
+            input_content, with_delay_sec=delay_sec, delay_end=True
         )
-    )
+    ).gather()
 
     list_fc_response = (
         'Background Functions currently running:\nFunction sleep_async is'
@@ -1038,50 +1020,52 @@ class FunctionCallingAsyncTest(
 
     self.assertEqual(
         output,
-        model_output_0
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_async',
-                function_call_id='sleep_async_0',
-                response='Running in background.',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                scheduling='SILENT',
-                will_continue=True,
-            ),
-        ]
-        + model_output_1
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='list_fc',
-                function_call_id='list_fc_0',
-                response='Running in background.',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-                role='user',
-                scheduling='SILENT',
-                will_continue=True,
-            )
-        ]
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='list_fc',
-                function_call_id='list_fc_0',
-                response=list_fc_response,
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-            ),
-        ]
-        + model_output_2
-        + [
-            content_api.ProcessorPart.from_function_response(
-                name='sleep_async',
-                function_call_id='sleep_async_0',
-                response='Slept for 3 seconds',
-                role='user',
-                substream_name=function_calling.FUNCTION_CALL_SUBTREAM_NAME,
-            ),
-        ]
-        + model_output_3,
+        content_api.ProcessorContent(*(
+            model_output_0
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_async',
+                    function_call_id='sleep_async_0',
+                    response='Running in background.',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    scheduling='SILENT',
+                    will_continue=True,
+                ),
+            ]
+            + model_output_1
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='list_fc',
+                    function_call_id='list_fc_0',
+                    response='Running in background.',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                    role='user',
+                    scheduling='SILENT',
+                    will_continue=True,
+                )
+            ]
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='list_fc',
+                    function_call_id='list_fc_0',
+                    response=list_fc_response,
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                ),
+            ]
+            + model_output_2
+            + [
+                content_api.ProcessorPart.from_function_response(
+                    name='sleep_async',
+                    function_call_id='sleep_async_0',
+                    response='Slept for 3 seconds',
+                    role='user',
+                    substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                ),
+            ]
+            + model_output_3
+        )),
     )
 
 

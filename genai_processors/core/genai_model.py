@@ -78,7 +78,6 @@ import time
 from typing import Any, NamedTuple
 from genai_processors import content_api
 from genai_processors import processor
-from genai_processors import streams
 from genai_processors.core import constrained_decoding
 from google.genai import client
 from google.genai import types as genai_types
@@ -184,10 +183,10 @@ class GenaiModel(processor.Processor):
       self._parser = constrained_decoding.StructuredOutputParser(schema)
 
   async def _generate_from_api(
-      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+      self, content: content_api.ContentStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Internal method to call the GenAI API and stream results."""
-    contents = await streams.gather_stream(content)
+    contents = await content.gather()
     if not contents:
       return
 
@@ -208,7 +207,7 @@ class GenaiModel(processor.Processor):
             )
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+      self, content: content_api.ContentStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     api_stream = self._generate_from_api(content)
 
