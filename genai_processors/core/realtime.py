@@ -157,7 +157,7 @@ class LiveProcessor(Processor):
               content_api.ProcessorPart(part, substream_name='')
           )
           if self._trigger_model_mode == AudioTriggerMode.FINAL_TRANSCRIPTION:
-            # await conversation_model.cancel()
+            await conversation_model.cancel()
             await conversation_model.turn()
       elif mime_types.is_dataclass(part.mimetype, speech_to_text.StartOfSpeech):
         # User starts talking.
@@ -346,7 +346,8 @@ class _RealTimeConversationModel:
     try:
       async for part in content:
         self._output_queue.put_nowait(part)
-        part_to_prompt.append(part)
+        if not context.is_reserved_substream(part.substream_name):
+          part_to_prompt.append(part)
     finally:
       # We add the prompt whatever has been output. We do this once everything
       # is output to avoid feeding the prompt while it's used to compute the
