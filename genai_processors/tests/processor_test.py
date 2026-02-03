@@ -68,7 +68,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
     input_stream = get_processor_parts(['foo', 'bar'])
     output = processor.apply_sync(combined_processor, input_stream)
     output = [output.text for output in output]
-    self.assertEqual(output, ['test', 'foo', 'test', 'bar'])
+    self.assertSequenceEqual(output, ['test', 'foo', 'test', 'bar'])
 
   def test_applies_async(self):
     inputs = get_processor_parts(['0', '1', '2'])
@@ -82,7 +82,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
         yield x
 
     processed = processor.apply_sync(slow_noop, inputs)
-    self.assertEqual(processed, inputs)
+    self.assertSequenceEqual(processed, inputs)
 
   def test_chained_processor_raises_yielded_exception(self):
     err_msg = 'bar is bad'
@@ -286,7 +286,7 @@ class PartProcessorTest(unittest.TestCase):
 
     transformed_content = processor.apply_sync(echo_processor, debug_content)
 
-    self.assertEqual(transformed_content, debug_content)
+    self.assertSequenceEqual(transformed_content, debug_content)
     self.assertEqual(echo_processor.execute_order, [2, 1, 0])
 
   def test_processor_fn_decorator(self):
@@ -300,11 +300,11 @@ class PartProcessorTest(unittest.TestCase):
 
     inputs = [content_api.ProcessorPart('1')]
     content = processor.apply_sync(twice, inputs)
-    self.assertEqual(content, inputs * 2)
+    self.assertSequenceEqual(content, inputs * 2)
 
     four_times = twice + twice
     content = processor.apply_sync(four_times, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_chain_class(self):
 
@@ -328,11 +328,11 @@ class PartProcessorTest(unittest.TestCase):
     self.assertEqual(part_processor.name, 'twice_again')
     self.assertEqual(part_processor.print(), 'twice_again')
     content = processor.apply_sync(part_processor, inputs)
-    self.assertEqual(content, inputs * 2)
+    self.assertSequenceEqual(content, inputs * 2)
 
     part_processor += part_processor
     content = processor.apply_sync(part_processor, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_chain_part_processor(self):
     @processor.part_processor_function
@@ -345,25 +345,25 @@ class PartProcessorTest(unittest.TestCase):
     four_times = twice + twice
     inputs = [content_api.ProcessorPart('1')]
     content = processor.apply_sync(four_times, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_filter_part_processor(self):
     p = processor.create_filter(lambda part: part.text != '1')
 
     inputs = get_processor_parts(['1', '2', '1', '0'])
     content = processor.apply_sync(p, inputs)
-    self.assertEqual(content, [inputs[1], inputs[3]])
+    self.assertSequenceEqual(content, [inputs[1], inputs[3]])
 
     # Chaining filter is the same as an 'and' operation.
     q = processor.create_filter(lambda part: part.text != '2')
     content = processor.apply_sync(p + q, inputs)
-    self.assertEqual(content, [inputs[3]])
+    self.assertSequenceEqual(content, [inputs[3]])
 
     # Parallel op on filter is the same as an 'or' operation when the conditions
     # cover exclusive cases.
     inputs = get_processor_parts(['1', '2', '1'])
     content = processor.apply_sync(p // q, inputs)
-    self.assertEqual(content, inputs)
+    self.assertSequenceEqual(content, inputs)
 
 
 class ProcessorTest(unittest.TestCase):
@@ -379,11 +379,11 @@ class ProcessorTest(unittest.TestCase):
 
     inputs = [content_api.ProcessorPart('1')]
     content = processor.apply_sync(twotimes, inputs)
-    self.assertEqual(content, inputs * 2)
+    self.assertSequenceEqual(content, inputs * 2)
 
     fourtimes = twotimes + twotimes
     content = processor.apply_sync(fourtimes, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_chain_class(self):
     class TwiceAgain(processor.Processor):
@@ -408,11 +408,11 @@ class ProcessorTest(unittest.TestCase):
     self.assertEqual(content_processor.name, 'twice_again')
     self.assertEqual(content_processor.print(), 'twice_again')
     content = processor.apply_sync(content_processor, inputs)
-    self.assertEqual(content, inputs * 2)
+    self.assertSequenceEqual(content, inputs * 2)
 
     content_processor += content_processor
     content = processor.apply_sync(content_processor, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_chain_processor(self):
     @processor.processor_function
@@ -426,7 +426,7 @@ class ProcessorTest(unittest.TestCase):
     four_times = twotimes + twotimes
     inputs = [content_api.ProcessorPart('1')]
     content = processor.apply_sync(four_times, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_custom_reserved_substreams(self):
     substreams_seen = set()
@@ -564,16 +564,16 @@ class ProcessorChainMixTest(TestWithProcessors):
     twice_again = TwiceAgain()
     four_times = self.twice + twice_again
     content = processor.apply_sync(four_times, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
     four_times = twice_again + self.twice
     content = processor.apply_sync(four_times, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
     four_times = self.twice + self.twice
     content = processor.apply_sync(four_times, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
     four_times_zero = self.twice + self.twice + self.tozero
     content = processor.apply_sync(four_times_zero, inputs)
-    self.assertEqual(content, [content_api.ProcessorPart('0')] * 4)
+    self.assertSequenceEqual(content, [content_api.ProcessorPart('0')] * 4)
 
   def test_part_processor_pass_thru(self):
     p = processor.passthrough()
@@ -611,10 +611,10 @@ class ProcessorChainMixTest(TestWithProcessors):
     inputs = [content_api.ProcessorPart('0')]
     expected = get_processor_parts(['1', '0', '1', '0'])
     chain = self.twice + self.insert_1
-    self.assertEqual(processor.apply_sync(chain, inputs), expected)
+    self.assertSequenceEqual(processor.apply_sync(chain, inputs), expected)
     expected = get_processor_parts(['1', '1', '0', '0'])
     chain = self.insert_1 + self.twice
-    self.assertEqual(processor.apply_sync(chain, inputs), expected)
+    self.assertSequenceEqual(processor.apply_sync(chain, inputs), expected)
 
   def test_processor_plus_chainpartprocessor(self):
     # Test combinations of processors with chainpartprocessors using '+'.
@@ -687,50 +687,74 @@ class ProcessorChainMixTest(TestWithProcessors):
     inputs = [content_api.ProcessorPart('0')]
     # Test part processor + chain part processor
     chain = self.insert_1 + (self.insert_1 + self.insert_2)
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
     # Same as above but without caching
     chain = self.insert_1 + (self.insert_1 + self.insert_2)
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
     chain = self.insert_1
     chain += self.insert_1 + self.insert_2
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
     chain = self.insert_1 + self.insert_1 + self.insert_2
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
 
     # Tets chain part processor + part processor
     chain = (self.insert_1 + self.insert_2) + self.insert_1
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_2_1)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_2_1
+    )
     chain = (self.insert_1 + self.insert_2) + self.insert_1
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_2_1)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_2_1
+    )
 
   def test_partprocessor_plus_chainprocessor(self):
     inputs = [content_api.ProcessorPart('0')]
     chain = self.insert_1 + (
         self.insert_1.to_processor() + self.insert_2.to_processor()
     )
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
     chain = self.insert_1
     chain += self.insert_1.to_processor() + self.insert_2.to_processor()
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
     chain = (
         self.insert_1
         + self.insert_1.to_processor()
         + self.insert_2.to_processor()
     )
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_1_2)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_1_2
+    )
     chain = (
         self.insert_1.to_processor() + self.insert_2.to_processor()
     ) + self.insert_1
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_2_1)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_2_1
+    )
     chain = self.insert_1.to_processor() + self.insert_2.to_processor()
     chain += self.insert_1
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_2_1)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_2_1
+    )
     chain = (
         self.insert_1.to_processor()
         + self.insert_2.to_processor()
         + self.insert_1
     )
-    self.assertEqual(processor.apply_sync(chain, inputs), self.expected_1_2_1)
+    self.assertSequenceEqual(
+        processor.apply_sync(chain, inputs), self.expected_1_2_1
+    )
 
   def test_chainprocessor_plus_chainprocessor(self):
     inputs = [content_api.ProcessorPart('0')]
@@ -738,7 +762,7 @@ class ProcessorChainMixTest(TestWithProcessors):
         self.insert_1.to_processor() + self.tozero
     )
     self.assertIsInstance(chain, processor._ChainProcessor)
-    self.assertEqual(
+    self.assertSequenceEqual(
         processor.apply_sync(chain, inputs),
         [content_api.ProcessorPart('0')] * 8,
     )
@@ -767,41 +791,41 @@ class ProcessorChainMixTest(TestWithProcessors):
     inputs = [content_api.ProcessorPart('0')]
     chain = processor.chain([self.twice, self.twice])
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
     chain = processor.chain([self.insert_1, self.insert_2, self.insert_1])
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, self.expected_1_2_1)
+    self.assertSequenceEqual(content, self.expected_1_2_1)
     chain = processor.chain([
         self.insert_1.to_processor(),
         self.insert_2,
         self.insert_1.to_processor(),
     ])
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, self.expected_1_2_1)
+    self.assertSequenceEqual(content, self.expected_1_2_1)
     chain = processor.chain(
         [self.insert_1, self.insert_2.to_processor(), self.insert_1]
     )
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, self.expected_1_2_1)
+    self.assertSequenceEqual(content, self.expected_1_2_1)
     chain = processor.chain([
         self.insert_1.to_processor(),
         self.insert_2.to_processor(),
         self.insert_1.to_processor(),
     ])
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, self.expected_1_2_1)
+    self.assertSequenceEqual(content, self.expected_1_2_1)
     chain = processor.chain([self.insert_1, self.insert_2]) + self.insert_1
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, self.expected_1_2_1)
+    self.assertSequenceEqual(content, self.expected_1_2_1)
     chain = processor.chain([(self.insert_1 + self.insert_2), self.twice])
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, self.expected_1_2_twice)
+    self.assertSequenceEqual(content, self.expected_1_2_twice)
     chain = processor.chain([(self.insert_1 + self.insert_2), self.twice])
     content = processor.apply_sync(chain, inputs)
     self.assertEqual(content, self.expected_1_2_twice)
     chain = processor.chain([self.twice, self.twice])
     content = processor.apply_sync(chain, inputs)
-    self.assertEqual(content, inputs * 4)
+    self.assertSequenceEqual(content, inputs * 4)
 
   def test_chain_immutable(self):
 
@@ -832,14 +856,14 @@ class ProcessorChainMixTest(TestWithProcessors):
 
     inputs = get_processor_parts(['0'])
 
-    self.assertEqual(
+    self.assertSequenceEqual(
         processor.apply_sync(ones, inputs), get_processor_parts(['1'])
     )
-    self.assertEqual(
+    self.assertSequenceEqual(
         processor.apply_sync(should_yield_twos, inputs),
         get_processor_parts(['2']),
     )
-    self.assertEqual(
+    self.assertSequenceEqual(
         processor.apply_sync(should_yield_threes, inputs),
         get_processor_parts(['3']),
     )
@@ -893,21 +917,23 @@ class ProcessorChainMixTest(TestWithProcessors):
 
     chain = add_one + add_one
     content = processor.apply_sync(chain, get_processor_parts(['0', '1']))
-    self.assertEqual(content, get_processor_parts(['011', '1']))
+    self.assertSequenceEqual(content, get_processor_parts(['011', '1']))
     content = processor.apply_sync(chain, get_processor_parts(['1', '2']))
-    self.assertEqual(content, get_processor_parts(['1', '2']))
+    self.assertSequenceEqual(content, get_processor_parts(['1', '2']))
     self.assertEqual(task_count, 2)
 
     task_count = 0
     long_chain = processor.chain([add_one] * 100)
     content = processor.apply_sync(long_chain, get_processor_parts(['1']))
-    self.assertEqual(content, get_processor_parts(['1']))
+    self.assertSequenceEqual(content, get_processor_parts(['1']))
     self.assertEqual(task_count, 0)
 
     task_count = 0
     chain = self.insert_1 + add_one + self.insert_2 + add_one
     content = processor.apply_sync(chain, get_processor_parts(['0']))
-    self.assertEqual(content, get_processor_parts(['2', '1', '2', '011']))
+    self.assertSequenceEqual(
+        content, get_processor_parts(['2', '1', '2', '011'])
+    )
     self.assertEqual(task_count, 2)
 
   def test_chain_processor_run_in_parallel(self):
@@ -964,7 +990,7 @@ class ProcessorChainMixTest(TestWithProcessors):
     p = self.insert_1 + self.twice
     inputs = get_processor_parts(['0'])
     result = processor.apply_sync(p, inputs)
-    self.assertEqual(result, get_processor_parts(['1', '1', '0', '0']))
+    self.assertSequenceEqual(result, get_processor_parts(['1', '1', '0', '0']))
 
   def test_chain_part_processor_flattens_correctly(self):
     """Tests that `_ChainPartProcessor` + `PartProcessor` flattens the list."""
@@ -1003,7 +1029,7 @@ class ProcessorChainMixTest(TestWithProcessors):
 
     inputs = [content_api.ProcessorPart('test')]
     content = processor.apply_sync(chain_abc, inputs)
-    self.assertEqual(content, inputs)
+    self.assertSequenceEqual(content, inputs)
 
 
 class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
@@ -1012,19 +1038,19 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     inputs = [content_api.ProcessorPart('1')]
     parallel_c = processor.parallel_concat([self.twice, self.tozero])
     content = processor.apply_sync(parallel_c, inputs)
-    self.assertEqual(content, get_processor_parts(['1', '1', '0']))
+    self.assertSequenceEqual(content, get_processor_parts(['1', '1', '0']))
     parallel_c = processor.chain([
         parallel_c,
         self.twice,
     ])
     content = processor.apply_sync(parallel_c, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content, get_processor_parts(['1', '1', '1', '1', '0', '0'])
     )
     inputs = [content_api.ProcessorPart('1'), content_api.ProcessorPart('2')]
     parallel_c = processor.parallel_concat([self.twice, self.tozero])
     content = processor.apply_sync(parallel_c, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content,
         get_processor_parts(['1', '1', '2', '2', '0', '0']),
     )
@@ -1033,30 +1059,30 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     inputs = [content_api.ProcessorPart('0')]
     parallel_p = processor.parallel([self.insert_1, self.insert_2])
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, get_processor_parts(['1', '0', '2', '0']))
+    self.assertSequenceEqual(content, get_processor_parts(['1', '0', '2', '0']))
     parallel_p = processor.chain([
         parallel_p,
         self.insert_1,
     ])
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content, get_processor_parts(['1', '1', '1', '0', '1', '2', '1', '0'])
     )
     inputs = [content_api.ProcessorPart('0'), content_api.ProcessorPart('1')]
     parallel_p = processor.parallel([self.insert_1, self.insert_2])
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content,
         get_processor_parts(['1', '0', '2', '0', '1', '1', '2', '1']),
     )
     parallel_content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, parallel_content)
+    self.assertSequenceEqual(content, parallel_content)
     inputs = [content_api.ProcessorPart('0')]
     parallel_p = processor.parallel(
         [(self.insert_1 + self.insert_2), self.insert_1]
     )
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content, get_processor_parts(['2', '1', '2', '0', '1', '0'])
     )
 
@@ -1064,10 +1090,10 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     inputs = [content_api.ProcessorPart('0')]
     parallel_p = self.insert_1 // self.insert_2
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, get_processor_parts(['1', '0', '2', '0']))
+    self.assertSequenceEqual(content, get_processor_parts(['1', '0', '2', '0']))
     parallel_p = parallel_p // self.insert_1
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content, get_processor_parts(['1', '0', '2', '0', '1', '0'])
     )
     inputs = [content_api.ProcessorPart('0'), content_api.ProcessorPart('1')]
@@ -1094,7 +1120,7 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     # (insert_1 // insert_2) + (insert_1 // insert_2)
     parallel_p = self.insert_1 // self.insert_2 + self.insert_1 // self.insert_2
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content,
         get_processor_parts([
             '1',
@@ -1138,7 +1164,7 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
         add_one_maybe // add_one_maybe // processor.PASSTHROUGH_FALLBACK
     )
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, get_processor_parts(['011', '011', '11']))
+    self.assertSequenceEqual(content, get_processor_parts(['011', '011', '11']))
 
     # Check fall_back plays well with passthrough_always.
     parallel_p = add_one + (
@@ -1147,18 +1173,20 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
         // processor.PASSTHROUGH_FALLBACK
     )
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, get_processor_parts(['011', '011', '01', '11']))
+    self.assertSequenceEqual(
+        content, get_processor_parts(['011', '011', '01', '11'])
+    )
 
     parallel_p = (add_one_maybe // processor.PASSTHROUGH_ALWAYS) + (
         add_one_maybe // processor.PASSTHROUGH_FALLBACK
     )
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, get_processor_parts(['011', '01', '1']))
+    self.assertSequenceEqual(content, get_processor_parts(['011', '01', '1']))
 
     # Check no fallback can lead to no output.
     parallel_p = add_one_maybe // add_one_maybe
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content,
         get_processor_parts(['01', '01']),
     )
@@ -1175,7 +1203,9 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     inputs = get_processor_parts(['0', '1'])
     parallel_p = add_one // add_one // processor.PASSTHROUGH_ALWAYS
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(content, get_processor_parts(['01', '01', '0', '1']))
+    self.assertSequenceEqual(
+        content, get_processor_parts(['01', '01', '0', '1'])
+    )
     parallel_p = (
         add_one
         // add_one
@@ -1183,7 +1213,7 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
         // processor.PASSTHROUGH_FALLBACK
     )
     content = processor.apply_sync(parallel_p, inputs)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content,
         get_processor_parts(['01', '01', '0', '1']),
     )
@@ -1279,12 +1309,12 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     self.assertTrue(parallel.match(content_api.ProcessorPart('0')))
     self.assertFalse(parallel.match(content_api.ProcessorPart('1')))
     content = processor.apply_sync(parallel, get_processor_parts(['2', '1']))
-    self.assertEqual(content, get_processor_parts(['2', '1']))
+    self.assertSequenceEqual(content, get_processor_parts(['2', '1']))
     self.assertEqual(task_count, 0)
 
     task_count = 0
     content = processor.apply_sync(parallel, get_processor_parts(['0', '1']))
-    self.assertEqual(content, get_processor_parts(['01', '01', '1']))
+    self.assertSequenceEqual(content, get_processor_parts(['01', '01', '1']))
     self.assertEqual(task_count, 2)
 
     task_count = 0

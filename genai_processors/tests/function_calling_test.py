@@ -107,7 +107,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         generate_processor,
         fns=[get_weather, get_time],
     )
-    self.assertEqual(
+    self.assertSequenceEqual(
         await fc_processor(content_api.ProcessorContent('Hi')).gather(),
         model_output,
     )
@@ -136,7 +136,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
     input_content = content_api.ProcessorContent(
         'What is the weather in London?'
     )
-    self.assertEqual(
+    self.assertSequenceEqual(
         await fc_processor(input_content).gather(),
         model_output_0
         + [
@@ -208,8 +208,8 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         fns=[get_weather, get_time],
     )
     output = await fc_processor(streams.stream_content(input_content)).gather()
-    self.assertEqual(output, fc_output_0 + fc_output_1 + model_output_2)
-    self.assertEqual(
+    self.assertSequenceEqual(output, fc_output_0 + fc_output_1 + model_output_2)
+    self.assertSequenceEqual(
         generate_processor._requests,
         [
             request_0,
@@ -237,7 +237,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
     )
     input_content = [content_api.ProcessorPart('What is the time?')]
     output = await fc_processor(streams.stream_content(input_content)).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         [
             content_api.ProcessorPart.from_function_call(
@@ -274,7 +274,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
     )
     input_content = [content_api.ProcessorPart('What is the time?')]
     output = await fc_processor(streams.stream_content(input_content)).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         model_output_0
         + [
@@ -309,7 +309,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
     )
     input_content = [content_api.ProcessorPart('Call failing function')]
     output = await fc_processor(streams.stream_content(input_content)).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         [
             content_api.ProcessorPart.from_function_call(
@@ -403,7 +403,7 @@ class FunctionCallingAsyncTest(
     ).gather()
     # The function calling is similar to the sync version except that the model
     # waits for the function to finish before yielding the next part.
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         model_output_0
         + [
@@ -484,7 +484,7 @@ class FunctionCallingAsyncTest(
             input_content, with_delay_sec=delay_sec, delay_end=True
         )
     ).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         model_output_0
         + [
@@ -586,7 +586,7 @@ class FunctionCallingAsyncTest(
             input_content, with_delay_sec=delay_sec * 2, delay_end=True
         )
     ).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         model_output_0
         + [
@@ -666,7 +666,7 @@ class FunctionCallingAsyncTest(
         max_function_calls=1,
     )
     output = await fc_processor(streams.stream_content(input_content)).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         content_api.ProcessorContent([
             model_output_0,
@@ -728,7 +728,7 @@ class FunctionCallingAsyncTest(
             input_content, with_delay_sec=delay_sec, delay_end=True
         )
     ).gather()
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         content_api.ProcessorContent([
             model_output_0,
@@ -805,7 +805,7 @@ class FunctionCallingAsyncTest(
     )
     output = await fc_processor(input_generator()).gather()
 
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         content_api.ProcessorContent([
             model_output_0,
@@ -902,7 +902,7 @@ class FunctionCallingAsyncTest(
         if not function_ids
         else []
     )
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         content_api.ProcessorContent([
             model_output_0,
@@ -1000,7 +1000,7 @@ class FunctionCallingAsyncTest(
         " running with args {'sleep_seconds': 3} and id: sleep_async_0\n"
     )
 
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         content_api.ProcessorContent([
             model_output_0,

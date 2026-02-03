@@ -83,7 +83,7 @@ class RealTimePromptTest(unittest.IsolatedAsyncioTestCase):
         for c in await streams.gather_stream(prompt_content)
     ]
     # First prompt gets the full history.
-    self.assertEqual(prompt_text, ['0', 'img', '1', 'img'])
+    self.assertSequenceEqual(prompt_text, ['0', 'img', '1', 'img'])
     await asyncio.sleep(0.08)
     await rolling_prompt.finalize_pending()
     prompt_content = rolling_prompt.pending()
@@ -95,7 +95,7 @@ class RealTimePromptTest(unittest.IsolatedAsyncioTestCase):
         for c in await streams.gather_stream(prompt_content)
     ]
     # Second prompt gets the cut history + what was fed now.
-    self.assertEqual(prompt_text, ['1', 'img', '0', '1'])
+    self.assertSequenceEqual(prompt_text, ['1', 'img', '0', '1'])
 
 
 class WindowProcessorTest(unittest.IsolatedAsyncioTestCase):

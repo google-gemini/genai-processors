@@ -154,7 +154,7 @@ class RealTimeConversationModelTest(unittest.IsolatedAsyncioTestCase):
         streams.dequeue(self.output_queue)
     )
     actual = content_api.as_text(output_parts, substream_name='')
-    self.assertEqual(actual, 'model(helloworld)')
+    self.assertSequenceEqual(actual, 'model(helloworld)')
 
   async def test_prompt_order_ok(self):
     model = realtime._RealTimeConversationModel(
@@ -177,7 +177,7 @@ class RealTimeConversationModelTest(unittest.IsolatedAsyncioTestCase):
     prompt_pending = self.rolling_prompt.pending()
     await self.rolling_prompt.finalize_pending()
     prompt_actual = await streams.gather_stream(prompt_pending)
-    self.assertEqual(
+    self.assertSequenceEqual(
         content_api.as_text(prompt_actual, substream_name=''),
         'helloworldmodel(helloworld)',
     )

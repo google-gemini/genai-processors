@@ -645,7 +645,7 @@ class ProcessorContentTest(parameterized.TestCase):
   ])
   def test_to_genai_contents(self, parts, expected_genai_contents):
     genai_contents = content_api.to_genai_contents(parts)
-    self.assertEqual(genai_contents, expected_genai_contents)
+    self.assertSequenceEqual(genai_contents, expected_genai_contents)
 
 
 T = TypeVar('T')
@@ -741,7 +741,7 @@ class ContentStreamTest(
         content_api.as_text(content_api.ProcessorContent(parts2)),
         'hello world',
     )
-    self.assertEqual(parts1, parts2)
+    self.assertSequenceEqual(parts1, parts2)
 
 
 if __name__ == '__main__':
