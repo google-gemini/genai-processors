@@ -191,11 +191,16 @@ class ProcessorPart:
   def __eq__(self, other: Any) -> bool:
     if not isinstance(other, ProcessorPart):
       return False
+
     return (
         self._part == other._part
         and self._role.lower() == other._role.lower()
         and self._substream_name.lower() == other._substream_name.lower()
-        and self._metadata == other._metadata
+        # Compare two dicts excluding 'capture_time' key.
+        # Memory-efficient version.
+        and set(['capture_time']).issuperset(
+            k for (k, v) in self._metadata.items() ^ other._metadata.items()
+        )
     )
 
   @property

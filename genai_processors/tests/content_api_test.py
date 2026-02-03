@@ -167,6 +167,20 @@ class ProcessorPartTest(parameterized.TestCase):
     part = content_api.ProcessorPart('foo')
     self.assertNotEqual(part, object())
 
+  def test_eq_ignores_capture_time(self):
+    part1 = content_api.ProcessorPart(
+        'foo', metadata={'capture_time': 1, 'a': 1}
+    )
+    part2 = content_api.ProcessorPart(
+        'foo', metadata={'capture_time': 2, 'a': 1}
+    )
+    self.assertEqual(part1, part2)
+
+    part3 = content_api.ProcessorPart(
+        'foo', metadata={'capture_time': 1, 'a': 2}
+    )
+    self.assertNotEqual(part1, part3)
+
 
 class ProcessorContentTest(parameterized.TestCase):
 
