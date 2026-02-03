@@ -884,14 +884,7 @@ class _ExecuteFunctionCall:
       )
       self._fn_state.async_fc_count += 1
     else:
-      # When the function is sync, we execute in sync. Note that the loop is
-      # async and the function is actually sent to another thread to run when
-      # the model is bidi.
-      will_continue = inspect.isasyncgenfunction(fn) or None
-
-      async for fc_part in self._add_will_continue_logic(
-          inspect.isasyncgenfunction(fn), call, self._execute_function(call, fn)
-      ):
-        await self._output_queue.put(
-            self._to_function_response(fc_part, call, will_continue)
-        )
+      # This is a sync function invoked by a non-bidi model. So we just run it
+      # synchronously.
+      async for fc_part in self._execute_function(call, fn):
+        await self._output_queue.put(self._to_function_response(fc_part, call))
