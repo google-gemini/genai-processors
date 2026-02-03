@@ -68,6 +68,8 @@ class Trace(pydantic.BaseModel, abc.ABC):
   _token: contextvars.Token[Trace | None] | None = pydantic.PrivateAttr(
       default=None
   )
+  # True if this trace is a sub-trace (not the main/root trace).
+  is_sub_trace: bool = False
 
   async def __aenter__(self) -> Trace:
     self._token = CURRENT_TRACE.set(self)
@@ -81,6 +83,22 @@ class Trace(pydantic.BaseModel, abc.ABC):
   ) -> None:
     if self._token is None:
       return
+
+    # Skip finalizing sub-traces when the task is cancelled and no output part
+    # has been produced yet. This avoids recording incomplete traces from
+    # cancelled processors that have not run yet.
+    try:
+      current_task = asyncio.current_task()
+      if (
+          self.is_sub_trace
+          and current_task is not None
+          and current_task.cancelled()
+      ):
+        self.cancel()
+        CURRENT_TRACE.reset(self._token)
+        return
+    except RuntimeError:
+      pass
 
     self.end_time = datetime.datetime.now()
     CURRENT_TRACE.reset(self._token)
@@ -116,6 +134,20 @@ class Trace(pydantic.BaseModel, abc.ABC):
     raise NotImplementedError()
 
   @abc.abstractmethod
+  def cancel(self) -> None:
+    """Cancels the trace.
+
+    This method is called when the task producing the trace is cancelled. The
+    implementation should remove all unnecessary data from the trace to avoid
+    recording incomplete traces from cancelled processors that have not produced
+    anything yet.
+
+    If the processor has output some parts, it is still considered successful
+    and the trace should be stored, up to the cancellation point.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
   async def _finalize(self) -> None:
     """Finalize the trace.
 
@@ -133,12 +165,64 @@ CURRENT_TRACE: contextvars.ContextVar[Trace | None] = contextvars.ContextVar(
 )
 
 
+# Modules that should be excluded from tracing.
+# Processors from these modules are internal/framework processors that add noise
+# to traces. Sub-processors of these processors will still be traced.
+# Use add_excluded_trace_module() to register additional modules.
+EXCLUDED_TRACE_MODULES: set[str] = {
+    'genai_processors.debug',
+    'genai_processors.map_processor',
+}
+
+
+def add_excluded_trace_module(module_name: str) -> None:
+  """Adds a module to the list of excluded trace modules.
+
+  Processors from excluded modules will not create their own traces, but
+  sub-processors they call will still be traced.
+
+  Args:
+    module_name: The module name to exclude (e.g. 'genai_processors.debug').
+  """
+  EXCLUDED_TRACE_MODULES.add(module_name)
+
+
+def is_module_excluded(module_name: str | None) -> bool:
+  """Returns True if the module should be excluded from tracing."""
+  if module_name is None:
+    return False
+  return any(
+      module_name == excluded or module_name.startswith(excluded + '.')
+      for excluded in EXCLUDED_TRACE_MODULES
+  )
+
+
 def create_sub_trace(
     processor_name: str,
     parent_trace: Trace | None,
+    *,
+    module_name: str | None = None,
 ) -> Trace | None:
-  """Context manager for tracing a processor call."""
+  """Context manager for tracing a processor call.
+
+  Args:
+    processor_name: The name/key_prefix of the processor.
+    parent_trace: The parent trace (from the calling processor's stream).
+    module_name: The module name of the processor. If provided, processors from
+      excluded modules will be skipped.
+
+  Returns:
+    A new trace if tracing is enabled, or the parent trace if the processor
+    should be skipped. Returns None if no tracing is in scope.
+  """
   # NOTE: This interface will change when we add nested call tracking.
+
+  # Skip tracing for excluded modules. Return None so the processor uses
+  # nullcontext(). Sub-processors will still be traced because they get the
+  # parent trace from CURRENT_TRACE.get() context variable.
+  if is_module_excluded(module_name):
+    return None
+
   relation = 'chain' if parent_trace else 'call'
   parent_trace = parent_trace or CURRENT_TRACE.get()
 
@@ -147,4 +231,8 @@ def create_sub_trace(
     return None
   else:
     # Parent is not None and corresponds to an existing trace: adds a new trace.
-    return parent_trace.add_sub_trace(name=processor_name, relation=relation)
+    new_trace = parent_trace.add_sub_trace(
+        name=processor_name, relation=relation
+    )
+    new_trace.is_sub_trace = True
+    return new_trace
