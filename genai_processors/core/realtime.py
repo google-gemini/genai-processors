@@ -175,7 +175,9 @@ class LiveProcessor(Processor):
           await conversation_model.turn()
       elif content_api.is_end_of_turn(part):
         # A conversation turn is requested outside of audio/speech signals.
-        part.metadata.pop('turn_complete', None)
+        part.metadata = {
+            k: v for k, v in part.metadata.items() if k != 'turn_complete'
+        }
         conversation_model.user_input(part)
         await conversation_model.cancel()
         await conversation_model.turn()

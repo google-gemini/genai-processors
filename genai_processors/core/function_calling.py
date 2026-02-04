@@ -305,15 +305,14 @@ class _FunctionCallState:
   """State of the function calling processor."""
 
   # Number of async function calls that are currently running.
-  async_fc_count: int = 0
+  running_fc_count: int = 0
+
   # Whether the model is currently outputting.
   model_outputting: bool = True
   # Number of tool calls that have been made.
   fn_call_count: int = 0
   # Maximum number of tool calls to make.
   fn_call_count_limit: float = math.inf
-  # Whether the model has output a function call that has not been run yet.
-  has_new_fn_calls: bool = False
   # Whether a model call should be scheduled after an async function sent back
   # a part to the model prompt.
   schedule_model_call: bool = False
@@ -473,8 +472,10 @@ class FunctionCalling(processor.Processor):
 
       try:
         async for part in model(preprocess()):
-          if content_api.is_end_of_turn(part):
-            state.model_outputting = False
+          # Models don't always set the role and content_api.END_OF_TURN is
+          # explicitly set to role='user'.
+          if not part.role or content_api.is_end_of_turn(part):
+            part.role = 'model'
           if part.function_call:
             await execute_function_call(part)
           else:
@@ -485,65 +486,61 @@ class FunctionCalling(processor.Processor):
     pipeline_task = processor.create_task(processor_pipeline())
 
     async for part in streams.dequeue(output_queue):
-      if not content_api.is_end_of_turn(part):
+      if content_api.is_end_of_turn(part) and part.role == 'model':
+        state.model_outputting = False
+        # EoT issued by the model. We need to check if we stop or if there is
+        # a function call to schedule.
+        if not self._is_bidi_model:
+          if state.schedule_model_call:
+            await input_queue.put(content_api.END_OF_TURN)
+            state.schedule_model_call = False
+          elif state.running_fc_count == 0:
+            # Stop when there are no more function calls to execute and no more
+            # async function calls running, or when the max function calls is
+            # reached.
+            await input_queue.put(None)
+            await output_queue.put(None)
+        elif state.schedule_model_call and not state.model_outputting:
+          input_queue.put_nowait(content_api.END_OF_TURN)
+          state.schedule_model_call = False
+      else:
         # Reinject output parts into the model when it's not bidi.
-        # EoTs are handled separately below.
         if not context_lib.is_reserved_substream(part.substream_name) and (
             not self._is_bidi_model or part.function_response
         ):
           await input_queue.put(part)
         yield part
 
-        if (
-            part.function_response
-            and part.function_response.scheduling
-            != genai_types.FunctionResponseScheduling.SILENT
-        ):
-          # Only for sync function calls.
-          state.has_new_fn_calls = True
+        if part.function_call:
+          state.running_fc_count += 1
 
-      elif part.substream_name == FUNCTION_CALL_SUBSTREAM_NAME:
-        # EoT is requested by function calls. We need to schedule the next
-        # function call or stop the loop.
-        match part.get_metadata(
-            _SCHEDULING_METADATA_KEY,
-            genai_types.FunctionResponseScheduling.WHEN_IDLE,
-        ):
-          case genai_types.FunctionResponseScheduling.SILENT:
-            pass
-          case genai_types.FunctionResponseScheduling.WHEN_IDLE:
-            if state.model_outputting:
-              state.schedule_model_call = True
-            else:
+        if part.function_response:
+          if not part.function_response.will_continue:
+            state.running_fc_count -= 1
+
+          if part.function_response.scheduling:
+            scheduling = part.function_response.scheduling
+          else:
+            scheduling = part.get_metadata(
+                _SCHEDULING_METADATA_KEY,
+                genai_types.FunctionResponseScheduling.WHEN_IDLE,
+            )
+          match scheduling:
+            case genai_types.FunctionResponseScheduling.SILENT:
+              pass
+            case genai_types.FunctionResponseScheduling.WHEN_IDLE:
+              if state.model_outputting:
+                state.schedule_model_call = True
+              else:
+                await input_queue.put(content_api.END_OF_TURN)
+            case _:
               await input_queue.put(content_api.END_OF_TURN)
-              state.has_new_fn_calls = False
-          case _:
-            await input_queue.put(content_api.END_OF_TURN)
-            state.has_new_fn_calls = False
-        # If we reached max count, but we should allow the model to react to
-        # this response, so we make one extra iteration and stop after it.
-        if state.fn_call_count >= state.fn_call_count_limit + 1:
-          await input_queue.put(None)
-          await output_queue.put(None)
-          pipeline_task.cancel()
-      else:
-        # EoT issued by the model. We need to check if we stop or if there is
-        # a function call to schedule.
-        if not self._is_bidi_model:
-          if not state.has_new_fn_calls and state.async_fc_count == 0:
-            # Stop when there are no more function calls to execute and no more
-            # async function calls running, or when the max function calls is
-            # reached.
+          # If we reached max count, we should allow the model to react to
+          # this response, so we make one extra iteration and stop after it.
+          if state.fn_call_count >= state.fn_call_count_limit + 1:
             await input_queue.put(None)
             await output_queue.put(None)
-          elif state.has_new_fn_calls or state.schedule_model_call:
-            await input_queue.put(content_api.END_OF_TURN)
-            state.has_new_fn_calls = False
-            state.schedule_model_call = False
-        elif state.schedule_model_call and not state.model_outputting:
-          input_queue.put_nowait(content_api.END_OF_TURN)
-          state.has_new_fn_calls = False
-          state.schedule_model_call = False
+            pipeline_task.cancel()
 
 
 async def cancel_fc(function_ids: list[str]) -> content_api.ProcessorPart:
@@ -738,32 +735,6 @@ class _ExecuteFunctionCall:
           role='user',
       )
 
-  async def _add_will_continue_logic(
-      self,
-      is_async_gen: bool,
-      call: genai_types.FunctionCall,
-      content: AsyncIterable[Any],
-  ) -> AsyncIterable[Any]:
-    """Wraps a loop with a final `will_continue=False` logic."""
-    async for fc_part in content:
-      yield self._to_function_response(
-          fc_part, call, will_continue=is_async_gen or None
-      )
-
-    # Return a silent function response to indicate to the model that the
-    # function call is done (see will_continue). Only applicable to async
-    # generator functions.
-    if is_async_gen:
-      yield content_api.ProcessorPart.from_function_response(
-          name=call.name,
-          function_call_id=call.id,
-          response='',
-          role='user',
-          substream_name=self._substream_name,
-          scheduling=genai_types.FunctionResponseScheduling.SILENT,
-          will_continue=False,
-      )
-
   async def _put_function_response_to_output_queue(
       self, call: genai_types.FunctionCall, fn: Callable[..., Any]
   ) -> None:
@@ -778,22 +749,28 @@ class _ExecuteFunctionCall:
       call: The function call to execute.
       fn: The function to execute.
     """
-    is_async_gen = inspect.isasyncgenfunction(fn) or None
+    is_async_gen = inspect.isasyncgenfunction(fn)
 
-    async for fc_part in self._add_will_continue_logic(
-        is_async_gen, call, self._execute_function(call, fn)
-    ):
-      await self._output_queue.put(fc_part)
-      # return an EoT to request a model call in function calling loop.
-      eot = content_api.ProcessorPart.end_of_turn(
-          substream_name=FUNCTION_CALL_SUBSTREAM_NAME,
-          metadata={
-              _SCHEDULING_METADATA_KEY: fc_part.function_response.scheduling,
-          },
+    async for fc_part in self._execute_function(call, fn):
+      await self._output_queue.put(
+          self._to_function_response(
+              fc_part, call, will_continue=is_async_gen or None
+          )
       )
-      await self._output_queue.put(eot)
 
-    self._fn_state.async_fc_count -= 1
+    # Send a function response to indicate that the function call is
+    # done (will_continue=False). Only applicable to async generator functions.
+    if is_async_gen:
+      await self._output_queue.put(
+          content_api.ProcessorPart.from_function_response(
+              name=call.name,
+              function_call_id=call.id,
+              response='',
+              role='user',
+              substream_name=self._substream_name,
+              will_continue=False,
+          )
+      )
 
   async def _execute_function(
       self,
@@ -879,7 +856,6 @@ class _ExecuteFunctionCall:
           call,
           fn,
       )
-      self._fn_state.async_fc_count += 1
     else:
       # This is a sync function invoked by a non-bidi model. So we just run it
       # synchronously.

@@ -121,9 +121,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         )
     ]
-    model_output_1 = [
-        content_api.ProcessorPart('Weather in London is sunny', role='model')
-    ]
+    model_output_1 = [content_api.ProcessorPart('Sun will shine', role='model')]
 
     generate_processor = MockGenerateProcessor([
         model_output_0,
@@ -328,7 +326,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
                 is_error=True,
             ),
-            content_api.ProcessorPart('The function failed'),
+            content_api.ProcessorPart('The function failed', role='model'),
         ],
     )
 
@@ -567,12 +565,19 @@ class FunctionCallingAsyncTest(
             role='model',
         )
     ]
+    model_output_3 = [
+        content_api.ProcessorPart(
+            'stream ended',
+            role='model',
+        )
+    ]
 
     generate_processor, delay_sec = create_model(
         [
             model_output_0,
             model_output_1,
             model_output_2,
+            model_output_3,
         ],
         is_bidi,
     )
@@ -628,11 +633,11 @@ class FunctionCallingAsyncTest(
                 response='',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
-                scheduling='SILENT',
                 will_continue=False,
             )
         ]
-        + model_output_2,
+        + model_output_2
+        + model_output_3,
     )
 
   async def test_async_max_tool_calls(self):
