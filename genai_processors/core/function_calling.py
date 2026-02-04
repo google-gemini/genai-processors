@@ -809,11 +809,8 @@ class _ExecuteFunctionCall:
       if inspect.isasyncgenfunction(fn):
         async for part_type in fn(**converted_args):
           yield part_type
-        return
       elif inspect.iscoroutinefunction(fn):
-        part_type = await fn(**converted_args)
-        yield part_type
-        return
+        yield await fn(**converted_args)
       else:
         yield await asyncio.to_thread(fn, **converted_args)
     except Exception as e:  # pylint: disable=broad-except
