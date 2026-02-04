@@ -15,6 +15,7 @@ from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
 from genai_processors import streams
+from genai_processors.core import function_calling
 from genai_processors.core import realtime
 from genai_processors.dev import trace_file
 from google.genai import types as genai_types
@@ -673,6 +674,149 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
           name,
           f'Trace name "{name}" should not have internal class prefix',
       )
+
+  async def test_realtime_async_function_with_image(self):
+    """Test that images returned by async functions are traced.
+
+    This test verifies that when using FunctionCalling with an async function
+    that returns images, the function calls, function responses with images,
+    and image parts are all correctly captured in the trace.
+    """
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    # Create an image part that will be returned by the async function
+    test_image = create_image_part()
+
+    # Define an async function that generates an image
+    async def generate_image(prompt: str) -> content_api.ProcessorPart:
+      """Generates an image based on the prompt."""
+      await asyncio.sleep(0.01)  # Simulate async work
+      del prompt  # Unused in test
+      return test_image
+
+    # Mock model that issues a function call and then responds after
+    call_count = 0
+
+    @processor.processor_function
+    async def mock_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      """Mock model that issues a generate_image function call."""
+      nonlocal call_count
+      async for part in content:
+        del part  # consume input
+      call_count += 1
+      if call_count == 1:
+        # First call: issue a function call
+        yield content_api.ProcessorPart.from_function_call(
+            name='generate_image',
+            args={'prompt': 'A cat'},
+            role='model',
+        )
+      else:
+        # Second call (after function response): respond with text
+        yield content_api.ProcessorPart(
+            'Here is the generated image.',
+            role='model',
+        )
+
+    # Wrap model with FunctionCalling
+    fc_processor = function_calling.FunctionCalling(
+        model=realtime.LiveProcessor(mock_model),
+        fns=[generate_image],
+        is_bidi_model=True,
+    )
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Async Function Image Test'
+    ):
+      input_parts = [
+          content_api.ProcessorPart('Generate an image of a cat', role='user'),
+          content_api.END_OF_TURN,
+      ]
+      input_stream = streams.stream_content(
+          input_parts, with_delay_sec=0.1, delay_end=True
+      )
+      _ = await streams.gather_stream(fc_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Async Function Image Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    # Verify FunctionCalling is in trace
+    self.assertTrue(
+        any('FunctionCalling' in name for name in all_names),
+        f'FunctionCalling should be in trace, found: {all_names}',
+    )
+    # Verify the image is captured in the trace's parts_store
+    self.assertIsNotNone(root_trace.parts_store)
+    assert root_trace.parts_store is not None  # Type narrowing for pytype
+
+    image_found = False
+    function_call_found = False
+    function_response_found = False
+
+    # Recursively gather all events from trace and its subtraces
+    def check_events(trace_obj):
+      nonlocal image_found, function_call_found, function_response_found
+      for event in trace_obj.events:
+        if event.sub_trace:
+          check_events(event.sub_trace)
+          continue
+        if not event.part_hash:
+          continue
+        part_dict = root_trace.parts_store.get(event.part_hash, {})
+        part = part_dict.get('part', {})
+        mimetype = part_dict.get('mimetype', '')
+
+        # Check for image parts
+        inline_data = part.get('inline_data', {})
+        if mimetype.startswith('image/'):
+          image_found = True
+        elif inline_data.get('mime_type', '').startswith('image/'):
+          image_found = True
+
+        # Check for function call
+        if part.get('function_call', {}).get('name') == 'generate_image':
+          function_call_found = True
+
+        # Check for function response
+        func_resp = part.get('function_response', {})
+        if func_resp.get('name') == 'generate_image':
+          function_response_found = True
+          # Check if function response contains image data in parts
+          # Parts can be directly in func_resp['parts'] or in
+          # func_resp['response']['parts']
+          resp_parts = func_resp.get('parts', []) or func_resp.get(
+              'response', {}
+          ).get('parts', [])
+          for resp_part in resp_parts:
+            inline_blob = resp_part.get('inline_data', {})
+            if inline_blob.get('mime_type', '').startswith('image/'):
+              image_found = True
+
+    check_events(root_trace)
+
+    self.assertTrue(
+        function_call_found,
+        'Function call should be in trace events',
+    )
+    self.assertTrue(
+        function_response_found,
+        'Function response should be in trace events',
+    )
+    self.assertTrue(
+        image_found,
+        'Image returned by async function should be in trace events',
+    )
 
 
 if __name__ == '__main__':
