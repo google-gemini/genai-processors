@@ -15,6 +15,7 @@
 """Syntax sugar for working with Processor `Content` and `Part` wrappers."""
 
 from collections.abc import Callable, Iterable, Iterator
+import copy
 import dataclasses
 import functools
 import io
@@ -624,7 +625,8 @@ class ProcessorPart:
         non-JSON-serializable Python objects, i.e. bytes are left as is.
 
     Returns:
-      A dictionary representing the ProcessorPart.
+      A dictionary representing the ProcessorPart. It can be changed in place
+      without affecting the original ProcessorPart instance.
 
       It is expected to have the following keys:
         * 'part' (dict): A dictionary representing the underlying
@@ -648,8 +650,26 @@ class ProcessorPart:
         'role': self.role,
         'substream_name': self.substream_name,
         'mimetype': self.mimetype,
-        'metadata': self.metadata,
+        # Copy metadata to avoid caller modifying it in place.
+        'metadata': copy.deepcopy(self.metadata),
     }
+
+  def copy(self) -> 'ProcessorPart':
+    """Returns a copy of the ProcessorPart.
+
+    The internal part is not deep-copied, but the metadata is.
+
+    Returns:
+      A copy of the ProcessorPart.
+    """
+    return ProcessorPart(
+        self.part,
+        role=self.role,
+        substream_name=self.substream_name,
+        mimetype=self.mimetype,
+        metadata=copy.deepcopy(self.metadata),
+    )
+
 
 T = TypeVar('T')
 

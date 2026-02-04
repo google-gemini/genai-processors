@@ -259,6 +259,9 @@ class SyncFileTrace(trace.Trace):
       part = await asyncio.to_thread(_resize_image_part, part, self.image_size)
 
     part_dict = part.to_dict(mode='python')
+    # Remove capture_time field that is added by default by the GenAI Processor
+    # library.
+    part_dict['metadata'].pop('capture_time', None)
     part_hash = _compute_part_hash(part_dict)
 
     # Use root's store for global deduplication across all sub-traces
@@ -277,7 +280,6 @@ class SyncFileTrace(trace.Trace):
   @override
   async def add_input(self, part: content_api.ProcessorPart) -> None:
     """Adds an input part to the trace events."""
-
     await self._queue.put((part, True))
 
   @override
