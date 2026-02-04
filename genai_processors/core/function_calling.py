@@ -749,34 +749,16 @@ class _ExecuteFunctionCall:
       call: The function call to execute.
       fn: The function to execute.
     """
-    is_async_gen = inspect.isasyncgenfunction(fn)
-
-    async for fc_part in self._execute_function(call, fn):
+    async for fc_part, will_continue in self._execute_function(call, fn):
       await self._output_queue.put(
-          self._to_function_response(
-              fc_part, call, will_continue=is_async_gen or None
-          )
-      )
-
-    # Send a function response to indicate that the function call is
-    # done (will_continue=False). Only applicable to async generator functions.
-    if is_async_gen:
-      await self._output_queue.put(
-          content_api.ProcessorPart.from_function_response(
-              name=call.name,
-              function_call_id=call.id,
-              response='',
-              role='user',
-              substream_name=self._substream_name,
-              will_continue=False,
-          )
+          self._to_function_response(fc_part, call, will_continue=will_continue)
       )
 
   async def _execute_function(
       self,
       call: genai_types.FunctionCall,
       fn: Callable[..., Any],
-  ) -> AsyncIterable[Any]:
+  ) -> AsyncIterable[tuple[Any, bool | None]]:
     """Runs the function into an async Task."""
     args = _extra_utils.convert_number_values_for_dict_function_call_args(
         call.args
@@ -784,12 +766,29 @@ class _ExecuteFunctionCall:
     converted_args = _extra_utils.convert_argument_from_function(args, fn)
     try:
       if inspect.isasyncgenfunction(fn):
+        will_not_continue_sent = False
         async for part_type in fn(**converted_args):
-          yield part_type
+          if (
+              isinstance(part_type, content_api.ProcessorPart)
+              and part_type.function_response
+              and part_type.function_response.will_continue is False  # pylint: disable=g-bool-id-comparison
+          ):
+            if will_not_continue_sent:
+              raise RuntimeError(
+                  'Got function response after will_continue=false has been'
+                  ' sent.'
+              )
+            will_not_continue_sent = True
+          yield part_type, True
+
+        # Send a function response to indicate that the function call is
+        # done (will_continue=False).
+        if not will_not_continue_sent:
+          yield '', None
       elif inspect.iscoroutinefunction(fn):
-        yield await fn(**converted_args)
+        yield await fn(**converted_args), None
       else:
-        yield await asyncio.to_thread(fn, **converted_args)
+        yield await asyncio.to_thread(fn, **converted_args), None
     except Exception as e:  # pylint: disable=broad-except
       yield content_api.ProcessorPart.from_function_response(
           name=call.name,
@@ -799,7 +798,7 @@ class _ExecuteFunctionCall:
           role='user',
           substream_name=self._substream_name,
           is_error=True,
-      )
+      ), None
 
   async def __call__(self, part: content_api.ProcessorPart) -> None:
     """Executes a function call and returns the result."""
@@ -859,5 +858,9 @@ class _ExecuteFunctionCall:
     else:
       # This is a sync function invoked by a non-bidi model. So we just run it
       # synchronously.
-      async for fc_part in self._execute_function(call, fn):
-        await self._output_queue.put(self._to_function_response(fc_part, call))
+      async for fc_part, will_continue in self._execute_function(call, fn):
+        await self._output_queue.put(
+            self._to_function_response(
+                fc_part, call, will_continue=will_continue
+            )
+        )

@@ -633,7 +633,6 @@ class FunctionCallingAsyncTest(
                 response='',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
-                will_continue=False,
             )
         ]
         + model_output_2
