@@ -215,7 +215,7 @@ class AIStudioConnection:
         part.substream_name = 'realtime'
         part.role = 'user'
         yield part
-      if content_api.is_text(part.mimetype):
+      elif content_api.is_text(part.mimetype):
         part.role = 'user'
         part.metadata['turn_complete'] = True
         yield part

@@ -30,17 +30,31 @@
         color: #1a1a1a;
         font-size: 12px;
         background: #fff;
+        overflow: hidden;
       }}
       #left-panel {{
         width: 45%;
+        min-width: 200px;
         overflow: auto;
-        border-right: 1px solid #ccc;
+        border-right: none;
         padding: 6px;
         box-sizing: border-box;
         background-color: #fafafa;
+        flex-shrink: 0;
+      }}
+      #resizer {{
+        width: 6px;
+        background: #e0e0e0;
+        cursor: col-resize;
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }}
+      #resizer:hover, #resizer.dragging {{
+        background: #0066cc;
       }}
       #right-panel {{
-        width: 55%;
+        flex: 1;
+        min-width: 200px;
         overflow: auto;
         padding: 12px;
         box-sizing: border-box;
@@ -117,9 +131,15 @@
         list-style-type: none;
         padding-left: 0;
         margin: 0;
+        display: flex;
+        flex-direction: column;
       }}
       li {{
         padding: 1px 0;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        overflow: hidden;
       }}
       li:last-child {{
         border-bottom: none;
@@ -138,14 +158,25 @@
       }}
       .event-item-in {{
         align-self: flex-start;
-        background-color: #f0f7ff;
-        border-left: 3px solid #0066cc;
+        background-color: #e8f4ff;
+        border-left: 4px solid #0066cc;
+        width: 94%;
       }}
       .event-item-out {{
         align-self: flex-end;
-        background-color: #f0fff0;
-        border-right: 3px solid #228b22;
+        background-color: #e8ffe8;
+        border-right: 4px solid #228b22;
         border-left: none;
+        width: 94%;
+      }}
+      .event-item-out .event-header {{
+        flex-direction: row-reverse;
+      }}
+      .event-item-out .event-content {{
+        text-align: left;
+      }}
+      .event-item-out .event-footer {{
+        flex-direction: row-reverse;
       }}
       .event-item-sub {{
         align-self: flex-start;
@@ -244,14 +275,32 @@
       }}
       .content-block-input {{
         align-self: flex-start;
-        background-color: #f0f7ff;
-        border-left: 3px solid #0066cc;
+        background-color: #e8f4ff;
+        border-left: 4px solid #0066cc;
+        width: 94%;
       }}
       .content-block-output {{
         align-self: flex-end;
-        background-color: #f0fff0;
-        border-right: 3px solid #228b22;
+        background-color: #e8ffe8;
+        border-right: 4px solid #228b22;
         border-left: none;
+        width: 94%;
+      }}
+      .content-block-output .block-header {{
+        flex-direction: row-reverse;
+      }}
+      .content-block-output .block-time {{
+        margin-left: 0;
+        margin-right: auto;
+      }}
+      .content-block-output .block-content {{
+        text-align: left;
+      }}
+      .content-block-output .block-content pre {{
+        text-align: left;
+      }}
+      .content-block-output .block-content img {{
+        margin-left: 0;
       }}
       .content-block.audio-playing {{
         background-color: #fff8f0;
@@ -531,6 +580,7 @@
   </head>
   <body>
     <div id="left-panel" tabindex="0"></div>
+    <div id="resizer"></div>
     <div id="right-panel"></div>
     <div id="parts-cache" style="display: none;"></div>
     <script>
@@ -579,7 +629,7 @@
           }} else if (mimetype.startsWith('audio/')) {{
               const audio = document.createElement('audio');
               audio.controls = true;
-              audio.src = `data:${{mimetype}};base64,${{data}}`;
+              audio.src = getAudioDataUrl(mimetype, data);
               element = audio;
           }}
 
@@ -604,6 +654,78 @@
         }}
 
         return btoa(binary);
+      }}
+
+      // Convert audio/l16 (raw 16-bit PCM) to WAV format data URL
+      // audio/l16 is typically 24000Hz, mono, 16-bit signed little-endian
+      function l16ToWavDataUrl(base64Data, sampleRate = 24000, numChannels = 1) {{
+          const binaryString = atob(base64Data);
+          const len = binaryString.length;
+          const pcmData = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {{
+              pcmData[i] = binaryString.charCodeAt(i);
+          }}
+
+          const bitsPerSample = 16;
+          const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+          const blockAlign = numChannels * (bitsPerSample / 8);
+          const dataSize = pcmData.length;
+          const headerSize = 44;
+          const fileSize = headerSize + dataSize;
+
+          const buffer = new ArrayBuffer(fileSize);
+          const view = new DataView(buffer);
+
+          // RIFF header
+          view.setUint8(0, 'R'.charCodeAt(0));
+          view.setUint8(1, 'I'.charCodeAt(0));
+          view.setUint8(2, 'F'.charCodeAt(0));
+          view.setUint8(3, 'F'.charCodeAt(0));
+          view.setUint32(4, fileSize - 8, true);
+          view.setUint8(8, 'W'.charCodeAt(0));
+          view.setUint8(9, 'A'.charCodeAt(0));
+          view.setUint8(10, 'V'.charCodeAt(0));
+          view.setUint8(11, 'E'.charCodeAt(0));
+
+          // fmt subchunk
+          view.setUint8(12, 'f'.charCodeAt(0));
+          view.setUint8(13, 'm'.charCodeAt(0));
+          view.setUint8(14, 't'.charCodeAt(0));
+          view.setUint8(15, ' '.charCodeAt(0));
+          view.setUint32(16, 16, true); // subchunk1 size
+          view.setUint16(20, 1, true); // audio format (PCM)
+          view.setUint16(22, numChannels, true);
+          view.setUint32(24, sampleRate, true);
+          view.setUint32(28, byteRate, true);
+          view.setUint16(32, blockAlign, true);
+          view.setUint16(34, bitsPerSample, true);
+
+          // data subchunk
+          view.setUint8(36, 'd'.charCodeAt(0));
+          view.setUint8(37, 'a'.charCodeAt(0));
+          view.setUint8(38, 't'.charCodeAt(0));
+          view.setUint8(39, 'a'.charCodeAt(0));
+          view.setUint32(40, dataSize, true);
+
+          // Copy PCM data
+          const wavBytes = new Uint8Array(buffer);
+          wavBytes.set(pcmData, headerSize);
+
+          return `data:audio/wav;base64,${{bytesToBase64(wavBytes)}}`;
+      }}
+
+      // Get audio data URL, converting l16 to wav if needed
+      function getAudioDataUrl(mimetype, data) {{
+          if (mimetype === 'audio/l16' || mimetype.startsWith('audio/l16;')) {{
+              // Parse sample rate from mime type if present (e.g., "audio/l16;rate=24000")
+              let sampleRate = 24000;
+              const rateMatch = mimetype.match(/rate=(\d+)/);
+              if (rateMatch) {{
+                  sampleRate = parseInt(rateMatch[1], 10);
+              }}
+              return l16ToWavDataUrl(data, sampleRate);
+          }}
+          return `data:${{mimetype}};base64,${{data}}`;
       }}
 
       function getTimeDeltaMs(start, current) {{
@@ -727,7 +849,7 @@
                           }} else if (frMime.startsWith('audio/')) {{
                               const audio = document.createElement('audio');
                               audio.controls = true;
-                              audio.src = `data:${{frMime}};base64,${{frData}}`;
+                              audio.src = getAudioDataUrl(frMime, frData);
                               div.appendChild(audio);
                           }} else {{
                               const media_info = document.createElement('div');
@@ -806,7 +928,7 @@
               }} else {{
                   const audio = document.createElement('audio');
                   audio.controls = true;
-                  audio.src = `data:${{mimetype}};base64,${{data}}`;
+                  audio.src = getAudioDataUrl(mimetype, data);
                   div.appendChild(audio);
               }}
           }} else if (data) {{
@@ -911,7 +1033,7 @@
             }} else if (mimeType.startsWith('audio/')) {{
                 const audio = document.createElement('audio');
                 audio.controls = true;
-                audio.src = `data:${{mimeType}};base64,${{data}}`;
+                audio.src = getAudioDataUrl(mimeType, data);
                 audio.className = 'audio-small';
                 line1.appendChild(audio);
             }} else if (mimeType.startsWith('text/')) {{
@@ -1077,13 +1199,10 @@
                           content.innerHTML += ` <span class="file-mime">${{fileMime}}</span>`;
                       }}
                       details.appendChild(content);
-                  }} else if (mimeType && mimeType.startsWith('image/') && event.part_hash !== undefined) {{
+                  }} else if (mimeType && mimeType.startsWith('image/')) {{
                       const content = document.createElement('div');
                       content.className = 'event-content';
-                      const cachedImg = getCachedPartContent(event.part_hash, 'thumb');
-                      if (cachedImg) {{
-                          content.appendChild(cachedImg);
-                      }}
+                      content.appendChild(createSpan(`🖼️ Image`, ''));
                       details.appendChild(content);
                   }} else if (mimeType && mimeType.startsWith('audio/')) {{
                       const content = document.createElement('div');
@@ -1282,7 +1401,7 @@
               }}
 
               const combinedData = block.audioData.join('');
-              const audio = new Audio(`data:${{block.audioMimeType || 'audio/wav'}};base64,${{combinedData}}`);
+              const audio = new Audio(getAudioDataUrl(block.audioMimeType || 'audio/wav', combinedData));
               currentAudio = audio;
 
               audio.onended = () => {{
@@ -1326,7 +1445,7 @@
               }}
 
               const combinedData = block.audioData.join('');
-              const audio = new Audio(`data:${{block.audioMimeType || 'audio/wav'}};base64,${{combinedData}}`);
+              const audio = new Audio(getAudioDataUrl(block.audioMimeType || 'audio/wav', combinedData));
               currentAudio = audio;
 
               audio.onended = () => {{
@@ -1466,7 +1585,7 @@
                               }} else if (frMime.startsWith('audio/')) {{
                                   const audio = document.createElement('audio');
                                   audio.controls = true;
-                                  audio.src = `data:${{frMime}};base64,${{frData}}`;
+                                  audio.src = getAudioDataUrl(frMime, frData);
                                   frDiv.appendChild(audio);
                               }} else {{
                                   const mediaInfo = document.createElement('div');
@@ -1812,15 +1931,48 @@
               }}
           }});
 
-          const firstLi = document.querySelector('#left-panel li');
-          if(firstLi) {{
-              setFocused(firstLi);
-              firstLi.classList.add('selected');
+          // Prefer selecting the first subtrace so the right panel shows content immediately
+          let firstSubtraceLi = document.querySelector('#left-panel li.collapsible');
+          if (!firstSubtraceLi) {{
+              firstSubtraceLi = document.querySelector('#left-panel li');
+          }}
+          if(firstSubtraceLi) {{
+              setFocused(firstSubtraceLi);
+              firstSubtraceLi.classList.add('selected');
               renderSelectedEvents(eventsById);
           }}
       }}
 
       initTraceViewer();
+
+      // Resizable split panel
+      const resizer = document.getElementById('resizer');
+      const leftPanel = document.getElementById('left-panel');
+      let isResizing = false;
+
+      resizer.addEventListener('mousedown', (e) => {{
+          isResizing = true;
+          resizer.classList.add('dragging');
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+          e.preventDefault();
+      }});
+
+      document.addEventListener('mousemove', (e) => {{
+          if (!isResizing) return;
+          const containerWidth = document.body.clientWidth;
+          const newWidth = Math.max(200, Math.min(containerWidth - 206, e.clientX));
+          leftPanel.style.width = newWidth + 'px';
+      }});
+
+      document.addEventListener('mouseup', () => {{
+          if (isResizing) {{
+              isResizing = false;
+              resizer.classList.remove('dragging');
+              document.body.style.cursor = '';
+              document.body.style.userSelect = '';
+          }}
+      }});
     </script>
   </body>
 </html>

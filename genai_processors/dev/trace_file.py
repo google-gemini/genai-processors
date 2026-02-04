@@ -150,9 +150,11 @@ class SyncFileTrace(trace.Trace):
   image_size: tuple[int, int] | None = (200, 200)
 
   # Parts store for deduplication: dictionary of a part's hash to the dict
-  # representing the part. For sub-traces, this should remain empty; they use
+  # representing the part. For sub-traces, this should be None; they use the
   # root's store.
-  parts_store: dict[str, dict[str, Any]] = pydantic.Field(default_factory=dict)
+  parts_store: dict[str, dict[str, Any]] | None = pydantic.Field(
+      default_factory=dict
+  )
 
   # Reference to root trace for sharing parts_store. None means this is root.
   _root_trace: 'SyncFileTrace | None' = pydantic.PrivateAttr(default=None)
@@ -191,12 +193,16 @@ class SyncFileTrace(trace.Trace):
       A JSON string representing the trace with deduplicated parts.
     """
     try:
+      # We explicitly save parts store on the side to easily access it in the
+      # json file.
+      parts_store = self.parts_store
       trace_data = self.model_dump(
           mode='python',
           exclude_none=True,
+          exclude={'parts_store'},
       )
       output = {
-          'parts_store': self.parts_store,
+          'parts_store': parts_store,
           'trace': trace_data,
       }
       return json.dumps(
@@ -242,6 +248,7 @@ class SyncFileTrace(trace.Trace):
     for event in parent.events:
       if event.sub_trace is not None:
         event.sub_trace._root_trace = root
+        event.sub_trace.parts_store = None
         cls._init_sub_traces(event.sub_trace, root)
 
   async def _add_part(
@@ -258,7 +265,7 @@ class SyncFileTrace(trace.Trace):
     root = self._get_root()
 
     # O(1) deduplication lookup
-    if part_hash not in root.parts_store:
+    if root.parts_store is not None and part_hash not in root.parts_store:
       root.parts_store[part_hash] = part_dict
 
     event = TraceEvent(
@@ -286,6 +293,9 @@ class SyncFileTrace(trace.Trace):
     t = SyncFileTrace(name=name, image_size=self.image_size)
     # Sub-traces share the root's parts_store for global deduplication
     t._root_trace = self._get_root()
+    # Only the root trace has a parts_store.
+    t.parts_store = None
+
     event = TraceEvent(sub_trace=t, is_input=False, relation=relation)
     self.events.append(event)
     return t
