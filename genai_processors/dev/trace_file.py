@@ -29,6 +29,8 @@ pydantic_converter = pydantic.TypeAdapter(Any)
 
 _QUEUE_MAX_SIZE = 1000
 
+_IMAGE_SIZE_KEY = 'image_size'
+
 
 def _bytes_encoder(o: Any) -> Any:
   """Encodes bytes in parts based on mime type.
@@ -74,12 +76,14 @@ def _resize_image_part(
   try:
     img = part.pil_image
     img.thumbnail(image_size)
+    metadata = part.metadata.copy() if part.metadata else {}
+    metadata[_IMAGE_SIZE_KEY] = (img.width, img.height)
     part = content_api.ProcessorPart(
         img,
         role=part.role,
         substream_name=part.substream_name,
         mimetype=part.mimetype,
-        metadata=part.metadata,
+        metadata=metadata,
     )
   except Exception:  # pylint: disable=broad-except
     # If resizing fails, we just use the original part.
@@ -138,12 +142,19 @@ class SyncFileTrace(trace.Trace):
   # Where to store the trace. Required only of the root trace.
   trace_dir: str | None = None
 
+  # Maximum size of the trace in bytes.
+  # If set on the root trace, parts added after the trace size exceeds this
+  # limit will be stored with only their mimetype to save memory.
+  max_size_bytes: int | None = None
+
   # The events in the trace. Collected in memory.
   events: list[TraceEvent] = pydantic.Field(default_factory=list)
   _queue: asyncio.Queue[Tuple[content_api.ProcessorPart, bool] | None] = (
       pydantic.PrivateAttr()
   )
   _worker: asyncio.Task[None] | None = pydantic.PrivateAttr(default=None)
+  _size_limit_exceeded: bool = pydantic.PrivateAttr(default=False)
+  _current_size_bytes: int = pydantic.PrivateAttr(default=0)
 
   # The size to resize images to when storing them in the trace.
   # If None, images are not resized.
@@ -177,8 +188,7 @@ class SyncFileTrace(trace.Trace):
     """Worker task to process parts from queue and create events."""
     while item := await self._queue.get():
       part, is_input = item
-      event = await self._add_part(part, is_input=is_input)
-      self.events.append(event)
+      await self._add_part(part, is_input=is_input)
 
   def to_json_str(self) -> str:
     """Converts the trace to a JSON string with deduplicated parts.
@@ -253,9 +263,17 @@ class SyncFileTrace(trace.Trace):
 
   async def _add_part(
       self, part: content_api.ProcessorPart, is_input: bool
-  ) -> TraceEvent:
+  ) -> None:
     """Adds an input or output part to the trace events."""
-    if self.image_size and content_api.is_image(part.mimetype):
+    root = self._get_root()
+
+    if (
+        content_api.is_image(part.mimetype)
+        and self.image_size
+        and part.get_metadata(_IMAGE_SIZE_KEY, None) != self.image_size
+        and not root._size_limit_exceeded
+    ):
+      # Resize image part if it is not already the desired size.
       part = await asyncio.to_thread(_resize_image_part, part, self.image_size)
 
     part_dict = part.to_dict(mode='python')
@@ -264,18 +282,37 @@ class SyncFileTrace(trace.Trace):
     part_dict['metadata'].pop('capture_time', None)
     part_hash = _compute_part_hash(part_dict)
 
-    # Use root's store for global deduplication across all sub-traces
-    root = self._get_root()
+    if root.parts_store is None:
+      return None
 
-    # O(1) deduplication lookup
-    if root.parts_store is not None and part_hash not in root.parts_store:
+    if part_hash in root.parts_store:
+      pass
+    elif root.max_size_bytes is None:
+      root.parts_store[part_hash] = part_dict
+    elif root._size_limit_exceeded:
+      del part_dict['part']
+      root.parts_store[part_hash] = part_dict
+    else:
+      part_json = json.dumps(part_dict, default=_bytes_encoder)
+      part_size = len(part_json.encode('utf-8'))
+      if root._current_size_bytes + part_size > root.max_size_bytes:
+        logging.warning(
+            'Trace size limit (%d bytes) exceeded. Skipping further content'
+            ' for the rest of the trace (keep metadata and extra args only).',
+            root.max_size_bytes,
+        )
+        root._size_limit_exceeded = True
+        del part_dict['part']
+      else:
+        root._current_size_bytes += part_size
       root.parts_store[part_hash] = part_dict
 
-    event = TraceEvent(
-        part_hash=part_hash,
-        is_input=is_input,
+    self.events.append(
+        TraceEvent(
+            part_hash=part_hash,
+            is_input=is_input,
+        )
     )
-    return event
 
   @override
   async def add_input(self, part: content_api.ProcessorPart) -> None:

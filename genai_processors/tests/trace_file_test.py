@@ -820,6 +820,57 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         'Image returned by async function should be in trace events',
     )
 
+  async def test_trace_max_size_bytes(self):
+    trace = trace_file.SyncFileTrace(name='test_max_size', max_size_bytes=300)
+    async with trace:
+      p1 = content_api.ProcessorPart('part1')
+      p2 = content_api.ProcessorPart(
+          'part2_' + '0123456789' * 20,  # Approx 200 chars
+          role='user',
+          substream_name='test',
+          metadata={'key': 'value'},
+      )
+      p3 = content_api.ProcessorPart.from_bytes(
+          data=b'img',
+          mimetype='image/png',
+          metadata={trace_file._IMAGE_SIZE_KEY: (200, 200)},
+      )
+      await trace.add_input(p1)
+      await trace.add_input(p2)
+      await trace.add_input(p3)
+
+    self.assertEqual(len(trace.events), 3)
+    # part1 should be stored fully.
+    self.assertEqual(
+        trace.parts_store[trace.events[0].part_hash],
+        {
+            'part': {'text': 'part1'},
+            'metadata': {},
+            'mimetype': 'text/plain',
+            'role': '',
+            'substream_name': '',
+        },
+    )
+    # part 2&3 should exceed limit and be stored as metadata + extra args only.
+    self.assertEqual(
+        trace.parts_store[trace.events[1].part_hash],
+        {
+            'mimetype': 'text/plain',
+            'role': 'user',
+            'substream_name': 'test',
+            'metadata': {'key': 'value'},
+        },
+    )
+    self.assertEqual(
+        trace.parts_store[trace.events[2].part_hash],
+        {
+            'mimetype': 'image/png',
+            'role': '',
+            'substream_name': '',
+            'metadata': {trace_file._IMAGE_SIZE_KEY: (200, 200)},
+        },
+    )
+
 
 if __name__ == '__main__':
   absltest.main()
