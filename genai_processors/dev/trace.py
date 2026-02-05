@@ -22,6 +22,7 @@ import abc
 import asyncio
 import contextvars
 import datetime
+import traceback
 from typing import Any
 
 from genai_processors import content_api
@@ -65,6 +66,12 @@ class Trace(pydantic.BaseModel, abc.ABC):
   # The timestamp when the trace was ended (the processor returned).
   end_time: datetime.datetime | None = None
 
+  # Error message if the processor raised an exception.
+  error: str | None = None
+
+  # True if the trace was cancelled.
+  cancelled: bool = False
+
   _token: contextvars.Token[Trace | None] | None = pydantic.PrivateAttr(
       default=None
   )
@@ -100,6 +107,21 @@ class Trace(pydantic.BaseModel, abc.ABC):
     except RuntimeError:
       pass
 
+    # Record error if an exception occurred. This is done before finalization
+    # so the error event appears in the correct order in the trace timeline.
+    if exc_type is not None and exc_val is not None:
+      # Handle CancelledError separately as a cancellation, not an error.
+      # Only set cancelled on sub-traces to avoid marking parent traces as
+      # cancelled when the cancellation originated in a child processor.
+      if isinstance(exc_val, asyncio.CancelledError):
+        self.cancelled = True
+      else:
+        error_msg = ''.join(
+            traceback.format_exception(exc_type, exc_val, exc_tb)
+        )
+        self.error = error_msg
+        await self.add_error(error_msg)
+
     self.end_time = datetime.datetime.now()
     CURRENT_TRACE.reset(self._token)
     # Shield the finalize call to avoid cancellation. This is to ensure that
@@ -134,13 +156,25 @@ class Trace(pydantic.BaseModel, abc.ABC):
     raise NotImplementedError()
 
   @abc.abstractmethod
+  async def add_error(self, error_message: str) -> None:
+    """Adds an error event to the trace.
+
+    This is called when an exception occurs in the traced processor. The error
+    event is added before finalization so it appears in the correct order in
+    the trace timeline.
+
+    Args:
+      error_message: The error message including exception type and details.
+    """
+    raise NotImplementedError()
+
+  @abc.abstractmethod
   def cancel(self) -> None:
     """Cancels the trace.
 
     This method is called when the task producing the trace is cancelled. The
-    implementation should remove all unnecessary data from the trace to avoid
-    recording incomplete traces from cancelled processors that have not produced
-    anything yet.
+    implementation should mark the trace as cancelled and remove unnecessary
+    data from traces that have not produced any output yet.
 
     If the processor has output some parts, it is still considered successful
     and the trace should be stored, up to the cancellation point.

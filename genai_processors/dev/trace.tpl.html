@@ -139,7 +139,6 @@
         display: flex;
         flex-direction: column;
         width: 100%;
-        overflow: hidden;
       }}
       li:last-child {{
         border-bottom: none;
@@ -152,6 +151,9 @@
         flex-direction: column;
         width: 100%;
         box-sizing: border-box;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }}
       .event-item:hover {{
         background: #f0f0f0;
@@ -606,6 +608,45 @@
         color: #c62828;
         border: 1px solid #ef9a9a;
       }}
+      .badge-error {{
+        background-color: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef9a9a;
+      }}
+      .badge-cancelled {{
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffb74d;
+      }}
+      .error-event {{
+        background-color: #ffebee;
+        border-left: 4px solid #c62828;
+        border-right: none;
+      }}
+      .error-event .event-block-header {{
+        background-color: transparent;
+        border: none;
+      }}
+      .trace-status-badge {{
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-left: 8px;
+      }}
+      .trace-status-error {{
+        background-color: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef9a9a;
+      }}
+      .trace-status-cancelled {{
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffb74d;
+      }}
       .function-block {{
         margin: 8px 0;
         padding: 8px;
@@ -860,6 +901,7 @@
       const eventToParentSubtrace = {{}};
       let currentSubtraceBlocks = [];
       let currentSubtraceStartTime = null;
+      let rootTraceStartTime = null;
       let focusedLi = null;
 
       // Cache for rendered part content (keyed by part_ref)
@@ -1033,6 +1075,37 @@
             return 0;
           }}
           return endTime.getTime() - startTime.getTime();
+      }}
+
+      function getSubtraceDuration(subTrace) {{
+          if (!subTrace || !subTrace.events) return {{ duration: 0, firstInputTime: null, lastOutputTime: null }};
+          let firstInputTime = null;
+          let lastOutputTime = null;
+          subTrace.events.forEach(event => {{
+              if (!event.sub_trace && event.timestamp) {{
+                  if (event.is_input) {{
+                      if (!firstInputTime) {{
+                          firstInputTime = event.timestamp;
+                      }}
+                  }} else {{
+                      lastOutputTime = event.timestamp;
+                  }}
+              }}
+          }});
+          if (firstInputTime && lastOutputTime) {{
+              return {{
+                  duration: getTimeDeltaMs(firstInputTime, lastOutputTime),
+                  firstInputTime: firstInputTime,
+                  lastOutputTime: lastOutputTime
+              }};
+          }}
+          if (firstInputTime) {{
+              return {{ duration: 0, firstInputTime: firstInputTime, lastOutputTime: null }};
+          }}
+          if (lastOutputTime) {{
+              return {{ duration: 0, firstInputTime: null, lastOutputTime: lastOutputTime }};
+          }}
+          return {{ duration: 0, firstInputTime: subTrace.start_time, lastOutputTime: subTrace.end_time }};
       }}
 
       function renderPart(partDict, partHash) {{
@@ -1342,7 +1415,7 @@
         }}
       }}
 
-      function createTraceView(trace, eventsById) {{
+      function createTraceView(trace, eventsById, rootStartTime = null) {{
           const ul = document.createElement('ul');
           const eventsToRender = trace.events;
           eventsToRender.forEach(event => {{
@@ -1380,10 +1453,26 @@
 
               header.appendChild(createSpan(event.sub_trace.name, ''));
 
-              const subTraceDuration = getTraceDuration(event.sub_trace);
-              const subTraceStartDelta = getTimeDeltaMs(trace.start_time, event.sub_trace.start_time);
-              header.appendChild(createSpan(`+${{subTraceStartDelta}}ms`, 'event-time'));
-              header.appendChild(createSpan(`dur:${{formatDuration(subTraceDuration)}}`, 'event-time'));
+              // Add status badges for error/cancelled traces
+              if (event.sub_trace.error) {{
+                  const errorBadge = document.createElement('span');
+                  errorBadge.className = 'trace-status-badge trace-status-error';
+                  errorBadge.textContent = 'ERROR';
+                  errorBadge.title = event.sub_trace.error;
+                  header.appendChild(errorBadge);
+              }} else if (event.sub_trace.cancelled) {{
+                  const cancelledBadge = document.createElement('span');
+                  cancelledBadge.className = 'trace-status-badge trace-status-cancelled';
+                  cancelledBadge.textContent = 'CANCELLED';
+                  header.appendChild(cancelledBadge);
+              }}
+
+              const subTraceTiming = getSubtraceDuration(event.sub_trace);
+              const effectiveRootStart = rootStartTime || trace.start_time;
+              const subTraceEventStart = subTraceTiming.firstInputTime || event.sub_trace.start_time;
+              const subTraceStartDelta = getTimeDeltaMs(effectiveRootStart, subTraceEventStart);
+              header.appendChild(createSpan(`+${{formatDuration(subTraceStartDelta)}}`, 'event-time'));
+              header.appendChild(createSpan(`dur:${{formatDuration(subTraceTiming.duration)}}`, 'event-time'));
               if (event.relation) {{
                   header.appendChild(createSpan(event.relation, 'event-time'));
               }}
@@ -1406,7 +1495,7 @@
                   const div = document.createElement('div');
                   div.className = 'sub-trace-container';
                   div.style.paddingLeft = "12px";
-                  div.appendChild(createTraceView(event.sub_trace, eventsById));
+                  div.appendChild(createTraceView(event.sub_trace, eventsById, rootStartTime || trace.start_time));
                   li.appendChild(div);
               }}
 
@@ -1444,6 +1533,25 @@
           let currentBlock = null;
 
           events.forEach(event => {{
+              // Handle error events specially - they always get their own block
+              if (event.error_message) {{
+                  if (currentBlock) blocks.push(currentBlock);
+                  currentBlock = null;
+                  blocks.push({{
+                      role: '',
+                      substream: '',
+                      isInput: false,
+                      modality: 'error',
+                      events: [event],
+                      eventIds: [event.id],
+                      startTime: event.timestamp,
+                      endTime: event.timestamp,
+                      audioData: [],
+                      errorMessage: event.error_message
+                  }});
+                  return;
+              }}
+
               const partDict = getPartDict(event);
               const mimeType = getMimeType(partDict);
               const role = partDict?.role || '';
@@ -1596,7 +1704,12 @@
 
       function renderContentBlock(block, blockId, subtraceStartTime) {{
           const div = document.createElement('div');
-          div.className = 'event-block expanded ' + (block.isInput ? 'content-block-input' : 'content-block-output');
+          // Handle error modality specially
+          if (block.modality === 'error') {{
+              div.className = 'event-block expanded error-event';
+          }} else {{
+              div.className = 'event-block expanded ' + (block.isInput ? 'content-block-input' : 'content-block-output');
+          }}
           div.dataset.blockId = blockId;
           block.eventIds.forEach(id => div.dataset.eventIds = (div.dataset.eventIds || '') + id + ',');
           block.id = blockId;
@@ -1611,7 +1724,10 @@
           const firstPart = firstPartDict?.part || {{}};
           const firstMime = getMimeType(firstPartDict);
 
-          if (block.modality === 'function_call') {{
+          if (block.modality === 'error') {{
+              useHtmlTitle = true;
+              blockTitle = `<span class="event-type-badge badge-error">❌ Error</span>`;
+          }} else if (block.modality === 'function_call') {{
               useHtmlTitle = true;
               blockTitle = `<span class="event-type-badge badge-function-call">📞 Function Call</span> ${{firstPart.function_call?.name || 'unknown'}}`;
           }} else if (block.modality === 'function_response') {{
@@ -1662,14 +1778,14 @@
               meta.appendChild(mimeSpan);
           }}
 
-          if (block.startTime && subtraceStartTime) {{
-              const startMs = getTimeDeltaMs(subtraceStartTime, block.startTime);
-              const endMs = getTimeDeltaMs(subtraceStartTime, block.endTime);
+          if (block.startTime && rootTraceStartTime) {{
+              const startMs = getTimeDeltaMs(rootTraceStartTime, block.startTime);
+              const endMs = getTimeDeltaMs(rootTraceStartTime, block.endTime);
               const timeSpan = document.createElement('span');
               if (startMs === endMs) {{
-                  timeSpan.textContent = `+${{startMs}}ms`;
+                  timeSpan.textContent = `+${{formatDuration(startMs)}}`;
               }} else {{
-                  timeSpan.textContent = `+${{startMs}}ms → +${{endMs}}ms`;
+                  timeSpan.textContent = `+${{formatDuration(startMs)}} → +${{formatDuration(endMs)}}`;
               }}
               meta.appendChild(timeSpan);
           }}
@@ -1826,6 +1942,11 @@
                   }}
                   body.appendChild(fileDiv);
               }});
+          }} else if (block.modality === 'error') {{
+              const pre = document.createElement('pre');
+              pre.className = 'code-output outcome-error';
+              pre.textContent = block.errorMessage || 'Unknown error';
+              body.appendChild(pre);
           }} else {{
               block.events.forEach(event => {{
                   const partDict = getPartDict(event);
@@ -1900,8 +2021,8 @@
                       }}
                   }}
 
-                  if (event.timestamp && subtraceStartTime) {{
-                      const timeMs = getTimeDeltaMs(subtraceStartTime, event.timestamp);
+                  if (event.timestamp && rootTraceStartTime) {{
+                      const timeMs = getTimeDeltaMs(rootTraceStartTime, event.timestamp);
                       const timeSpan = document.createElement('span');
                       timeSpan.className = 'sub-event-time';
                       timeSpan.textContent = `+${{timeMs}}ms`;
@@ -2267,7 +2388,8 @@
               </div>
           `;
           leftPanel.appendChild(toolbar);
-          leftPanel.appendChild(createTraceView(traceData, eventsById));
+          rootTraceStartTime = traceData.start_time;
+          leftPanel.appendChild(createTraceView(traceData, eventsById, traceData.start_time));
 
           if (isLargeTrace) {{
               collapseAll();

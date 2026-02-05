@@ -107,8 +107,8 @@ def _compute_part_hash(part_dict: dict[str, Any]) -> str:
 class TraceEvent(pydantic.BaseModel):
   """A single event in a trace.
 
-  An event represents an input/output part or a sub-trace from a nested
-  processor call.
+  An event represents an input/output part, an error, or a sub-trace from a
+  nested processor call.
   """
 
   model_config = {'arbitrary_types_allowed': True}
@@ -129,6 +129,8 @@ class TraceEvent(pydantic.BaseModel):
   sub_trace: SyncFileTrace | None = None
   # The relation between this trace and sub_trace. E.g. if it is a chain.
   relation: str | None = None
+  # Error message if this event represents an error.
+  error_message: str | None = None
 
 
 class SyncFileTrace(trace.Trace):
@@ -340,8 +342,15 @@ class SyncFileTrace(trace.Trace):
     return t
 
   @override
+  async def add_error(self, error_message: str) -> None:
+    """Adds an error event to the trace."""
+    event = TraceEvent(error_message=error_message, is_input=False)
+    self.events.append(event)
+
+  @override
   def cancel(self) -> None:
     """Cancel the trace."""
+    self.cancelled = True
     if self._worker:
       self._worker.cancel()
     if all(event.is_input or event.sub_trace for event in self.events):

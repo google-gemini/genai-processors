@@ -820,6 +820,204 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         'Image returned by async function should be in trace events',
     )
 
+  async def test_processor_exception_trace(self):
+    """Test that exceptions in processors are captured in traces."""
+
+    @processor.processor_function
+    async def failing_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        yield part.text + '_before_error'
+        raise ValueError('Test error message')
+
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    with self.assertRaises(ValueError):
+      async with trace_file.SyncFileTrace(
+          trace_dir=trace_dir, name='Exception Test'
+      ):
+        input_stream = streams.stream_content(['hello'])
+        _ = await streams.gather_stream(failing_processor(input_stream))
+
+    # The trace should still be saved even after an exception
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Exception Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    # Check that the error is recorded with full traceback
+    self.assertIsNotNone(loaded_trace.error)
+    self.assertIn('Traceback', loaded_trace.error)
+    self.assertIn('ValueError', loaded_trace.error)
+    self.assertIn('Test error message', loaded_trace.error)
+    self.assertIn(
+        'failing_processor', loaded_trace.error
+    )  # Function name in trace
+    self.assertFalse(loaded_trace.cancelled)
+
+    # Check that an error event was recorded with full traceback
+    error_events = [e for e in loaded_trace.events if e.error_message]
+    self.assertEqual(len(error_events), 1)
+    self.assertIn('Traceback', error_events[0].error_message)
+    self.assertIn('ValueError', error_events[0].error_message)
+
+  async def test_processor_cancellation_trace(self):
+    """Test that cancellation is captured in traces."""
+
+    @processor.processor_function
+    async def slow_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        yield part.text + '_output'
+        await asyncio.sleep(10)  # Long sleep to allow cancellation
+
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    async def run_with_timeout():
+      async with trace_file.SyncFileTrace(
+          trace_dir=trace_dir, name='Cancellation Test'
+      ):
+        input_stream = streams.stream_content(['hello'])
+        _ = await streams.gather_stream(slow_processor(input_stream))
+
+    # Run the trace with a timeout to trigger cancellation
+    with self.assertRaises(asyncio.TimeoutError):
+      await asyncio.wait_for(run_with_timeout(), timeout=0.1)
+
+    # The trace should still be saved after cancellation
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Cancellation Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    self.assertTrue(loaded_trace.cancelled)
+    cancelled_subtraces = [
+        e.sub_trace
+        for e in loaded_trace.events
+        if e.sub_trace and e.sub_trace.cancelled
+    ]
+    self.assertGreater(
+        len(cancelled_subtraces),
+        0,
+        'At least one sub-trace should be marked as cancelled',
+    )
+
+  async def test_realtime_processor_exception_trace(self):
+    """Test that exceptions in realtime processors are captured in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.processor_function
+    async def failing_turn_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        if 'trigger_error' in part.text:
+          raise RuntimeError('Realtime test error')
+        yield content_api.ProcessorPart(f'model({part.text})', role='model')
+
+    live_processor = realtime.LiveProcessor(turn_processor=failing_turn_model)
+
+    with self.assertRaises(RuntimeError):
+      async with trace_file.SyncFileTrace(
+          trace_dir=trace_dir, name='Realtime Exception Test'
+      ):
+        input_parts = [
+            content_api.ProcessorPart('hello', role='user'),
+            content_api.END_OF_TURN,
+            content_api.ProcessorPart('trigger_error', role='user'),
+            content_api.END_OF_TURN,
+        ]
+        input_stream = streams.stream_content(input_parts, with_delay_sec=0.1)
+        _ = await streams.gather_stream(live_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Realtime Exception Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    # Check that the error is recorded with full traceback
+    self.assertIsNotNone(loaded_trace.error)
+    self.assertIn('Traceback', loaded_trace.error)
+    self.assertIn('RuntimeError', loaded_trace.error)
+    self.assertIn('Realtime test error', loaded_trace.error)
+
+  async def test_realtime_processor_cancellation_trace(self):
+    """Test that cancellation in realtime processors is captured in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.processor_function
+    async def slow_turn_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      buffer = content_api.ProcessorContent()
+      async for part in content:
+        buffer += part
+        await asyncio.sleep(0.5)  # Sleep to allow cancellation
+      yield content_api.ProcessorPart(
+          f'model({buffer.as_text()})', role='model'
+      )
+
+    live_processor = realtime.LiveProcessor(turn_processor=slow_turn_model)
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Realtime Cancellation Test'
+    ):
+      input_parts = [
+          content_api.ProcessorPart('hello', role='user'),
+          content_api.ProcessorPart('world', role='user'),
+          content_api.END_OF_TURN,
+      ]
+      input_stream = streams.stream_content(input_parts, with_delay_sec=0.1)
+      _ = await streams.gather_stream(live_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Realtime Cancellation Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    # The root trace should not be marked as cancelled. Only the sub-trace for
+    # the first model call should be marked as cancelled.
+    self.assertFalse(loaded_trace.cancelled)
+
+    def find_cancelled_traces(trace):
+      """Recursively find all cancelled traces."""
+      cancelled = []
+      for event in trace.events:
+        if event.sub_trace:
+          if event.sub_trace.cancelled:
+            cancelled.append(event.sub_trace)
+          cancelled.extend(find_cancelled_traces(event.sub_trace))
+      return cancelled
+
+    cancelled_traces = find_cancelled_traces(loaded_trace)
+    self.assertGreater(
+        len(cancelled_traces),
+        0,
+        'At least one sub-trace should be marked as cancelled',
+    )
+
   async def test_trace_max_size_bytes(self):
     trace = trace_file.SyncFileTrace(name='test_max_size', max_size_bytes=300)
     async with trace:
