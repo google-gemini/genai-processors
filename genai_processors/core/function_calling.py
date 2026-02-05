@@ -716,10 +716,18 @@ class _ExecuteFunctionCall:
     Returns:
       A function response wrapping the content in the part.
     """
+    substream_name = self._substream_name
+    if isinstance(parts, content_api.ProcessorPart) and parts.substream_name:
+      substream_name = parts.substream_name
+
     if isinstance(parts, content_api.ProcessorPart) and parts.function_response:
       parts.function_response.id = call.id
+      if not parts.function_response.name:
+        parts.function_response.name = call.name
       if not parts.substream_name:
         parts.substream_name = self._substream_name
+      if not parts.role:
+        parts.role = 'user'
       if will_continue is not None:
         parts.function_response.will_continue = will_continue
       if scheduling is not None:
@@ -730,7 +738,7 @@ class _ExecuteFunctionCall:
           name=call.name,
           response=parts,
           function_call_id=call.id,
-          substream_name=self._substream_name,
+          substream_name=substream_name,
           scheduling=scheduling,
           will_continue=will_continue,
           role='user',
@@ -775,7 +783,9 @@ class _ExecuteFunctionCall:
               and part_type.function_response.will_continue is False  # pylint: disable=g-bool-id-comparison
           ):
             will_not_continue_sent = True
-          yield part_type, True
+            yield part_type, False
+          else:
+            yield part_type, True
 
         # Send a function response to indicate that the function call is
         # done (will_continue=False).

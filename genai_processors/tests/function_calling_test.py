@@ -100,6 +100,11 @@ def create_model(
 
 class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
 
+  def setUp(self):
+    super().setUp()
+    # Prefer printing ProcessorParts in full to facilitate debugging.
+    self.maxDiff = 5000
+
   async def test_no_function_call(self):
     model_output = [content_api.ProcessorPart('Hello!', role='model')]
     generate_processor = MockGenerateProcessor([model_output])
@@ -352,9 +357,21 @@ async def failing_async_function() -> str:
   raise ValueError('<this async function failed>')
 
 
+async def get_final_answer() -> AsyncIterable[content_api.ProcessorPart]:
+  """Returns a response explicitly marked as final."""
+  yield content_api.ProcessorPart.from_function_response(
+      response='This is the last part.', will_continue=False
+  )
+
+
 class FunctionCallingAsyncTest(
     unittest.IsolatedAsyncioTestCase, parameterized.TestCase
 ):
+
+  def setUp(self):
+    super().setUp()
+    # Prefer printing ProcessorParts in full to facilitate debugging.
+    self.maxDiff = 5000
 
   @parameterized.named_parameters(
       ('unary', False),
@@ -637,6 +654,71 @@ class FunctionCallingAsyncTest(
         ]
         + model_output_2
         + model_output_3,
+    )
+
+  @parameterized.named_parameters(
+      ('unary', False),
+      ('bidi', True),
+  )
+  async def test_final_part(self, is_bidi):
+    # When a generator yields a Part with will_continue=False FunctionCalling
+    # should not inject finalizing part.
+
+    input_content = [content_api.ProcessorPart('Get the final answer')] + (
+        [content_api.END_OF_TURN] if is_bidi else []
+    )
+    model_output_0 = [
+        content_api.ProcessorPart.from_function_call(
+            name='get_final_answer', args={}, role='model'
+        )
+    ]
+    model_output_1 = [
+        content_api.ProcessorPart(
+            'stream ended',
+            role='model',
+        )
+    ]
+
+    generate_processor, delay_sec = create_model(
+        [
+            model_output_0,
+            model_output_1,
+        ],
+        is_bidi,
+    )
+    fc_processor = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[get_final_answer],
+        is_bidi_model=is_bidi,
+    )
+    output = await fc_processor(
+        streams.stream_content(input_content, with_delay_sec=delay_sec * 2)
+    ).gather()
+    self.assertSequenceEqual(
+        output,
+        model_output_0
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='get_final_answer',
+                function_call_id='get_final_answer_0',
+                response='Running in background.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                scheduling='SILENT',
+                will_continue=True,
+            ),
+        ]
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='get_final_answer',
+                function_call_id='get_final_answer_0',
+                response='This is the last part.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                will_continue=False,
+            ),
+        ]
+        + model_output_1,
     )
 
   async def test_async_max_tool_calls(self):

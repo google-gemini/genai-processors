@@ -410,7 +410,7 @@ class ProcessorPart:
   def from_function_response(
       cls,
       *,
-      name: str,
+      name: str | None = None,
       response: Union[Any, 'ProcessorContentTypes'],
       function_call_id: str | None = None,
       will_continue: bool | None = None,
