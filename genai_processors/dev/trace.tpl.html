@@ -735,15 +735,77 @@
       }}
       .sub-event-metadata {{
         margin-top: 4px;
-        padding: 4px;
-        background: #f5f5f5;
-        border: 1px solid #ddd;
+        padding: 6px 8px;
+        background: #fff8e1;
+        border: 1px solid #ffcc80;
+        border-radius: 3px;
         font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
       }}
       .sub-event-metadata pre {{
         margin: 0;
         white-space: pre-wrap;
         font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+      }}
+      .sub-event-metadata details {{
+        margin: 0;
+      }}
+      .sub-event-metadata summary {{
+        cursor: pointer;
+        color: #666;
+        font-size: 9px;
+      }}
+      .expand-triangle {{
+        display: inline-block;
+        transition: transform 0.2s ease;
+        margin-right: 4px;
+      }}
+      details[open] > summary .expand-triangle {{
+        transform: rotate(90deg);
+      }}
+      details > summary {{
+        list-style: none;
+      }}
+      details > summary::-webkit-details-marker {{
+        display: none;
+      }}
+      .substream-badge {{
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 500;
+        margin-left: 10px;
+        margin-right: 6px;
+      }}
+      .substream-badge-input {{
+        background-color: #e8f4ff;
+        border: 1px solid #0066cc;
+        color: #0066cc;
+      }}
+      .substream-badge-output {{
+        background-color: #e8ffe8;
+        border: 1px solid #228b22;
+        color: #228b22;
+      }}
+      .block-footer {{
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: 8px;
+        margin-right: 4px;
+        gap: 8px;
+      }}
+      .sub-event-footer {{
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        margin-top: 4px;
+        padding-top: 4px;
+        gap: 8px;
       }}
       .role-badge {{
         display: inline-block;
@@ -1611,13 +1673,6 @@
               }}
               meta.appendChild(timeSpan);
           }}
-          
-          if (block.substream) {{
-              const substreamSpan = document.createElement('span');
-              substreamSpan.textContent = `substream: ${{block.substream}}`;
-              meta.appendChild(substreamSpan);
-          }}
-
           header.appendChild(meta);
 
           div.appendChild(header);
@@ -1792,7 +1847,29 @@
               summary.style.cursor = 'pointer';
               summary.style.fontSize = '10px';
               summary.style.color = '#666';
-              summary.textContent = `${{block.events.length}} event${{block.events.length > 1 ? 's' : ''}}`;
+              summary.style.display = 'flex';
+              summary.style.justifyContent = 'space-between';
+              summary.style.alignItems = 'center';
+              summary.style.listStyle = 'none';
+              
+              const eventsTextWrapper = document.createElement('span');
+              const triangle = document.createElement('span');
+              triangle.className = 'expand-triangle';
+              triangle.textContent = '▶';
+              eventsTextWrapper.appendChild(triangle);
+              
+              const eventsText = document.createElement('span');
+              eventsText.textContent = `${{block.events.length}} event${{block.events.length > 1 ? 's' : ''}}`;
+              eventsTextWrapper.appendChild(eventsText);
+              summary.appendChild(eventsTextWrapper);
+              
+              if (block.substream) {{
+                  const substreamBadge = document.createElement('span');
+                  substreamBadge.className = 'substream-badge ' + (block.isInput ? 'substream-badge-input' : 'substream-badge-output');
+                  substreamBadge.textContent = `substream: ${{block.substream}}`;
+                  summary.appendChild(substreamBadge);
+              }}
+              
               subEventsSection.appendChild(summary);
 
               block.events.forEach((event, idx) => {{
@@ -1812,7 +1889,6 @@
                   subMeta.className = 'sub-event-meta';
                   subMeta.appendChild(createSpan(`#${{idx + 1}}`, ''));
                   if (mimeType) subMeta.appendChild(createSpan(mimeType, ''));
-                  if (substream) subMeta.appendChild(createSpan(`substream: ${{substream}}`, ''));
                   subHeader.appendChild(subMeta);
 
                   const partRole = partDict?.role || '';
@@ -1911,20 +1987,52 @@
 
                   subEvent.appendChild(subContent);
 
+                  // Footer with substream badge on the right
                   const hasMetadata = Object.keys(metadata).length > 0;
+                  if (substream) {{
+                      const subEventFooter = document.createElement('div');
+                      subEventFooter.className = 'sub-event-footer';
+                      subEventFooter.style.justifyContent = 'flex-end';
+                      
+                      const substreamBadge = document.createElement('span');
+                      substreamBadge.className = 'substream-badge ' + (block.isInput ? 'substream-badge-input' : 'substream-badge-output');
+                      substreamBadge.textContent = `substream: ${{substream}}`;
+                      subEventFooter.appendChild(substreamBadge);
+                      
+                      subEvent.appendChild(subEventFooter);
+                  }}
+
+                  // Metadata section - collapsible if multiple keys, inline if single
                   if (hasMetadata) {{
+                      const metaKeys = Object.keys(metadata);
                       const metaDiv = document.createElement('div');
                       metaDiv.className = 'sub-event-metadata';
-                      const metaLabel = document.createElement('span');
-                      metaLabel.textContent = 'metadata: ';
-                      metaLabel.style.color = '#888';
-                      metaLabel.style.fontSize = '9px';
-                      metaDiv.appendChild(metaLabel);
-                      const metaSpan = document.createElement('span');
-                      metaSpan.className = 'event-metadata-badge';
-                      metaSpan.textContent = JSON.stringify(metadata);
-                      metaSpan.title = JSON.stringify(metadata, null, 2);
-                      metaDiv.appendChild(metaSpan);
+                      
+                      if (metaKeys.length === 1) {{
+                          // Single key-value: render inline
+                          const key = metaKeys[0];
+                          const value = metadata[key];
+                          const metaSpan = document.createElement('span');
+                          metaSpan.innerHTML = `<b>${{key}}:</b> ${{typeof value === 'object' ? JSON.stringify(value) : value}}`;
+                          metaDiv.appendChild(metaSpan);
+                      }} else {{
+                          // Multiple keys: render as collapsible
+                          const details = document.createElement('details');
+                          const summary = document.createElement('summary');
+                          const triangle = document.createElement('span');
+                          triangle.className = 'expand-triangle';
+                          triangle.textContent = '\u25b6';
+                          summary.appendChild(triangle);
+                          const summaryText = document.createElement('span');
+                          summaryText.textContent = `metadata (${{metaKeys.length}} entries)`;
+                          summary.appendChild(summaryText);
+                          details.appendChild(summary);
+                          const pre = document.createElement('pre');
+                          pre.textContent = JSON.stringify(metadata, null, 2);
+                          details.appendChild(pre);
+                          metaDiv.appendChild(details);
+                      }}
+                      
                       subEvent.appendChild(metaDiv);
                   }}
 
@@ -1935,8 +2043,6 @@
           }}
 
           div.appendChild(body);
-
-
 
           return div;
       }}

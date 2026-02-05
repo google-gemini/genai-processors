@@ -318,6 +318,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
               name='get_weather',
               response={'temperature': 22, 'conditions': 'sunny'},
               function_call_id='call_12345',
+              substream_name='tool_response',
               role='user',
           )
       )
@@ -332,6 +333,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
               name='generate_image',
               args={'prompt': 'A sunny day in San Francisco'},
               role='model',
+              metadata={'generation_complete': True, 'turn_id': 123},
           )
       )
       await trace.add_output(
