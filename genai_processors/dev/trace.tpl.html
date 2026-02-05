@@ -35,7 +35,8 @@
       #left-panel {{
         width: 25%;
         min-width: 180px;
-        overflow: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
         border-right: none;
         padding: 6px;
         box-sizing: border-box;
@@ -307,7 +308,7 @@
       .content-block-output .block-content img {{
         margin-left: 0;
       }}
-      .content-block.audio-playing {{
+      .content-block.audio-playing, .event-block.audio-playing {{
         background-color: #fff8f0;
         border-color: #cc6600;
       }}
@@ -392,12 +393,22 @@
         font-size: 11px;
         display: flex;
         flex-direction: column;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }}
       .event-header {{
         display: flex;
         align-items: center;
         gap: 4px;
         flex-wrap: wrap;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }}
+      .event-header > span {{
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }}
       .event-content {{
         margin: 2px 0;
@@ -872,6 +883,11 @@
         color: #616161;
         border: 1px solid #bdbdbd;
       }}
+      .role-function-response {{
+        background-color: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #64b5f6;
+      }}
       .role-unknown {{
         background-color: #fff8e1;
         color: #f57c00;
@@ -1036,6 +1052,95 @@
               return l16ToWavDataUrl(data, sampleRate);
           }}
           return `data:${{mimetype}};base64,${{data}}`;
+      }}
+
+      // Combine multiple base64-encoded audio chunks into a single audio data URL
+      // For L16, we need to decode each chunk, combine the binary, then create one WAV
+      function combineAudioChunks(chunks, mimetype) {{
+          if (!chunks || chunks.length === 0) return null;
+          
+          if (mimetype === 'audio/l16' || mimetype.startsWith('audio/l16;')) {{
+              // For L16: decode all chunks, combine binary, then create WAV
+              let totalLength = 0;
+              const binaryChunks = chunks.map(base64Data => {{
+                  const binaryString = atob(base64Data);
+                  const len = binaryString.length;
+                  const bytes = new Uint8Array(len);
+                  for (let i = 0; i < len; i++) {{
+                      bytes[i] = binaryString.charCodeAt(i);
+                  }}
+                  totalLength += len;
+                  return bytes;
+              }});
+              
+              // Combine all chunks into one Uint8Array
+              const combinedPcm = new Uint8Array(totalLength);
+              let offset = 0;
+              binaryChunks.forEach(chunk => {{
+                  combinedPcm.set(chunk, offset);
+                  offset += chunk.length;
+              }});
+              
+              // Parse sample rate from mime type
+              let sampleRate = 24000;
+              const rateMatch = mimetype.match(/rate=(\d+)/);
+              if (rateMatch) {{
+                  sampleRate = parseInt(rateMatch[1], 10);
+              }}
+              
+              // Create WAV from combined PCM data
+              const numChannels = 1;
+              const bitsPerSample = 16;
+              const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+              const blockAlign = numChannels * (bitsPerSample / 8);
+              const dataSize = combinedPcm.length;
+              const headerSize = 44;
+              const fileSize = headerSize + dataSize;
+
+              const buffer = new ArrayBuffer(fileSize);
+              const view = new DataView(buffer);
+
+              // RIFF header
+              view.setUint8(0, 'R'.charCodeAt(0));
+              view.setUint8(1, 'I'.charCodeAt(0));
+              view.setUint8(2, 'F'.charCodeAt(0));
+              view.setUint8(3, 'F'.charCodeAt(0));
+              view.setUint32(4, fileSize - 8, true);
+              view.setUint8(8, 'W'.charCodeAt(0));
+              view.setUint8(9, 'A'.charCodeAt(0));
+              view.setUint8(10, 'V'.charCodeAt(0));
+              view.setUint8(11, 'E'.charCodeAt(0));
+
+              // fmt subchunk
+              view.setUint8(12, 'f'.charCodeAt(0));
+              view.setUint8(13, 'm'.charCodeAt(0));
+              view.setUint8(14, 't'.charCodeAt(0));
+              view.setUint8(15, ' '.charCodeAt(0));
+              view.setUint32(16, 16, true);
+              view.setUint16(20, 1, true);
+              view.setUint16(22, numChannels, true);
+              view.setUint32(24, sampleRate, true);
+              view.setUint32(28, byteRate, true);
+              view.setUint16(32, blockAlign, true);
+              view.setUint16(34, bitsPerSample, true);
+
+              // data subchunk
+              view.setUint8(36, 'd'.charCodeAt(0));
+              view.setUint8(37, 'a'.charCodeAt(0));
+              view.setUint8(38, 't'.charCodeAt(0));
+              view.setUint8(39, 'a'.charCodeAt(0));
+              view.setUint32(40, dataSize, true);
+
+              // Copy PCM data
+              const wavBytes = new Uint8Array(buffer);
+              wavBytes.set(combinedPcm, headerSize);
+
+              return `data:audio/wav;base64,${{bytesToBase64(wavBytes)}}`;
+          }} else {{
+              // For other formats, just concatenate base64 (works for WAV since it's raw concatenation of audio data)
+              const combinedData = chunks.join('');
+              return `data:${{mimetype}};base64,${{combinedData}}`;
+          }}
       }}
 
       function getTimeDeltaMs(start, current) {{
@@ -1368,16 +1473,22 @@
           if (!role) return null;
           const span = document.createElement('span');
           span.className = 'role-badge';
-          span.textContent = role;
           const roleLower = role.toLowerCase();
-          if (roleLower === 'user') {{
-              span.classList.add('role-user');
-          }} else if (roleLower === 'model') {{
-              span.classList.add('role-model');
-          }} else if (roleLower === 'system') {{
-              span.classList.add('role-system');
+          // Rename 'tool' to 'Function Response' for clarity
+          if (roleLower === 'tool') {{
+              span.textContent = 'FUNCTION RESPONSE';
+              span.classList.add('role-function-response');
           }} else {{
-              span.classList.add('role-unknown');
+              span.textContent = role;
+              if (roleLower === 'user') {{
+                  span.classList.add('role-user');
+              }} else if (roleLower === 'model') {{
+                  span.classList.add('role-model');
+              }} else if (roleLower === 'system') {{
+                  span.classList.add('role-system');
+              }} else {{
+                  span.classList.add('role-unknown');
+              }}
           }}
           return span;
       }}
@@ -1528,6 +1639,13 @@
           return 'text';
       }}
 
+      function getFunctionName(partDict) {{
+          const part = partDict?.part || {{}};
+          if (part.function_call) return part.function_call.name || '';
+          if (part.function_response) return part.function_response.name || '';
+          return '';
+      }}
+
       function groupEventsIntoBlocks(events) {{
           const blocks = [];
           let currentBlock = null;
@@ -1547,7 +1665,8 @@
                       startTime: event.timestamp,
                       endTime: event.timestamp,
                       audioData: [],
-                      errorMessage: event.error_message
+                      errorMessage: event.error_message,
+                      functionName: ''
                   }});
                   return;
               }}
@@ -1558,12 +1677,15 @@
               const substream = partDict?.substream_name || '';
               const isInput = event.is_input;
               const modality = getModalityType(mimeType, partDict);
+              const functionName = getFunctionName(partDict);
 
+              // Split blocks when function name changes for function_call and function_response
               const needsNewBlock = !currentBlock ||
                   currentBlock.role !== role ||
                   currentBlock.isInput !== isInput ||
                   currentBlock.modality !== modality ||
-                  currentBlock.substream !== substream;
+                  currentBlock.substream !== substream ||
+                  ((modality === 'function_call' || modality === 'function_response') && currentBlock.functionName !== functionName);
 
               if (needsNewBlock) {{
                   if (currentBlock) blocks.push(currentBlock);
@@ -1576,7 +1698,8 @@
                       eventIds: [event.id],
                       startTime: event.timestamp,
                       endTime: event.timestamp,
-                      audioData: []
+                      audioData: [],
+                      functionName: functionName
                   }};
               }} else {{
                   currentBlock.events.push(event);
@@ -1639,8 +1762,7 @@
                   currentPlayingBlock = blockEl;
               }}
 
-              const combinedData = block.audioData.join('');
-              const audio = new Audio(getAudioDataUrl(block.audioMimeType || 'audio/wav', combinedData));
+              const audio = new Audio(combineAudioChunks(block.audioData, block.audioMimeType || 'audio/wav'));
               currentAudio = audio;
 
               audio.onended = () => {{
@@ -1683,8 +1805,7 @@
                   currentPlayingBlock = blockEl;
               }}
 
-              const combinedData = block.audioData.join('');
-              const audio = new Audio(getAudioDataUrl(block.audioMimeType || 'audio/wav', combinedData));
+              const audio = new Audio(combineAudioChunks(block.audioData, block.audioMimeType || 'audio/wav'));
               currentAudio = audio;
 
               audio.onended = () => {{
@@ -1797,28 +1918,40 @@
           body.className = 'event-block-body';
 
           if (block.modality === 'text') {{
+              // Only merge text content, not metadata
               const allText = block.events.map(event => {{
                   const partDict = getPartDict(event);
                   return getText(partDict) || '';
               }}).join('');
+              
               if (allText) {{
                   const pre = document.createElement('pre');
                   pre.className = 'sub-event-content';
                   pre.textContent = allText;
                   body.appendChild(pre);
               }} else {{
-                  // Check for metadata-only events (like end_of_turn)
-                  block.events.forEach(event => {{
+                  // Check if there's any non-empty part content or metadata
+                  const hasNonEmptyContent = block.events.some(event => {{
                       const partDict = getPartDict(event);
+                      const part = partDict?.part || {{}};
                       const metadata = partDict?.metadata || {{}};
-                      if (Object.keys(metadata).length > 0) {{
-                          const metaDiv = document.createElement('div');
-                          metaDiv.className = 'metadata-only-indicator';
-                          metaDiv.innerHTML = `<span class="event-metadata-badge">${{JSON.stringify(metadata)}}</span>`;
-                          metaDiv.title = JSON.stringify(metadata, null, 2);
-                          body.appendChild(metaDiv);
-                      }}
+                      const partKeys = Object.keys(part).filter(k => k !== 'text');
+                      const metaKeys = Object.keys(metadata);
+                      return partKeys.length > 0 || metaKeys.length > 0;
                   }});
+                  
+                  const titleSpan = header.querySelector('.event-block-title');
+                  if (hasNonEmptyContent) {{
+                      // Has metadata or part content - show as Metadata
+                      if (titleSpan) {{
+                          titleSpan.innerHTML = '📋 Metadata';
+                      }}
+                  }} else {{
+                      // Truly empty - show as Empty
+                      if (titleSpan) {{
+                          titleSpan.innerHTML = '∅ Empty';
+                      }}
+                  }}
               }}
           }} else if (block.modality === 'audio') {{
               const indicator = document.createElement('div');
@@ -1843,121 +1976,65 @@
                       }}
                   }}
               }});
-          }} else if (block.modality === 'function_call') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const fc = part.function_call || {{}};
-                  if (fc.args) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-output';
-                      pre.textContent = JSON.stringify(fc.args, null, 2);
-                      body.appendChild(pre);
-                  }}
-              }});
-          }} else if (block.modality === 'function_response') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const fr = part.function_response || {{}};
-                  if (fr.response) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-output';
-                      pre.textContent = JSON.stringify(fr.response, null, 2);
-                      body.appendChild(pre);
-                  }}
-                  if (fr.parts && fr.parts.length > 0) {{
-                      fr.parts.forEach((frPart, idx) => {{
-                          if (frPart.inline_data && frPart.inline_data.mime_type && frPart.inline_data.data) {{
-                              const frMime = frPart.inline_data.mime_type;
-                              const frData = frPart.inline_data.data;
-                              if (frMime.startsWith('image/')) {{
-                                  const img = document.createElement('img');
-                                  img.src = `data:${{frMime}};base64,${{frData}}`;
-                                  img.style.maxWidth = '100%';
-                                  body.appendChild(img);
-                              }} else if (frMime.startsWith('audio/')) {{
-                                  const audio = document.createElement('audio');
-                                  audio.controls = true;
-                                  audio.src = getAudioDataUrl(frMime, frData);
-                                  body.appendChild(audio);
-                              }} else {{
-                                  const mediaInfo = document.createElement('div');
-                                  mediaInfo.className = 'media-indicator';
-                                  mediaInfo.innerHTML = `📎 ${{frMime}} (part ${{idx + 1}})`;
-                                  body.appendChild(mediaInfo);
-                              }}
-                          }}
-                      }});
-                  }}
-              }});
-          }} else if (block.modality === 'executable_code') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const ec = part.executable_code || {{}};
-                  if (ec.code) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-block';
-                      pre.textContent = ec.code;
-                      body.appendChild(pre);
-                  }}
-              }});
-          }} else if (block.modality === 'code_execution_result') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const cer = part.code_execution_result || {{}};
-                  if (cer.output) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-output';
-                      pre.textContent = cer.output;
-                      body.appendChild(pre);
-                  }}
-              }});
-          }} else if (block.modality === 'file_data') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const fd = part.file_data || {{}};
-                  const fileDiv = document.createElement('div');
-                  fileDiv.className = 'function-block file-info';
-                  const displayName = fd.display_name || 'Unnamed file';
-                  const fileUri = fd.file_uri || '';
-                  const fileMime = fd.mime_type || '';
-                  if (fileUri) {{
-                      const link = document.createElement('a');
-                      link.href = fileUri;
-                      link.target = '_blank';
-                      link.textContent = `📁 ${{displayName}}`;
-                      fileDiv.appendChild(link);
-                  }} else {{
-                      fileDiv.innerHTML = `📁 ${{displayName}}`;
-                  }}
-                  if (fileMime) {{
-                      const mimeSpan = document.createElement('span');
-                      mimeSpan.className = 'file-mime';
-                      mimeSpan.textContent = ` (${{fileMime}})`;
-                      fileDiv.appendChild(mimeSpan);
-                  }}
-                  body.appendChild(fileDiv);
-              }});
           }} else if (block.modality === 'error') {{
               const pre = document.createElement('pre');
               pre.className = 'code-output outcome-error';
               pre.textContent = block.errorMessage || 'Unknown error';
               body.appendChild(pre);
           }} else {{
+              // For all other modalities (function_call, function_response, 
+              // executable_code, code_execution_result, file_data, etc.), 
+              // only show media elements - JSON details are in sub-events
               block.events.forEach(event => {{
                   const partDict = getPartDict(event);
-                  const unknownDiv = document.createElement('div');
-                  unknownDiv.className = 'function-block';
-                  unknownDiv.innerHTML = '<span class="function-call-badge">📦 Data</span>';
-                  const pre = document.createElement('pre');
-                  pre.className = 'code-output';
-                  pre.textContent = JSON.stringify(partDict?.part || {{}}, null, 2);
-                  unknownDiv.appendChild(pre);
-                  body.appendChild(unknownDiv);
+                  const part = partDict?.part || {{}};
+                  
+                  // Check if part is empty
+                  const isEmptyPart = Object.keys(part).length === 0 || 
+                      (Object.keys(part).length === 1 && part.text === '');
+                  
+                  if (isEmptyPart) {{
+                      const emptyDiv = document.createElement('div');
+                      emptyDiv.style.color = '#888';
+                      emptyDiv.style.fontStyle = 'italic';
+                      emptyDiv.textContent = '∅ Empty';
+                      body.appendChild(emptyDiv);
+                  }} else {{
+                      // Extract and display only media (images/audio) - no JSON
+                      function extractAndShowMedia(obj) {{
+                          if (!obj || typeof obj !== 'object') return;
+                          
+                          if (obj.inline_data && obj.inline_data.mime_type && obj.inline_data.data) {{
+                              const mime = obj.inline_data.mime_type;
+                              const data = obj.inline_data.data;
+                              if (mime.startsWith('image/')) {{
+                                  const img = document.createElement('img');
+                                  img.src = `data:${{mime}};base64,${{data}}`;
+                                  img.style.maxWidth = '100%';
+                                  img.style.maxHeight = '300px';
+                                  body.appendChild(img);
+                              }} else if (mime.startsWith('audio/')) {{
+                                  const audio = document.createElement('audio');
+                                  audio.controls = true;
+                                  audio.src = getAudioDataUrl(mime, data);
+                                  body.appendChild(audio);
+                              }}
+                          }}
+                          
+                          // Recurse into arrays and objects
+                          if (Array.isArray(obj)) {{
+                              obj.forEach(item => extractAndShowMedia(item));
+                          }} else {{
+                              Object.keys(obj).forEach(key => {{
+                                  if (key !== 'inline_data') {{
+                                      extractAndShowMedia(obj[key]);
+                                  }}
+                              }});
+                          }}
+                      }}
+                      
+                      extractAndShowMedia(part);
+                  }}
               }});
           }}
 
@@ -2052,49 +2129,8 @@
                               subContent.appendChild(img);
                           }}
                       }}
-                  }} else if (part.function_call) {{
-                      const fc = part.function_call;
-                      subContent.innerHTML = `<b>📞 ${{fc.name || 'unknown'}}</b>`;
-                      if (fc.args) {{
-                          const pre = document.createElement('pre');
-                          pre.style.fontSize = '9px';
-                          pre.style.margin = '4px 0';
-                          pre.textContent = JSON.stringify(fc.args, null, 2);
-                          subContent.appendChild(pre);
-                      }}
-                  }} else if (part.function_response) {{
-                      const fr = part.function_response;
-                      subContent.innerHTML = `<b>📋 ${{fr.name || 'unknown'}}</b>`;
-                      if (fr.response) {{
-                          const pre = document.createElement('pre');
-                          pre.style.fontSize = '9px';
-                          pre.style.margin = '4px 0';
-                          pre.textContent = JSON.stringify(fr.response, null, 2);
-                          subContent.appendChild(pre);
-                      }}
-                  }} else if (part.executable_code) {{
-                      const ec = part.executable_code;
-                      subContent.innerHTML = `<b>💻 Code (${{ec.language || 'code'}})</b>`;
-                      if (ec.code) {{
-                          const pre = document.createElement('pre');
-                          pre.style.fontSize = '9px';
-                          pre.style.margin = '4px 0';
-                          pre.textContent = ec.code;
-                          subContent.appendChild(pre);
-                      }}
-                  }} else if (part.code_execution_result) {{
-                      const cer = part.code_execution_result;
-                      const outcome = cer.outcome || 'UNKNOWN';
-                      const icon = outcome === 'OUTCOME_OK' ? '✅' : '❌';
-                      subContent.innerHTML = `<b>${{icon}} Result: ${{outcome}}</b>`;
-                      if (cer.output) {{
-                          const pre = document.createElement('pre');
-                          pre.style.fontSize = '9px';
-                          pre.style.margin = '4px 0';
-                          pre.textContent = cer.output;
-                          subContent.appendChild(pre);
-                      }}
                   }} else {{
+                      // For all other content types, show text or JSON
                       const text = getText(partDict);
                       if (text) {{
                           const pre = document.createElement('pre');
@@ -2103,6 +2139,147 @@
                           pre.style.whiteSpace = 'pre-wrap';
                           pre.textContent = text;
                           subContent.appendChild(pre);
+                      }} else {{
+                          // No text - check if part has content or is empty
+                          const partKeys = Object.keys(part).filter(k => k !== 'text');
+                          if (partKeys.length > 0) {{
+                              // Render JSON with inline media and formatted text
+                              function renderJsonValue(value, indent = 0) {{
+                                  const container = document.createElement('span');
+                                  const indentStr = '  '.repeat(indent);
+                                  
+                                  if (value === null) {{
+                                      container.textContent = 'null';
+                                      container.style.color = '#888';
+                                  }} else if (typeof value === 'boolean') {{
+                                      container.textContent = value.toString();
+                                      container.style.color = '#0066cc';
+                                  }} else if (typeof value === 'number') {{
+                                      container.textContent = value.toString();
+                                      container.style.color = '#008800';
+                                  }} else if (typeof value === 'string') {{
+                                      // Render text with newlines
+                                      const pre = document.createElement('pre');
+                                      pre.style.display = 'inline';
+                                      pre.style.margin = '0';
+                                      pre.style.padding = '0';
+                                      pre.style.background = 'transparent';
+                                      pre.style.border = 'none';
+                                      pre.style.whiteSpace = 'pre-wrap';
+                                      pre.style.color = '#aa3333';
+                                      if (value.length > 200) {{
+                                          pre.textContent = '"' + value.substring(0, 100) + `... (${{value.length}} chars)"`;
+                                      }} else {{
+                                          pre.textContent = '"' + value + '"';
+                                      }}
+                                      container.appendChild(pre);
+                                  }} else if (Array.isArray(value)) {{
+                                      container.appendChild(document.createTextNode('['));
+                                      if (value.length > 20) {{
+                                          // Truncate long arrays
+                                          const truncated = [...value.slice(0, 10), `... (${{value.length - 20}} more) ...`, ...value.slice(-10)];
+                                          truncated.forEach((item, i) => {{
+                                              container.appendChild(document.createTextNode('\n' + indentStr + '  '));
+                                              container.appendChild(renderJsonValue(item, indent + 1));
+                                              if (i < truncated.length - 1) container.appendChild(document.createTextNode(','));
+                                          }});
+                                      }} else {{
+                                          value.forEach((item, i) => {{
+                                              container.appendChild(document.createTextNode('\n' + indentStr + '  '));
+                                              container.appendChild(renderJsonValue(item, indent + 1));
+                                              if (i < value.length - 1) container.appendChild(document.createTextNode(','));
+                                          }});
+                                      }}
+                                      if (value.length > 0) container.appendChild(document.createTextNode('\n' + indentStr));
+                                      container.appendChild(document.createTextNode(']'));
+                                  }} else if (typeof value === 'object') {{
+                                      // Check for objects with inline media (multiple patterns)
+                                      // Pattern 1: {{inline_data: {{mime_type, data}}}}
+                                      // Pattern 2: {{mime_type, data}} directly (like in function response parts)
+                                      const inlineData = value.inline_data || 
+                                          (value.mime_type && value.data ? value : null);
+                                      
+                                      if (inlineData && inlineData.mime_type && inlineData.data) {{
+                                          const mime = inlineData.mime_type;
+                                          const data = inlineData.data;
+                                          
+                                          // Build the JSON structure around the media
+                                          if (value.inline_data) {{
+                                              container.appendChild(document.createTextNode('{{ "inline_data": {{ "mime_type": "' + mime + '", "data": '));
+                                          }} else {{
+                                              container.appendChild(document.createTextNode('{{ "mime_type": "' + mime + '", "data": '));
+                                          }}
+                                          
+                                          // Render media based on type
+                                          if (mime.startsWith('image/')) {{
+                                              const img = document.createElement('img');
+                                              img.src = `data:${{mime}};base64,${{data}}`;
+                                              img.style.maxWidth = '200px';
+                                              img.style.maxHeight = '150px';
+                                              img.style.verticalAlign = 'middle';
+                                              img.style.margin = '4px';
+                                              img.style.border = '1px solid #ccc';
+                                              container.appendChild(img);
+                                          }} else if (mime.startsWith('audio/')) {{
+                                              const audio = document.createElement('audio');
+                                              audio.controls = true;
+                                              audio.src = getAudioDataUrl(mime, data);
+                                              audio.style.verticalAlign = 'middle';
+                                              audio.style.height = '24px';
+                                              container.appendChild(audio);
+                                          }} else if (mime.startsWith('video/')) {{
+                                              const video = document.createElement('video');
+                                              video.controls = true;
+                                              video.src = `data:${{mime}};base64,${{data}}`;
+                                              video.style.maxWidth = '200px';
+                                              video.style.maxHeight = '150px';
+                                              video.style.verticalAlign = 'middle';
+                                              container.appendChild(video);
+                                          }} else {{
+                                              // Other binary data - show placeholder
+                                              const placeholder = document.createElement('span');
+                                              placeholder.style.color = '#888';
+                                              placeholder.style.fontStyle = 'italic';
+                                              placeholder.textContent = `[Binary: ${{data.length}} bytes]`;
+                                              container.appendChild(placeholder);
+                                          }}
+                                          
+                                          // Close the JSON structure
+                                          if (value.inline_data) {{
+                                              container.appendChild(document.createTextNode(' }} }}'));
+                                          }} else {{
+                                              container.appendChild(document.createTextNode(' }}'));
+                                          }}
+                                      }} else {{
+                                          // Regular object - render all keys
+                                          const keys = Object.keys(value);
+                                          container.appendChild(document.createTextNode('{{'));
+                                          keys.forEach((key, i) => {{
+                                              container.appendChild(document.createTextNode('\n' + indentStr + '  "' + key + '": '));
+                                              container.appendChild(renderJsonValue(value[key], indent + 1));
+                                              if (i < keys.length - 1) container.appendChild(document.createTextNode(','));
+                                          }});
+                                          if (keys.length > 0) container.appendChild(document.createTextNode('\n' + indentStr));
+                                          container.appendChild(document.createTextNode('}}'));
+                                      }}
+                                  }}
+                                  return container;
+                              }}
+                              
+                              const pre = document.createElement('pre');
+                              pre.style.fontSize = '9px';
+                              pre.style.margin = '4px 0';
+                              pre.style.whiteSpace = 'pre-wrap';
+                              pre.appendChild(renderJsonValue(part));
+                              subContent.appendChild(pre);
+                          }} else {{
+                              // Empty part
+                              const emptySpan = document.createElement('span');
+                              emptySpan.style.color = '#888';
+                              emptySpan.style.fontStyle = 'italic';
+                              emptySpan.textContent = '∅ Empty';
+                              subContent.appendChild(emptySpan);
+                          }}
                       }}
                   }}
 

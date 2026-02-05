@@ -1069,6 +1069,143 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         },
     )
 
+  async def test_empty_and_metadata_only_parts(self):
+    """Test that empty parts and metadata-only parts are captured correctly."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    root_trace = trace_file.SyncFileTrace(
+        trace_dir=trace_dir,
+        name='Empty And Metadata Parts Test',
+    )
+    async with root_trace:
+      trace = root_trace.add_sub_trace(name='sub_trace', relation='call')
+      # Empty text part
+      await trace.add_input(content_api.ProcessorPart(''))
+      # Part with only metadata
+      await trace.add_input(
+          content_api.ProcessorPart(
+              '', metadata={'turn_complete': True, 'model_turn': 'done'}
+          )
+      )
+      # Non-empty text part
+      await trace.add_output(content_api.ProcessorPart('Hello world'))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Empty And Metadata Parts Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_root_trace = trace_file.SyncFileTrace.load(json_path)
+    loaded_trace = cast(
+        trace_file.SyncFileTrace, loaded_root_trace.events[0].sub_trace
+    )
+
+    # Verify empty text part
+    empty_part = loaded_root_trace.parts_store[loaded_trace.events[0].part_hash]
+    self.assertEqual(empty_part['part'].get('text', ''), '')
+    self.assertEqual(empty_part['metadata'], {})
+
+    # Verify metadata-only part
+    meta_part = loaded_root_trace.parts_store[loaded_trace.events[1].part_hash]
+    self.assertEqual(meta_part['part'].get('text', ''), '')
+    self.assertEqual(meta_part['metadata']['turn_complete'], True)
+    self.assertEqual(meta_part['metadata']['model_turn'], 'done')
+
+    # Verify non-empty text part
+    text_part = loaded_root_trace.parts_store[loaded_trace.events[2].part_hash]
+    self.assertEqual(text_part['part']['text'], 'Hello world')
+
+  async def test_function_response_with_all_fields(self):
+    """Test that function responses with all fields (id, name, response) are captured."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    root_trace = trace_file.SyncFileTrace(
+        trace_dir=trace_dir,
+        name='Function Response Fields Test',
+    )
+    async with root_trace:
+      trace = root_trace.add_sub_trace(name='sub_trace', relation='call')
+      # Function response with all fields
+      await trace.add_input(
+          content_api.ProcessorPart.from_function_response(
+              name='get_weather',
+              response={'temperature': 22, 'conditions': 'sunny'},
+              function_call_id='call_123',
+              role='user',
+          )
+      )
+      # Function response with media parts (image and audio)
+      img_part = create_image_part()
+      audio_part = create_audio_part()
+      # Create a ProcessorContent with the media parts
+      media_response = content_api.ProcessorContent([img_part, audio_part])
+      await trace.add_input(
+          content_api.ProcessorPart.from_function_response(
+              name='generate_multimedia',
+              response=media_response,
+              function_call_id='call_456',
+              role='user',
+          )
+      )
+      # Function call with metadata
+      await trace.add_output(
+          content_api.ProcessorPart.from_function_call(
+              name='search_web',
+              args={'query': 'python tutorials'},
+              role='model',
+              metadata={'turn_id': 42},
+          )
+      )
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Function Response Fields Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_root_trace = trace_file.SyncFileTrace.load(json_path)
+    loaded_trace = cast(
+        trace_file.SyncFileTrace, loaded_root_trace.events[0].sub_trace
+    )
+
+    # Verify function response fields
+    fr_part = loaded_root_trace.parts_store[loaded_trace.events[0].part_hash]
+    func_resp = fr_part['part'].get('function_response', {})
+    self.assertEqual(func_resp.get('name'), 'get_weather')
+    self.assertEqual(func_resp.get('id'), 'call_123')
+    # Response structure varies - just verify it exists or has parts
+    self.assertTrue(
+        func_resp.get('response') is not None
+        or func_resp.get('parts') is not None,
+        f'Expected response or parts in function_response, got: {func_resp}',
+    )
+
+    # Verify function response with media parts
+    media_fr_part = loaded_root_trace.parts_store[
+        loaded_trace.events[1].part_hash
+    ]
+    media_func_resp = media_fr_part['part'].get('function_response', {})
+    self.assertEqual(media_func_resp.get('name'), 'generate_multimedia')
+    self.assertEqual(media_func_resp.get('id'), 'call_456')
+    # Should have parts containing media
+    self.assertTrue(
+        media_func_resp.get('parts') is not None,
+        'Expected parts in multimedia function_response, got:'
+        f' {media_func_resp}',
+    )
+
+    # Verify function call with metadata (now at index 2)
+    fc_part = loaded_root_trace.parts_store[loaded_trace.events[2].part_hash]
+    func_call = fc_part['part'].get('function_call', {})
+    self.assertEqual(func_call.get('name'), 'search_web')
+    self.assertEqual(func_call.get('args', {}).get('query'), 'python tutorials')
+    self.assertEqual(fc_part['metadata'].get('turn_id'), 42)
+
 
 if __name__ == '__main__':
   absltest.main()
