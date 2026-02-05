@@ -504,43 +504,44 @@ class FunctionCalling(processor.Processor):
           input_queue.put_nowait(content_api.END_OF_TURN)
           state.schedule_model_call = False
       else:
-        # Reinject output parts into the model when it's not bidi.
-        if not context_lib.is_reserved_substream(part.substream_name) and (
-            not self._is_bidi_model or part.function_response
-        ):
-          await input_queue.put(part)
-        yield part
+        if context_lib.is_reserved_substream(part.substream_name):
+          yield part
+        else:
+          # Reinject output parts into the model when it's not bidi.
+          if not self._is_bidi_model or part.function_response:
+            await input_queue.put(part)
+          yield part
 
-        if part.function_call:
-          state.running_fc_count += 1
+          if part.function_call:
+            state.running_fc_count += 1
 
-        if part.function_response:
-          if not part.function_response.will_continue:
-            state.running_fc_count -= 1
+          if part.function_response:
+            if not part.function_response.will_continue:
+              state.running_fc_count -= 1
 
-          if part.function_response.scheduling:
-            scheduling = part.function_response.scheduling
-          else:
-            scheduling = part.get_metadata(
-                _SCHEDULING_METADATA_KEY,
-                genai_types.FunctionResponseScheduling.WHEN_IDLE,
-            )
-          match scheduling:
-            case genai_types.FunctionResponseScheduling.SILENT:
-              pass
-            case genai_types.FunctionResponseScheduling.WHEN_IDLE:
-              if state.model_outputting:
-                state.schedule_model_call = True
-              else:
+            if part.function_response.scheduling:
+              scheduling = part.function_response.scheduling
+            else:
+              scheduling = part.get_metadata(
+                  _SCHEDULING_METADATA_KEY,
+                  genai_types.FunctionResponseScheduling.WHEN_IDLE,
+              )
+            match scheduling:
+              case genai_types.FunctionResponseScheduling.SILENT:
+                pass
+              case genai_types.FunctionResponseScheduling.WHEN_IDLE:
+                if state.model_outputting:
+                  state.schedule_model_call = True
+                else:
+                  await input_queue.put(content_api.END_OF_TURN)
+              case _:
                 await input_queue.put(content_api.END_OF_TURN)
-            case _:
-              await input_queue.put(content_api.END_OF_TURN)
-          # If we reached max count, we should allow the model to react to
-          # this response, so we make one extra iteration and stop after it.
-          if state.fn_call_count >= state.fn_call_count_limit + 1:
-            await input_queue.put(None)
-            await output_queue.put(None)
-            pipeline_task.cancel()
+            # If we reached max count, we should allow the model to react to
+            # this response, so we make one extra iteration and stop after it.
+            if state.fn_call_count >= state.fn_call_count_limit + 1:
+              await input_queue.put(None)
+              await output_queue.put(None)
+              pipeline_task.cancel()
 
 
 async def cancel_fc(function_ids: list[str]) -> content_api.ProcessorPart:
@@ -773,11 +774,6 @@ class _ExecuteFunctionCall:
               and part_type.function_response
               and part_type.function_response.will_continue is False  # pylint: disable=g-bool-id-comparison
           ):
-            if will_not_continue_sent:
-              raise RuntimeError(
-                  'Got function response after will_continue=false has been'
-                  ' sent.'
-              )
             will_not_continue_sent = True
           yield part_type, True
 
