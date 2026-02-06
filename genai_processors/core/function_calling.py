@@ -758,16 +758,14 @@ class _ExecuteFunctionCall:
       call: The function call to execute.
       fn: The function to execute.
     """
-    async for fc_part, will_continue in self._execute_function(call, fn):
-      await self._output_queue.put(
-          self._to_function_response(fc_part, call, will_continue=will_continue)
-      )
+    async for fc_part in self._execute_function(call, fn):
+      await self._output_queue.put(fc_part)
 
   async def _execute_function(
       self,
       call: genai_types.FunctionCall,
       fn: Callable[..., Any],
-  ) -> AsyncIterable[tuple[Any, bool | None]]:
+  ) -> AsyncIterable[content_api.ProcessorPart]:
     """Runs the function into an async Task."""
     args = _extra_utils.convert_number_values_for_dict_function_call_args(
         call.args
@@ -775,36 +773,58 @@ class _ExecuteFunctionCall:
     converted_args = _extra_utils.convert_argument_from_function(args, fn)
     try:
       if inspect.isasyncgenfunction(fn):
-        will_not_continue_sent = False
+        # When the generator exits we automatically add a will_continue=False
+        # Part. We send one to the downstream processor and also a separate
+        # one for each of the reserved substreams as they have distinct
+        # consumers.
+        substreams_to_close = {self._substream_name}
         async for part_type in fn(**converted_args):
-          if (
-              isinstance(part_type, content_api.ProcessorPart)
-              and part_type.function_response
-              and part_type.function_response.will_continue is False  # pylint: disable=g-bool-id-comparison
-          ):
-            will_not_continue_sent = True
-            yield part_type, False
+          response = self._to_function_response(part_type, call)
+          substream = (
+              response.substream_name
+              if context_lib.is_reserved_substream(response.substream_name)
+              else self._substream_name
+          )
+          substreams_to_close.add(substream)
+
+          if response.function_response.will_continue is False:  # pylint: disable=g-bool-id-comparison
+            substreams_to_close.discard(substream)
           else:
-            yield part_type, True
+            response.function_response.will_continue = True
+
+          yield response
 
         # Send a function response to indicate that the function call is
         # done (will_continue=False).
-        if not will_not_continue_sent:
-          yield '', None
+        for substream in substreams_to_close:
+          yield content_api.ProcessorPart.from_function_response(
+              name=call.name,
+              function_call_id=call.id,
+              response='',
+              substream_name=substream,
+              role='user',
+          )
       elif inspect.iscoroutinefunction(fn):
-        yield await fn(**converted_args), None
+        yield self._to_function_response(
+            await fn(**converted_args), call, will_continue=None
+        )
       else:
-        yield await asyncio.to_thread(fn, **converted_args), None
+        yield self._to_function_response(
+            await asyncio.to_thread(fn, **converted_args),
+            call,
+            will_continue=None,
+        )
     except Exception as e:  # pylint: disable=broad-except
       yield content_api.ProcessorPart.from_function_response(
           name=call.name,
+          function_call_id=call.id,
           response=(
               f'Failed to invoke function {fn.__name__}({converted_args}): {e}'
           ),
           role='user',
           substream_name=self._substream_name,
           is_error=True,
-      ), None
+      )
 
   async def __call__(self, part: content_api.ProcessorPart) -> None:
     """Executes a function call and returns the result."""
@@ -864,9 +884,5 @@ class _ExecuteFunctionCall:
     else:
       # This is a sync function invoked by a non-bidi model. So we just run it
       # synchronously.
-      async for fc_part, will_continue in self._execute_function(call, fn):
-        await self._output_queue.put(
-            self._to_function_response(
-                fc_part, call, will_continue=will_continue
-            )
-        )
+      async for fc_part in self._execute_function(call, fn):
+        await self._output_queue.put(fc_part)

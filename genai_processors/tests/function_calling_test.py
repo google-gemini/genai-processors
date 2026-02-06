@@ -364,6 +364,16 @@ async def get_final_answer() -> AsyncIterable[content_api.ProcessorPart]:
   )
 
 
+async def async_gen_with_status() -> content_api.ProcessorPart:
+  """Yields a status part."""
+  yield content_api.ProcessorPart.from_function_response(
+      response='Status update',
+      substream_name='status',
+  )
+  await asyncio.sleep(0.01)
+  yield 'Final result'
+
+
 class FunctionCallingAsyncTest(
     unittest.IsolatedAsyncioTestCase, parameterized.TestCase
 ):
@@ -1126,6 +1136,36 @@ class FunctionCallingAsyncTest(
             ),
             model_output_3,
         ]),
+    )
+
+  async def test_reserved_substream_closed(self):
+
+    generate_processor = MockGenerateProcessor([
+        [
+            content_api.ProcessorPart.from_function_call(
+                name='async_gen_with_status',
+                args={},
+                role='model',
+            )
+        ],
+        'Done',
+    ])
+
+    fc_processor = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[async_gen_with_status],
+    )
+
+    # Run the processor
+    output = await fc_processor(content_api.ProcessorContent('Go')).gather()
+    closed_substreams = [
+        p.substream_name
+        for p in output
+        if p.function_response and not p.function_response.will_continue
+    ]
+    self.assertCountEqual(
+        closed_substreams,
+        ['status', function_calling.FUNCTION_CALL_SUBSTREAM_NAME],
     )
 
 
