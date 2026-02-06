@@ -6,6 +6,12 @@ We welcome contributions of new Processors that can be shared with the community
 
 ## List of contributed processors
 
+### In-repository processors
+
+ * [semantic_cache](semantic_cache.py): SemanticCacheProcessor caches LLM responses based on semantic similarity using vector embeddings, reducing API costs and latency for similar queries. See [documentation](semantic_cache.md).
+
+### External processors
+
  * [mbeacom/genai-processors-pydantic](https://github.com/mbeacom/genai-processors-pydantic/): The PydanticValidator is a PartProcessor that validates the JSON content of a ProcessorPart against a specified Pydantic model.
  * [mbeacom/genai-processors-url-fetch](https://github.com/mbeacom/genai-processors-url-fetch/): The UrlFetchProcessor detects URLs in text parts, fetches their content concurrently, and yields new ProcessorParts with extracted content (HTML, text, or markdown).
  <!--- * [Processor name](processor.py): short description. -->
