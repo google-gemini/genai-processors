@@ -18,13 +18,13 @@ This is the implementation, use widgets_ais.py to run the server.
 
 This demo demonstrates how to enrich model output with UI elements (widgets)
 using async tools. Key concepts include:
+
 *   **Async Tools**: Widgets (e.g., ImageGenerator, PlotGenerator) are
-registered
-    as tools that do not block the model.
+    registered as tools that do not block the model.
 *   **Tiered Rendering**:
-    *   **Model** decides the widget/content.
-    *   **Tool** renders to HTML/low-level representation.
-    *   **UI** displays the content.
+    * Model decides the widget/content.
+    * Tool renders to HTML/low-level representation.
+    * UI displays the content.
 *   **Direct Streaming**: Tools stream responses directly to the UI using the
     reserved `ui` substream, bypassing the model to avoid context pollution
     and head-of-line blocking.
@@ -70,10 +70,7 @@ class ImageGenerator:
 
     The description should be detailed enough to give all the information
     needed to create the image, including style and tone, shapes, shades, etc.
-
-    You can consider image generated immediately after the tool is invoked.
-    No need to wait for it to finish: the image will be visible to the user
-    only, but not you.
+    The image will be visible to the user only, but not you.
 
     Args:
       description: The description of the image to create.
@@ -101,12 +98,6 @@ class ImageGenerator:
       part.substream_name = 'ui'
       yield part
 
-    yield content_api.ProcessorPart.from_function_response(
-        response='',
-        substream_name='ui',
-        will_continue=False,
-    )
-
 
 class PlotGenerator:
   """Plot generator from a description."""
@@ -125,11 +116,8 @@ class PlotGenerator:
     """Creates a plot from a description.
 
     The description should be detailed enough to give all the information
-    needed to create the plot.
-
-    You can consider plot generated immediately after the tool is invoked.
-    No need to wait for it to finish: the plot will be visible to the user
-    only, but not you.
+    needed to create the plot. The plot will be visible to the user only,
+    but not you.
 
     Args:
       description: The description of the plot to create.
@@ -182,12 +170,6 @@ class PlotGenerator:
           # We use ui substream to send it directly to the UI.
           substream_name='ui',
       )
-
-    yield content_api.ProcessorPart.from_function_response(
-        response='',
-        substream_name='ui',
-        will_continue=False,
-    )
 
 
 def create_dr_widget(
