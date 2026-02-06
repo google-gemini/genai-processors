@@ -1,0 +1,5 @@
+{
+  "name": "DR Widget",
+  "description": "This demo shows how async tools can be used to enrich model output with UI elements.",
+  "requestFramePermissions": []
+}
