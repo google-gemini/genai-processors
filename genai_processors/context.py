@@ -27,12 +27,28 @@ _PROCESSOR_TASK_GROUP: contextvars.ContextVar['CancellableContextTaskGroup'] = (
 )
 
 PROMPT_STREAM = 'prompt'
+# Processors can yield debug information in this substream thus embedding it in
+# the conversation timeline.
 DEBUG_STREAM = 'debug'
+# When performing long tasks, processors can send status updates e.g. 1-line
+# summary of what they are doing.
 STATUS_STREAM = 'status'
+# Allows processors and in particular tools to send Parts directly to the user
+# instead of passing them through the model.
+UI_STREAM = 'ui'
+
+# Reserved substreams (and any substream with a reserved substream as a prefix)
+# are not passed to the processor but are instead "captured" and yielded
+# immediately to the output. This is useful for out-of-band data that should not
+# be processed by the model or other processors in the chain (e.g. debug logs,
+# status updates, UI events).
+#
+# Processors can add their own reserved substreams using the `context`
+# context manager.
 _PROCESSOR_RESERVED_SUBSTREAMS: contextvars.ContextVar[frozenset[str]] = (
     contextvars.ContextVar(
         'processor_reserved_substreams',
-        default=frozenset({DEBUG_STREAM, STATUS_STREAM}),
+        default=frozenset({DEBUG_STREAM, STATUS_STREAM, UI_STREAM}),
     )
 )
 

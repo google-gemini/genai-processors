@@ -460,6 +460,28 @@ class ProcessorTest(unittest.TestCase):
     self.assertEqual(substreams_seen, {'data'})
     self.assertEqual(output_substream, {'data', 'custom_debug'})
 
+  def test_ui_reserved_substream(self):
+    substreams_seen = set()
+
+    @processor.part_processor_function
+    async def mock_processor(
+        content: processor.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPart]:
+      substreams_seen.add(content.substream_name)
+      yield content
+
+    chained = mock_processor + mock_processor
+    content = [
+        processor.ProcessorPart('data', substream_name='data'),
+        processor.ProcessorPart('ui', substream_name='ui'),
+    ]
+
+    processor.apply_sync(chained, content)
+
+    # Check that the ui substream was captured and not passed to the
+    # processor, confirming it is reserved by default.
+    self.assertEqual(substreams_seen, {'data'})
+
 
 class TestWithProcessors(unittest.TestCase):
 
