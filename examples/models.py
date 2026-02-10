@@ -66,7 +66,13 @@ API_KEY = os.environ['GOOGLE_API_KEY']
 
 def turn_based_model(
     system_instruction: content_api.ProcessorContentTypes,
-    tools: list[genai_types.Tool | Callable[..., Any]] | None = None,
+    tools: (
+        list[
+            genai_types.Tool | Callable[..., Any] | genai_types.McpClientSession
+        ]
+        | None
+    ) = None,
+    disable_automatic_function_calling: bool = False,
 ) -> processor.Processor:
   """Returns a turn-based model based on command line flags.
 
@@ -75,6 +81,9 @@ def turn_based_model(
 
   Args:
     system_instruction: The system instruction to use for the model.
+    tools: The tools to use for the model, or google search tool if None.
+    disable_automatic_function_calling: Whether to disable automatic function
+      calling.
 
   Returns:
     A turn-based LLM model.
@@ -104,6 +113,9 @@ def turn_based_model(
             tools=tools
             if tools is not None
             else [genai_types.Tool(google_search=genai_types.GoogleSearch())],
+            automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+                disable=disable_automatic_function_calling
+            ),
         ),
         # Make the newest features available for the examples.
         http_options=genai_types.HttpOptions(api_version='v1alpha'),

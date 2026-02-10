@@ -200,7 +200,7 @@ class ProcessorPart:
         # Compare two dicts excluding 'capture_time' key.
         # Memory-efficient version.
         and set(['capture_time']).issuperset(
-            k for (k, v) in self._metadata.items() ^ other._metadata.items()
+            k for (k, _) in self._metadata.items() ^ other._metadata.items()
         )
     )
 

@@ -285,6 +285,7 @@ from typing import Any, Callable
 
 from genai_processors import content_api
 from genai_processors import context as context_lib
+from genai_processors import mcp
 from genai_processors import processor
 from genai_processors import streams
 from google.genai import _extra_utils
@@ -386,7 +387,9 @@ class FunctionCalling(processor.Processor):
       pre_processor: (
           processor.Processor | processor.PartProcessor | None
       ) = None,
-      fns: list[Callable[..., Any]] | None = None,
+      fns: (
+          list[Callable[..., Any] | genai_types.McpClientSession] | None
+      ) = None,
       max_function_calls: int | None = None,
   ):
     """Initializes the FunctionCalling processor.
@@ -419,7 +422,9 @@ class FunctionCalling(processor.Processor):
         `fns` list, the function calling processor will return the unknown
         function call part and will raise a `ValueError`. If the execution of
         the function fails, the function calling processor will return a
-        function response with the error message.
+        function response with the error message. MCP tools are automatically
+        converted to callables when passed in as functions to this processor,
+        this happens the first time the model is called.
       max_function_calls: maximum number of function calls to make (default set
         to 5 of turn-based models and infinity for bidi aka realtime models).
         When this limit is reached, the function calling loop will wait for the
@@ -430,6 +435,7 @@ class FunctionCalling(processor.Processor):
     self._substream_name = substream_name
     self._is_bidi_model = is_bidi_model
     self._fns = fns
+    self._fns_initialized = False
     self._pre_processor = (
         pre_processor.to_processor()
         if pre_processor
@@ -438,9 +444,25 @@ class FunctionCalling(processor.Processor):
     default_max_function_calls = 5 if not is_bidi_model else math.inf
     self._max_function_calls = max_function_calls or default_max_function_calls
 
+  async def _initialize_mcp_tools(self):
+    """Initializes the MCP tools."""
+    if self._fns_initialized:
+      return
+    fns = []
+    for fn in self._fns:
+      if isinstance(fn, genai_types.McpClientSession):
+        await fn.initialize()
+        fns.extend(await mcp.mcp_tools_to_callables(fn))
+      else:
+        # Keep the existing functions.
+        fns.append(fn)
+    self._fns_initialized = True
+    self._fns = fns
+
   async def call(
       self, content: AsyncIterable[content_api.ProcessorPart]
   ) -> AsyncIterable[content_api.ProcessorPart]:
+    await self._initialize_mcp_tools()
     state = _FunctionCallState(fn_call_count_limit=self._max_function_calls)
     # To support both bidi and unary models we reduce both cases to bidi.
     model = _to_bidi(self._model) if not self._is_bidi_model else self._model
@@ -767,10 +789,11 @@ class _ExecuteFunctionCall:
       fn: Callable[..., Any],
   ) -> AsyncIterable[content_api.ProcessorPart]:
     """Runs the function into an async Task."""
-    args = _extra_utils.convert_number_values_for_dict_function_call_args(
-        call.args
+    converted_args = (
+        _extra_utils.convert_number_values_for_dict_function_call_args(
+            call.args
+        )
     )
-    converted_args = _extra_utils.convert_argument_from_function(args, fn)
     try:
       if inspect.isasyncgenfunction(fn):
         # When the generator exits we automatically add a will_continue=False

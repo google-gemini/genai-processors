@@ -518,7 +518,7 @@ async def terminal_output(
   when an `end_of_turn` part is encountered.
 
   The parts are printed with their role in green, red or yellow. The text parts
-  are printed in bold.
+  are printed in bold. Function calls and responses are printed in cyan.
 
   Args:
     content: The content to print.
@@ -536,6 +536,16 @@ async def terminal_output(
     part_role = part.role or 'default'
     if content_api.is_text(part.mimetype):
       content_text = part.text
+    elif part.function_call:
+      content_text = (
+          f'\n\033[96m FC [{part.function_call.name}]:'
+          f' {part.function_call.args}'
+      )
+    elif part.function_response:
+      content_text = (
+          f'\n\033[96m FR[{part.function_response.name}]:'
+          f' {part.function_response.response}'
+      )
     else:
       content_text = f'<{part.mimetype}>'
     if part_role != old_part_role:
