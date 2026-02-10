@@ -1893,5 +1893,31 @@ class CachedProcessorTest(
     self.assertEqual(call_tracker.call_count, 3)
 
 
+class SourceTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
+
+  async def test_source_as_stream_usage(self):
+    @processor.source()
+    async def MySource():
+      yield content_api.ProcessorPart('Hello')
+      yield content_api.ProcessorPart(' ')
+      yield content_api.ProcessorPart('World')
+
+    source_instance = MySource()
+    self.assertEqual(await source_instance.text(), 'Hello World')
+
+  async def test_source_gather(self):
+    @processor.source()
+    async def MySource():
+      yield content_api.ProcessorPart('A')
+      yield content_api.ProcessorPart('B')
+
+    source_instance = MySource()
+    parts = await source_instance.gather()
+    self.assertSequenceEqual(
+        parts,
+        [content_api.ProcessorPart('A'), content_api.ProcessorPart('B')],
+    )
+
+
 if __name__ == '__main__':
   absltest.main()

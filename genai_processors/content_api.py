@@ -21,7 +21,7 @@ import functools
 import io
 import itertools
 import json
-from typing import Any, AsyncIterable, AsyncIterator, Generator, Generic, Optional, TypeAlias, TypeVar, Union
+from typing import Any, AsyncIterable, AsyncIterator, Generator, Generic, Optional, TypeAlias, TypeVar, Union, overload
 
 from absl import logging
 from genai_processors import mime_types
@@ -963,7 +963,17 @@ class ProcessorContent(ContentStream):
     """Returns the number of parts in this ProcessorContent."""
     return len(self._all_parts)
 
+  @overload
   def __getitem__(self, index: int) -> ProcessorPart:
+    ...
+
+  @overload
+  def __getitem__(self, index: slice) -> list[ProcessorPart]:
+    ...
+
+  def __getitem__(
+      self, index: int | slice
+  ) -> ProcessorPart | list[ProcessorPart]:
     """Returns the part at the given index."""
     return self._all_parts[index]
 

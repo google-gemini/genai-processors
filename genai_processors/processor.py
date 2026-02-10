@@ -1336,16 +1336,12 @@ async def process_streams_parallel(
 _ProcessorParamSpec = ParamSpec('_ProcessorParamSpec')
 
 
-class Source(Processor):
+class Source(Processor, ProcessorStream):
   """A Processor that produces ProcessorParts from some external source.
 
   Use @processor.source decorator to construct this class. Please see its
   docstring below for details.
   """
-
-  @abc.abstractmethod
-  def __aiter__(self) -> AsyncIterator[ProcessorPart]:
-    """Maintains the original signature of the wrapped source function."""
 
 
 class _SourceDecorator(Protocol):
@@ -1416,6 +1412,7 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
         self._source = _normalize_part_stream(
             source_fn(*args, **kwargs), producer=source_fn
         )
+        ProcessorStream.__init__(self, parts=self._source, trace=None)
 
       async def call(
           self, content: AsyncIterable[ProcessorPart]
@@ -1424,10 +1421,6 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
             [content, self._source], stop_on_first=stop_on_first
         ):
           yield part
-
-      def __aiter__(self) -> AsyncIterator[ProcessorPart]:
-        # This maintains the original signature of the wrapped function.
-        return self._source
 
     return SourceImpl
 
