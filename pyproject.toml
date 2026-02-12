@@ -62,6 +62,7 @@ contrib = [
 # Installed through `pip install -e .[dev]`
 dev = [
     "aiosqlite",
+    "av",
     "flake8",
     "google-adk",
     "pyink",
