@@ -2,6 +2,8 @@
 
 A processor that caches LLM responses based on semantic similarity using vector embeddings. This approach outperforms exact string matching.
 
+> **Note:** This processor only works for turn-based processors, not realtime ones.
+
 ## Overview
 
 SemanticCacheProcessor wraps any GenAI processor and caches responses. When a new query arrives, the processor:
@@ -156,15 +158,19 @@ cached_model = semantic_cache.SemanticCacheProcessor(
 Implement `VectorCacheBase` for custom backends like Redis, SQLite, or FAISS:
 
 ```python
-from genai_processors.contrib.semantic_cache import VectorCacheBase
+from genai_processors.contrib.semantic_cache import (
+    VectorCacheBase,
+    SimilaritySearchResult,
+)
 
 class MyCustomCache(VectorCacheBase):
-    async def find_similar(self, embedding, threshold, limit=1):
-        # Your implementation
+    async def find_similar(self, embedding, threshold, limit=1)
+        -> list[SimilaritySearchResult]:
+        # Return a list of results sorted by similarity (descending)
         ...
     
     async def store(self, embedding, query_text, response_parts, metadata=None):
-        # Your implementation
+        # response_parts are serialized via ProcessorPart.to_dict()
         ...
     
     async def remove(self, entry_id):
@@ -268,20 +274,21 @@ pipeline = cached_part_proc.to_processor()
 
 ## Limitations
 
-- Text-only embedding. Only embeds text content.
-- Linear search. InMemoryVectorCache uses O(n) search. For large caches (>10K), use FAISS.
-- Single-process. InMemoryVectorCache does not share across processes.
-- Embedding costs. Each cache miss requires an embedding API call.
+- **Turn-based only.** Does not support realtime/streaming processors.
+- **Text-only.** Non-text content triggers a cache miss (raises `ValueError`).
+- **Linear search.** InMemoryVectorCache uses O(n) search. For large caches (>10K), use FAISS.
+- **Single-process.** InMemoryVectorCache does not share across processes.
+- **Embedding costs.** Each cache miss requires an embedding API call.
 
 ## API Reference
 
 ### Classes
 
-- `SemanticCacheProcessor` - Main processor wrapper
+- `SemanticCacheProcessor` - Main processor wrapper (turn-based only)
 - `SemanticCachePartProcessor` - PartProcessor variant
-- `InMemoryVectorCache` - In-memory cache backend
+- `InMemoryVectorCache` - In-memory cache backend (eviction runs via `asyncio.to_thread`)
 - `VectorCacheBase` - Abstract base for cache backends
-- `SemanticCacheEntry` - Cache entry data structure
+- `SemanticCacheEntry` - Cache entry data structure (uses `ProcessorPart.to_dict/from_dict`)
 - `SimilaritySearchResult` - Search result data structure
 
 ### Functions

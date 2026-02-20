@@ -20,6 +20,8 @@ exact string matching. When a query arrives, the processor computes its
 embedding and searches the cache for similar previous queries. If a match
 scores above the similarity threshold, the cached response is returned.
 
+Note: This cache only works for turn-based processors, not realtime ones.
+
 Key benefits:
 - 50-70% reduction in API costs from semantic cache hits
 - Sub-50ms latency for cache hits (vs 500ms-2s for API calls)
@@ -104,16 +106,10 @@ class SemanticCacheEntry:
 
   def get_response_parts(self) -> list[content_api.ProcessorPart]:
     """Deserialize response parts back to ProcessorPart objects."""
-    parts = []
-    for part_dict in self.response_parts:
-      part = content_api.ProcessorPart(
-          part_dict.get('text', ''),
-          mimetype=part_dict.get('mimetype', 'text/plain'),
-          role=part_dict.get('role', ''),
-          metadata=part_dict.get('metadata', {}),
-      )
-      parts.append(part)
-    return parts
+    return [
+        content_api.ProcessorPart.from_dict(data=part_dict)
+        for part_dict in self.response_parts
+    ]
 
 
 @dataclasses.dataclass
@@ -147,24 +143,13 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
   a = np.array(vec1, dtype=np.float32)
   b = np.array(vec2, dtype=np.float32)
 
-  dot_product = np.dot(a, b)
   norm_a = np.linalg.norm(a)
   norm_b = np.linalg.norm(b)
 
   if norm_a == 0 or norm_b == 0:
     return 0.0
 
-  return float(dot_product / (norm_a * norm_b))
-
-
-def _serialize_part(part: content_api.ProcessorPart) -> dict[str, Any]:
-  """Serialize a ProcessorPart to a dictionary for caching."""
-  return {
-      'text': part.text if content_api.is_text(part.mimetype) else '',
-      'mimetype': part.mimetype,
-      'role': part.role,
-      'metadata': dict(part.metadata),
-  }
+  return float(np.dot(a, b) / (norm_a * norm_b))
 
 
 # =============================================================================
@@ -229,13 +214,20 @@ class GeminiEmbeddingClient(EmbeddingClientBase):
       Embedding vector as a list of floats.
 
     Raises:
-      ValueError: If no text content is found.
+      ValueError: If content is empty or contains non-text parts.
     """
-    # Extract text from all parts
+    if not content.all_parts:
+      raise ValueError('Empty content, cannot generate embedding.')
+
+    # Check for non-text content and raise to trigger cache miss
     text_parts = []
     for part in content.all_parts:
-      if content_api.is_text(part.mimetype):
-        text_parts.append(part.text)
+      if not content_api.is_text(part.mimetype):
+        raise ValueError(
+            f'Non-text content detected (mimetype={part.mimetype}). '
+            'Semantic cache only supports text content.'
+        )
+      text_parts.append(part.text)
 
     if not text_parts:
       raise ValueError('No text content found for embedding generation.')
@@ -276,8 +268,8 @@ class VectorCacheBase(abc.ABC):
       embedding: list[float],
       threshold: float,
       limit: int = 1,
-  ) -> SimilaritySearchResult | None:
-    """Find the most similar cached entry above threshold.
+  ) -> list[SimilaritySearchResult]:
+    """Find the most similar cached entries above threshold.
 
     Args:
       embedding: Query embedding vector.
@@ -285,7 +277,8 @@ class VectorCacheBase(abc.ABC):
       limit: Maximum number of results to return.
 
     Returns:
-      SimilaritySearchResult if a match is found, None otherwise.
+      List of SimilaritySearchResult sorted by similarity (descending).
+      Empty list if no matches found.
     """
     ...
 
@@ -376,25 +369,24 @@ class InMemoryVectorCache(VectorCacheBase):
       embedding: list[float],
       threshold: float,
       limit: int = 1,
-  ) -> SimilaritySearchResult | None:
-    """Find the most similar cached entry above threshold.
+  ) -> list[SimilaritySearchResult]:
+    """Find the most similar cached entries above threshold.
 
     Performs linear scan over all entries computing cosine similarity.
 
     Args:
       embedding: Query embedding vector.
       threshold: Minimum similarity score to consider a match.
-      limit: Maximum number of results (currently only returns top 1).
+      limit: Maximum number of results to return.
 
     Returns:
-      SimilaritySearchResult if a match is found, None otherwise.
+      List of SimilaritySearchResult sorted by similarity (descending).
+      Empty list if no matches found.
     """
     async with self._lock:
-      self._evict_expired()
+      await asyncio.to_thread(self._evict_expired)
 
-      best_match: SimilaritySearchResult | None = None
-      best_score = threshold  # Only consider entries above threshold
-
+      matches: list[SimilaritySearchResult] = []
       current_time = time.time()
 
       for entry in self._entries.values():
@@ -404,20 +396,24 @@ class InMemoryVectorCache(VectorCacheBase):
 
         score = cosine_similarity(embedding, entry.query_embedding)
 
-        if score > best_score:
-          best_score = score
-          best_match = SimilaritySearchResult(
+        if score > threshold:
+          matches.append(SimilaritySearchResult(
               entry=entry,
               similarity_score=score,
-          )
+          ))
 
-      if best_match:
+      # Sort by similarity descending and limit results
+      matches.sort(key=lambda r: r.similarity_score, reverse=True)
+      matches = matches[:limit]
+
+      if matches:
         self._stats['hits'] += 1
-        best_match.entry.hit_count += 1
+        for match in matches:
+          match.entry.hit_count += 1
       else:
         self._stats['misses'] += 1
 
-      return best_match
+      return matches
 
   async def store(
       self,
@@ -446,7 +442,7 @@ class InMemoryVectorCache(VectorCacheBase):
       entry_id = str(uuid.uuid4())
 
       # Serialize response parts for storage
-      serialized_parts = [_serialize_part(part) for part in response_parts]
+      serialized_parts = [part.to_dict() for part in response_parts]
 
       entry = SemanticCacheEntry(
           entry_id=entry_id,
@@ -534,6 +530,9 @@ class SemanticCacheProcessor(processor.Processor):
   response instead of calling the wrapped processor.
 
   Reduces API costs and latency when similar queries are frequently repeated.
+
+  Note: This processor only works for turn-based processors, not for
+  realtime ones.
 
   Example usage:
 
@@ -624,19 +623,14 @@ class SemanticCacheProcessor(processor.Processor):
     input_parts = await streams.gather_stream(content)
     input_content = content_api.ProcessorContent(input_parts)
 
-    # Skip caching for empty input
-    if not input_parts:
-      async for part in self._wrapped_processor(
-          streams.stream_content(input_parts)
-      ):
-        yield part
-      return
-
     # 2. Generate embedding for the query
+    # Handles empty input and non-text content by raising ValueError,
+    # which triggers a cache miss and falls through to wrapped processor.
     try:
       query_embedding = await self._embedding_client.embed(input_content)
     except Exception as e:
-      # If embedding fails, fall through to wrapped processor
+      # If embedding fails (empty input, non-text content, API error),
+      # fall through to wrapped processor
       yield processor.status(f'Embedding failed: {e}, bypassing cache')
       async for part in self._wrapped_processor(
           streams.stream_content(input_parts)
@@ -645,13 +639,14 @@ class SemanticCacheProcessor(processor.Processor):
       return
 
     # 3. Search cache for similar queries
-    cache_result = await self._cache.find_similar(
+    cache_results = await self._cache.find_similar(
         embedding=query_embedding,
         threshold=self._similarity_threshold,
     )
 
     # 4. Cache hit: return cached response
-    if cache_result is not None:
+    if cache_results:
+      cache_result = cache_results[0]
       yield processor.status(
           f'Semantic cache hit (similarity: {cache_result.similarity_score:.3f})'
       )
@@ -802,13 +797,13 @@ class SemanticCachePartProcessor(processor.PartProcessor):
       return
 
     # Check cache
-    cache_result = await self._cache.find_similar(
+    cache_results = await self._cache.find_similar(
         embedding=embedding,
         threshold=self._similarity_threshold,
     )
 
-    if cache_result is not None:
-      for p in cache_result.entry.get_response_parts():
+    if cache_results:
+      for p in cache_results[0].entry.get_response_parts():
         yield p
       return
 
