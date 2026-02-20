@@ -22,6 +22,11 @@ We recommend checking the following CLI examples first:
     end date. It is an example of concurrency and processor usage in a
     turn-based context.
 
+*   The [Chat CLI](chat.py) is a versatile chat agent using async function
+    calling with MCP to use tools during a conversation. It demonstrates how to
+    use MCP (Model Context Protocol) tools with GenAI Processors. It is meant
+    to be re-used and extended.
+
 Sub-directories include more complex agents like [Research](research/README.md)
 (deep research agent) or [Commentator](live/README.md) (live commentator on a
 video feed including an interruption mechanism). Check the README files in these

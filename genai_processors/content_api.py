@@ -15,12 +15,13 @@
 """Syntax sugar for working with Processor `Content` and `Part` wrappers."""
 
 from collections.abc import Callable, Iterable, Iterator
+import copy
 import dataclasses
 import functools
 import io
 import itertools
 import json
-from typing import Any, AsyncIterable, AsyncIterator, Generator, Generic, Optional, TypeAlias, TypeVar, Union
+from typing import Any, AsyncIterable, AsyncIterator, Generator, Generic, Optional, TypeAlias, TypeVar, Union, overload
 
 from absl import logging
 from genai_processors import mime_types
@@ -191,11 +192,16 @@ class ProcessorPart:
   def __eq__(self, other: Any) -> bool:
     if not isinstance(other, ProcessorPart):
       return False
+
     return (
         self._part == other._part
         and self._role.lower() == other._role.lower()
         and self._substream_name.lower() == other._substream_name.lower()
-        and self._metadata == other._metadata
+        # Compare two dicts excluding 'capture_time' key.
+        # Memory-efficient version.
+        and set(['capture_time']).issuperset(
+            k for (k, _) in self._metadata.items() ^ other._metadata.items()
+        )
     )
 
   @property
@@ -404,7 +410,7 @@ class ProcessorPart:
   def from_function_response(
       cls,
       *,
-      name: str,
+      name: str | None = None,
       response: Union[Any, 'ProcessorContentTypes'],
       function_call_id: str | None = None,
       will_continue: bool | None = None,
@@ -619,7 +625,8 @@ class ProcessorPart:
         non-JSON-serializable Python objects, i.e. bytes are left as is.
 
     Returns:
-      A dictionary representing the ProcessorPart.
+      A dictionary representing the ProcessorPart. It can be changed in place
+      without affecting the original ProcessorPart instance.
 
       It is expected to have the following keys:
         * 'part' (dict): A dictionary representing the underlying
@@ -643,8 +650,26 @@ class ProcessorPart:
         'role': self.role,
         'substream_name': self.substream_name,
         'mimetype': self.mimetype,
-        'metadata': self.metadata,
+        # Copy metadata to avoid caller modifying it in place.
+        'metadata': copy.deepcopy(self.metadata),
     }
+
+  def copy(self) -> 'ProcessorPart':
+    """Returns a copy of the ProcessorPart.
+
+    The internal part is not deep-copied, but the metadata is.
+
+    Returns:
+      A copy of the ProcessorPart.
+    """
+    return ProcessorPart(
+        self.part,
+        role=self.role,
+        substream_name=self.substream_name,
+        mimetype=self.mimetype,
+        metadata=copy.deepcopy(self.metadata),
+    )
+
 
 T = TypeVar('T')
 
@@ -938,7 +963,17 @@ class ProcessorContent(ContentStream):
     """Returns the number of parts in this ProcessorContent."""
     return len(self._all_parts)
 
+  @overload
   def __getitem__(self, index: int) -> ProcessorPart:
+    ...
+
+  @overload
+  def __getitem__(self, index: slice) -> list[ProcessorPart]:
+    ...
+
+  def __getitem__(
+      self, index: int | slice
+  ) -> ProcessorPart | list[ProcessorPart]:
     """Returns the part at the given index."""
     return self._all_parts[index]
 

@@ -291,14 +291,14 @@ class MatchProcessorTest(parameterized.TestCase):
         content_api.ProcessorPart(b'c', mimetype='image/png'),
     ]
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(output, input_content)
+    self.assertSequenceEqual(output, input_content)
     img_content = [
         content_api.ProcessorPart(b'a', mimetype='image/png'),
         content_api.ProcessorPart(b'b', mimetype='image/png'),
         content_api.ProcessorPart(b'c', mimetype='image/png'),
     ]
     output = processor.apply_sync(extractor, img_content)
-    self.assertEqual(output, img_content)
+    self.assertSequenceEqual(output, img_content)
 
   def test_mixed_substream_names_ok(self):
     stream_name_output = 'block'
@@ -318,7 +318,7 @@ class MatchProcessorTest(parameterized.TestCase):
     ]
     output = processor.apply_sync(extractor, input_content)
     self.assertLen(output, 5)
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         [
             content_api.ProcessorPart(b'a', mimetype='image/png'),
@@ -356,7 +356,7 @@ class MatchProcessorTest(parameterized.TestCase):
     ]
     output = processor.apply_sync(extractor, input_content)
     self.assertLen(output, 6)
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         [
             content_api.ProcessorPart(b'a', mimetype='image/png'),
@@ -395,7 +395,7 @@ class MatchProcessorTest(parameterized.TestCase):
     ]
     output = processor.apply_sync(extractor, input_content)
     self.assertLen(output, len(input_content) + 1)
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         input_content
         + [
@@ -497,7 +497,7 @@ class UrlExtractorTest(
         'hub.com/google-gemini/genai-processors ?',
     ])
     output = processor.apply_sync(extractor, input_content)
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         [
             content_api.ProcessorPart('What is at'),
@@ -707,7 +707,7 @@ class HtmlCleanerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         self.HTML_CONTENT, mimetype='text/html'
     )
     output = await processor.apply_async(cleaner, [input_part])
-    self.assertEqual(
+    self.assertSequenceEqual(
         output,
         [
             content_api.ProcessorPart(

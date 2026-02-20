@@ -154,12 +154,23 @@ class Processor(abc.ABC):
     Yields:
       the result of processing the input content.
     """
-    trace = trace_lib.create_sub_trace(
-        self.key_prefix, getattr(content, 'trace', None)
-    )
+    if self.is_excluded_from_trace:
+      trace = None
+    else:
+      trace = trace_lib.create_sub_trace(
+          self.trace_name,
+          getattr(content, 'trace', None),
+      )
     return ProcessorStream(
         self._call_impl(content, trace),
         trace=trace,
+    )
+
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor should be excluded from the trace."""
+    return trace_lib.is_module_excluded(
+        getattr(self, 'trace_module', self.__class__.__module__)
     )
 
   @typing.final
@@ -272,6 +283,19 @@ class Processor(abc.ABC):
     """
     return self.__class__.__qualname__
 
+  @functools.cached_property
+  def trace_name(self) -> str:
+    """Short name used for trace labels.
+
+    Defaults to key_prefix. Override this to provide a simpler name for
+    internal/framework processors that shouldn't show verbose key_prefixes
+    in traces.
+
+    Returns:
+      A short, human-readable name for the trace.
+    """
+    return self.__class__.__name__
+
   def to_processor(self) -> Processor:
     return self
 
@@ -367,6 +391,13 @@ class PartProcessor(abc.ABC):
     ):
       yield result
 
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor should be excluded from tracing."""
+    return trace_lib.is_module_excluded(
+        getattr(self, 'trace_module', self.__class__.__module__)
+    )
+
   @abc.abstractmethod
   async def call(
       self, part: ProcessorPart
@@ -437,6 +468,11 @@ class PartProcessor(abc.ABC):
           f' {type(other)}.'
       )
 
+  @functools.cached_property
+  def trace_name(self) -> str:
+    """Short name used for trace labels."""
+    return self.__class__.__name__
+
   def to_processor(self) -> Processor:
     """Converts this PartProcessor to a Processor.
 
@@ -452,7 +488,9 @@ class PartProcessor(abc.ABC):
                 [self],
                 task_name=self.key_prefix,
             )
-        )
+        ),
+        name=self.trace_name,
+        is_excluded_from_trace=self.is_excluded_from_trace,
     )
 
 
@@ -714,6 +752,14 @@ class _PartProcessorWrapper(PartProcessor):
   def key_prefix(self) -> str:
     return '_PartProcessorWrapper:' + _key_prefix(self._fn)
 
+  @functools.cached_property
+  def trace_name(self) -> str:
+    """Returns just the function name for cleaner trace labels."""
+    default_name = self._fn.__class__.__name__
+    if default_name == 'function':
+      default_name = self._fn.__name__
+    return getattr(self._fn, 'trace_name', default_name)
+
   def __repr__(self):
     return f'{self.__class__.__name__}({self._fn})'
 
@@ -730,6 +776,22 @@ class _ChainPartProcessor(PartProcessor):
   @functools.cached_property
   def key_prefix(self) -> str:
     return '_ChainPartProcessor:' + _combined_key_prefix(self._processor_list)
+
+  @functools.cached_property
+  def trace_name(self) -> str:
+    """Returns combined trace_names of sub-processors (excluding excluded ones)."""
+    names = []
+    for p in self._processor_list:
+      module = getattr(p, 'trace_module', p.__class__.__module__)
+      if not trace_lib.is_module_excluded(module):
+        names.append(getattr(p, 'trace_name', p.__class__.__name__))
+    return 'part_chain:' + ','.join(names) if names else 'part_chain'
+
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor is excluded from tracing."""
+    # Excluded from tracing  when the chain contains a single or no processor.
+    return ',' not in self.trace_name
 
   def __add__(
       self, other: Processor | PartProcessor
@@ -770,8 +832,15 @@ class _ChainPartProcessor(PartProcessor):
 class _ProcessorWrapper(Processor):
   """A ProcessorFn wrapped in a class."""
 
-  def __init__(self, fn: ProcessorFn):
+  def __init__(
+      self,
+      fn: ProcessorFn,
+      name: str | None = None,
+      is_excluded_from_trace: bool | None = None,
+  ):
     self.call = fn
+    self.name = name
+    self._is_excluded_from_trace = is_excluded_from_trace
 
   def __repr__(self):
     return f'_ProcessorWrapper({repr(self.call)})'
@@ -785,6 +854,28 @@ class _ProcessorWrapper(Processor):
   @functools.cached_property
   def key_prefix(self) -> str:
     return _key_prefix(self.call)
+
+  @functools.cached_property
+  def trace_name(self) -> str:
+    """Returns just the function name for cleaner trace labels."""
+    if self.name:
+      return self.name
+    default_name = self.call.__class__.__name__
+    if default_name == 'function':
+      default_name = self.call.__name__
+    return getattr(self.call, 'trace_name', default_name)
+
+  @functools.cached_property
+  def trace_module(self) -> str:
+    """Returns the module of the wrapped function for trace exclusion."""
+    return getattr(self.call, '__module__', self.__class__.__module__)
+
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor is excluded from tracing."""
+    if self._is_excluded_from_trace is not None:
+      return self._is_excluded_from_trace
+    return trace_lib.is_module_excluded(self.trace_module)
 
 
 class _ChainProcessor(Processor):
@@ -841,6 +932,22 @@ class _ChainProcessor(Processor):
   @functools.cached_property
   def key_prefix(self) -> str:
     return '_ChainProcessor:' + _combined_key_prefix(self._processor_list)
+
+  @functools.cached_property
+  def trace_name(self) -> str:
+    """Returns combined trace_names of sub-processors (excluding excluded ones)."""
+    names = []
+    for p in self._processor_list:
+      module = getattr(p, 'trace_module', p.__class__.__module__)
+      if not trace_lib.is_module_excluded(module):
+        names.append(p.trace_name)
+    return 'chain:' + ','.join(names) if names else 'chain'
+
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor is excluded from tracing."""
+    # Excluded from tracing when the chain contains a single or no processor.
+    return ',' not in self.trace_name
 
 
 async def _capture_reserved_substreams(
@@ -1041,6 +1148,22 @@ class _ParallelProcessor(Processor):
   def key_prefix(self) -> str:
     return '_ParallelProcessor:' + _combined_key_prefix(self._processor_list)
 
+  @functools.cached_property
+  def trace_name(self) -> str:
+    names = []
+    for p in self._processor_list:
+      module = getattr(p, 'trace_module', p.__class__.__module__)
+      if not trace_lib.is_module_excluded(module):
+        names.append(getattr(p, 'trace_name', p.__class__.__name__))
+    return 'parallel:' + ','.join(names) if names else 'parallel'
+
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor is excluded from tracing."""
+    # Excluded from tracing when the // processor contains a single or no
+    # processor.
+    return ',' not in self.trace_name
+
 
 class _ParallelPartProcessor(PartProcessor):
   """Parallel part processors.
@@ -1093,6 +1216,22 @@ class _ParallelPartProcessor(PartProcessor):
     return '_ParallelPartProcessor:' + _combined_key_prefix(
         self._processor_list
     )
+
+  @functools.cached_property
+  def trace_name(self) -> str:
+    names = []
+    for p in self._processor_list:
+      module = getattr(p, 'trace_module', p.__class__.__module__)
+      if not trace_lib.is_module_excluded(module):
+        names.append(getattr(p, 'trace_name', p.__class__.__name__))
+    return 'parallel_part:' + ','.join(names) if names else 'parallel_part'
+
+  @functools.cached_property
+  def is_excluded_from_trace(self) -> bool:
+    """Returns True if the processor is excluded from tracing."""
+    # Excluded from tracing when the // processor contains a single or no
+    # processor.
+    return ',' not in self.trace_name
 
 
 def _parallel_part_processors(
@@ -1197,16 +1336,12 @@ async def process_streams_parallel(
 _ProcessorParamSpec = ParamSpec('_ProcessorParamSpec')
 
 
-class Source(Processor):
+class Source(Processor, ProcessorStream):
   """A Processor that produces ProcessorParts from some external source.
 
   Use @processor.source decorator to construct this class. Please see its
   docstring below for details.
   """
-
-  @abc.abstractmethod
-  def __aiter__(self) -> AsyncIterator[ProcessorPart]:
-    """Maintains the original signature of the wrapped source function."""
 
 
 class _SourceDecorator(Protocol):
@@ -1277,6 +1412,7 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
         self._source = _normalize_part_stream(
             source_fn(*args, **kwargs), producer=source_fn
         )
+        ProcessorStream.__init__(self, parts=self._source, trace=None)
 
       async def call(
           self, content: AsyncIterable[ProcessorPart]
@@ -1285,10 +1421,6 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
             [content, self._source], stop_on_first=stop_on_first
         ):
           yield part
-
-      def __aiter__(self) -> AsyncIterator[ProcessorPart]:
-        # This maintains the original signature of the wrapped function.
-        return self._source
 
     return SourceImpl
 

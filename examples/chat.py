@@ -20,18 +20,41 @@ its content. This allows sending images and other modalities to the model.
 """
 
 import asyncio
+import os
 from typing import AsyncIterable, Sequence
-
 from absl import app
+from absl import flags
 from genai_processors import content_api
-from genai_processors import context
 from genai_processors import processor
+from genai_processors.core import function_calling
 from genai_processors.core import pdf
 from genai_processors.core import realtime
 from genai_processors.core import text
+from genai_processors.examples import mcp as mcp_examples
 from genai_processors.examples import models
 import httpx
 
+_MCP_SERVER = flags.DEFINE_string(
+    'mcp_server',
+    'demo',
+    'Address of the MCP server to use. Use "demo" to use a demo server. Use an'
+    ' https address starting with "https://" to use a remote server. Use'
+    ' "local:<command>" to use a local server, e.g. local:npx -y'
+    ' @modelcontextprotocol/server-filesystem .',
+)
+
+_API_KEY_ENV = flags.DEFINE_string(
+    'api_key_env',
+    'API_KEY',
+    'Name of the environment variable containing the API key for remote MCP'
+    ' servers. Defined by `export API_KEY=...`.',
+)
+
+_API_KEY_HEADER = flags.DEFINE_string(
+    'api_key_header',
+    'X-Goog-Api-Key',
+    'Name of the header containing the API key for remote MCP servers.',
+)
 
 SYSTEM_INSTRUCTIONS = [
     'You are an agent that interacts with the user in a conversation. Make'
@@ -41,6 +64,33 @@ SYSTEM_INSTRUCTIONS = [
 ]
 
 USER_PROMPT = '\n> '
+
+
+def _get_mcp_session():
+  """Returns a context manager for an MCP session."""
+  if _MCP_SERVER.value == 'demo':
+    return mcp_examples.get_demo_mcp_session()
+  elif _MCP_SERVER.value.startswith('https://'):
+    if _API_KEY_ENV.value:
+      api_key = os.environ.get(_API_KEY_ENV.value)
+      if not api_key:
+        raise ValueError(
+            f'API key not found in environment variable: {_API_KEY_ENV.value}'
+        )
+      api_key_header = {_API_KEY_HEADER.value: api_key}
+    else:
+      api_key_header = None
+
+    return mcp_examples.get_remote_mcp_session(
+        _MCP_SERVER.value, api_key_header
+    )
+  elif _MCP_SERVER.value.startswith('local:'):
+    return mcp_examples.get_local_mcp_session(_MCP_SERVER.value[6:])
+  else:
+    raise ValueError(
+        f'Unsupported MCP server: {_MCP_SERVER.value}. Use one of the'
+        ' following:\n- demo\n- https://<address>\n- local:<command>'
+    )
 
 
 class _FetchUrl(processor.PartProcessor):
@@ -85,34 +135,36 @@ async def run_chat() -> None:
   # interface. It also supports customizable context compression.
 
   # See models.py for the list of supported models and flags used to select one.
-  model = models.turn_based_model(system_instruction=SYSTEM_INSTRUCTIONS)
-  chat_agent = realtime.LiveModelProcessor(model)
+  async with _get_mcp_session() as mcp_session:
+    model = models.turn_based_model(
+        system_instruction=SYSTEM_INSTRUCTIONS,
+        disable_automatic_function_calling=True,
+        tools=[mcp_session],
+    )
+    model = function_calling.FunctionCalling(
+        model=realtime.LiveModelProcessor(model),
+        fns=[mcp_session],
+        is_bidi_model=True,
+    )
 
-  # Give the agent the ability to download multimodal content.
-  chat_agent = text.UrlExtractor() + _FetchUrl() + pdf.PDFExtract() + chat_agent
+    # Give the agent the ability to download multimodal content.
+    chat_agent = text.UrlExtractor() + _FetchUrl() + pdf.PDFExtract() + model
 
-  print('Welcome to the GenAI Processor Chat! Ask me anything.')
-  print('You can also ask questions about images or PDFs by providing a URL.')
-  print('For example:')
-  print(
-      ' - Describe the main points from the '
-      ' https://storage.googleapis.com/gweb-developer-goog-blog-assets/images/gemini_2-5_ga_family_1-1__dark.original.png'
-      ' diagram.'
-  )
-  print(' - Summarize https://arxiv.org/pdf/2312.11805')
-  print('Press Ctrl + D to exit.')
+    print('Welcome to the GenAI Processor Chat! Ask me anything.')
+    print('You can also ask questions about images or PDFs by providing a URL.')
+    print('For example:')
+    print(
+        ' - Describe the main points from the '
+        ' https://storage.googleapis.com/gweb-developer-goog-blog-assets/images/gemini_2-5_ga_family_1-1__dark.original.png'
+        ' diagram.'
+    )
+    print(' - Summarize https://arxiv.org/pdf/2312.11805')
+    print('Press Ctrl + D to exit.')
 
-  print(USER_PROMPT, end='')
-
-  async for part in chat_agent(text.terminal_input()):
-    # Filter out status messages.
-    if context.is_reserved_substream(part.substream_name):
-      continue
-
-    print(part.text, end='')
-
-    if content_api.is_end_of_turn(part):
-      print(USER_PROMPT, end='')
+    print(USER_PROMPT, end='')
+    await text.terminal_output(
+        chat_agent(text.terminal_input(prompt=USER_PROMPT)), prompt=USER_PROMPT
+    )
 
 
 def main(argv: Sequence[str]):

@@ -167,6 +167,20 @@ class ProcessorPartTest(parameterized.TestCase):
     part = content_api.ProcessorPart('foo')
     self.assertNotEqual(part, object())
 
+  def test_eq_ignores_capture_time(self):
+    part1 = content_api.ProcessorPart(
+        'foo', metadata={'capture_time': 1, 'a': 1}
+    )
+    part2 = content_api.ProcessorPart(
+        'foo', metadata={'capture_time': 2, 'a': 1}
+    )
+    self.assertEqual(part1, part2)
+
+    part3 = content_api.ProcessorPart(
+        'foo', metadata={'capture_time': 1, 'a': 2}
+    )
+    self.assertNotEqual(part1, part3)
+
 
 class ProcessorContentTest(parameterized.TestCase):
 
@@ -645,7 +659,7 @@ class ProcessorContentTest(parameterized.TestCase):
   ])
   def test_to_genai_contents(self, parts, expected_genai_contents):
     genai_contents = content_api.to_genai_contents(parts)
-    self.assertEqual(genai_contents, expected_genai_contents)
+    self.assertSequenceEqual(genai_contents, expected_genai_contents)
 
 
 T = TypeVar('T')
@@ -741,7 +755,7 @@ class ContentStreamTest(
         content_api.as_text(content_api.ProcessorContent(parts2)),
         'hello world',
     )
-    self.assertEqual(parts1, parts2)
+    self.assertSequenceEqual(parts1, parts2)
 
 
 if __name__ == '__main__':

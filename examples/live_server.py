@@ -215,7 +215,7 @@ class AIStudioConnection:
         part.substream_name = 'realtime'
         part.role = 'user'
         yield part
-      if content_api.is_text(part.mimetype):
+      elif content_api.is_text(part.mimetype):
         part.role = 'user'
         part.metadata['turn_complete'] = True
         yield part
@@ -250,6 +250,7 @@ class AIStudioConnection:
 async def live_server(
     processor_factory: Callable[[dict[str, Any]], processor.Processor],
     trace_dir: str | None,
+    max_size_bytes: int | None,
     ais_websocket: ServerConnection,
 ):
   """Runs the processor on AI Studio input/output streams."""
@@ -265,6 +266,7 @@ async def live_server(
         async with trace_file.SyncFileTrace(
             trace_dir=trace_dir,
             name='live_server',
+            max_size_bytes=max_size_bytes,
         ):
           await ais.send(live_processor(ais.receive()))
       else:
@@ -298,6 +300,7 @@ async def run_server(
     processor_factory: Callable[[dict[str, Any]], processor.Processor],
     port: int = 8765,
     trace_dir: str | None = None,
+    max_size_bytes: int | None = None,
 ) -> None:
   """Starts the WebSocket server."""
   if trace_dir:
@@ -307,7 +310,12 @@ async def run_server(
   stop = asyncio.get_running_loop().create_future()
 
   async with serve(
-      handler=functools.partial(live_server, processor_factory, trace_dir),
+      handler=functools.partial(
+          live_server,
+          processor_factory,
+          trace_dir,
+          max_size_bytes,
+      ),
       host='localhost',
       port=port,
       max_size=2 * 1024 * 1024,  # 2 MiB

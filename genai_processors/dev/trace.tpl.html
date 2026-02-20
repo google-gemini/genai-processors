@@ -16,6 +16,7 @@
 -->
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>Trace Viewer</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap"
@@ -30,17 +31,32 @@
         color: #1a1a1a;
         font-size: 12px;
         background: #fff;
+        overflow: hidden;
       }}
       #left-panel {{
-        width: 45%;
-        overflow: auto;
-        border-right: 1px solid #ccc;
+        width: 25%;
+        min-width: 180px;
+        overflow-x: hidden;
+        overflow-y: auto;
+        border-right: none;
         padding: 6px;
         box-sizing: border-box;
         background-color: #fafafa;
+        flex-shrink: 0;
+      }}
+      #resizer {{
+        width: 6px;
+        background: #e0e0e0;
+        cursor: col-resize;
+        flex-shrink: 0;
+        transition: background 0.15s;
+      }}
+      #resizer:hover, #resizer.dragging {{
+        background: #0066cc;
       }}
       #right-panel {{
-        width: 55%;
+        flex: 1;
+        min-width: 200px;
         overflow: auto;
         padding: 12px;
         box-sizing: border-box;
@@ -117,9 +133,14 @@
         list-style-type: none;
         padding-left: 0;
         margin: 0;
+        display: flex;
+        flex-direction: column;
       }}
       li {{
         padding: 1px 0;
+        display: flex;
+        flex-direction: column;
+        width: 100%;
       }}
       li:last-child {{
         border-bottom: none;
@@ -132,20 +153,37 @@
         flex-direction: column;
         width: 100%;
         box-sizing: border-box;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }}
       .event-item:hover {{
         background: #f0f0f0;
       }}
       .event-item-in {{
         align-self: flex-start;
-        background-color: #f0f7ff;
-        border-left: 3px solid #0066cc;
+        background-color: #e8f4ff;
+        border-left: 4px solid #0066cc;
+        width: 94%;
       }}
       .event-item-out {{
         align-self: flex-end;
-        background-color: #f0fff0;
-        border-right: 3px solid #228b22;
+        background-color: #e8ffe8;
+        border-right: 4px solid #228b22;
         border-left: none;
+        width: 94%;
+      }}
+      .event-item-out .event-header {{
+        flex-direction: row-reverse;
+      }}
+      .event-item-out .event-content {{
+        text-align: left;
+      }}
+      .event-item-out .event-footer {{
+        flex-direction: row-reverse;
+      }}
+      .event-item-out .event-footer .metadata-btn {{
+        margin-left: auto;
       }}
       .event-item-sub {{
         align-self: flex-start;
@@ -244,16 +282,34 @@
       }}
       .content-block-input {{
         align-self: flex-start;
-        background-color: #f0f7ff;
-        border-left: 3px solid #0066cc;
+        background-color: #e8f4ff;
+        border-left: 4px solid #0066cc;
+        width: 94%;
       }}
       .content-block-output {{
         align-self: flex-end;
-        background-color: #f0fff0;
-        border-right: 3px solid #228b22;
+        background-color: #e8ffe8;
+        border-right: 4px solid #228b22;
         border-left: none;
+        width: 94%;
       }}
-      .content-block.audio-playing {{
+      .content-block-output .block-header {{
+        flex-direction: row-reverse;
+      }}
+      .content-block-output .block-time {{
+        margin-left: 0;
+        margin-right: auto;
+      }}
+      .content-block-output .block-content {{
+        text-align: left;
+      }}
+      .content-block-output .block-content pre {{
+        text-align: left;
+      }}
+      .content-block-output .block-content img {{
+        margin-left: 0;
+      }}
+      .content-block.audio-playing, .event-block.audio-playing {{
         background-color: #fff8f0;
         border-color: #cc6600;
       }}
@@ -338,12 +394,22 @@
         font-size: 11px;
         display: flex;
         flex-direction: column;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }}
       .event-header {{
         display: flex;
         align-items: center;
         gap: 4px;
         flex-wrap: wrap;
+        min-width: 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }}
+      .event-header > span {{
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }}
       .event-content {{
         margin: 2px 0;
@@ -456,6 +522,8 @@
         overflow-x: auto;
         font-family: inherit;
         font-size: 11px;
+        white-space: pre-wrap;
+        word-break: break-word;
       }}
       .code-output {{
         background-color: #f5f5f5;
@@ -463,6 +531,8 @@
         padding: 8px;
         font-family: inherit;
         font-size: 11px;
+        white-space: pre-wrap;
+        word-break: break-word;
       }}
       .outcome-success {{
         color: #228b22;
@@ -517,6 +587,78 @@
         font-weight: 500;
         text-transform: uppercase;
       }}
+      .event-type-badge {{
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 600;
+        margin-right: 4px;
+      }}
+      .badge-function-call {{
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffb74d;
+      }}
+      .badge-function-response {{
+        background-color: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #64b5f6;
+      }}
+      .badge-code {{
+        background-color: #f3e5f5;
+        color: #7b1fa2;
+        border: 1px solid #ba68c8;
+      }}
+      .badge-code-ok {{
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #81c784;
+      }}
+      .badge-code-error {{
+        background-color: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef9a9a;
+      }}
+      .badge-error {{
+        background-color: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef9a9a;
+      }}
+      .badge-cancelled {{
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffb74d;
+      }}
+      .error-event {{
+        background-color: #ffebee;
+        border-left: 4px solid #c62828;
+        border-right: none;
+      }}
+      .error-event .event-block-header {{
+        background-color: transparent;
+        border: none;
+      }}
+      .trace-status-badge {{
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-left: 8px;
+      }}
+      .trace-status-error {{
+        background-color: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef9a9a;
+      }}
+      .trace-status-cancelled {{
+        background-color: #fff3e0;
+        color: #e65100;
+        border: 1px solid #ffb74d;
+      }}
       .function-block {{
         margin: 8px 0;
         padding: 8px;
@@ -527,10 +669,244 @@
       .function-block:first-child {{
         margin-top: 0;
       }}
+      .event-block {{
+        margin-bottom: 4px;
+        overflow: hidden;
+      }}
+      .event-block-header {{
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        cursor: pointer;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+      }}
+      .event-block-header:hover {{
+        background: #eee;
+      }}
+      .event-block.content-block-input {{
+        background-color: #e8f4ff;
+        border-left: 4px solid #0066cc;
+      }}
+      .event-block.content-block-input .event-block-header {{
+        background-color: transparent;
+        border: none;
+      }}
+      .event-block.content-block-output {{
+        background-color: #e8ffe8;
+        border-right: 4px solid #228b22;
+      }}
+      .event-block.content-block-output .event-block-header {{
+        background-color: transparent;
+        border: none;
+      }}
+      .event-block-title {{
+        font-weight: 500;
+        font-size: 11px;
+      }}
+      .event-block-meta {{
+        font-size: 10px;
+        color: #666;
+        display: flex;
+        gap: 8px;
+        margin-left: auto;
+        flex-wrap: wrap;
+        align-items: center;
+      }}
+      .event-metadata-badge {{
+        background: #fffde7;
+        border: 1px solid #ffc107;
+        color: #6d4c00;
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-size: 9px;
+        max-width: 300px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: help;
+      }}
+      .metadata-only-indicator {{
+        padding: 4px;
+        font-style: italic;
+        color: #666;
+      }}
+      .event-block-body {{
+        padding: 8px;
+        border-top: 1px solid rgba(0,0,0,0.1);
+        overflow-x: hidden;
+        overflow-wrap: anywhere;
+        word-wrap: break-word;
+      }}
+      .event-block-body pre {{
+        overflow-x: auto;
+        max-width: 100%;
+      }}
+      .event-block.expanded .event-block-body {{
+        display: block;
+      }}
+      .sub-event {{
+        padding: 6px 8px;
+        margin-bottom: 4px;
+        background: #fafafa;
+        border: 1px solid #eee;
+        font-size: 11px;
+      }}
+      .sub-event:last-child {{
+        margin-bottom: 0;
+      }}
+      .sub-event-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 10px;
+        color: #666;
+      }}
+      .sub-event-meta {{
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }}
+      .sub-event-time {{
+        color: #888;
+        white-space: nowrap;
+      }}
+      .sub-event-content {{
+        font-size: 11px;
+      }}
+      .sub-event-content pre {{
+        margin: 0;
+        background: transparent;
+        border: none;
+        padding: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+      }}
+      .sub-event-metadata {{
+        margin-top: 4px;
+        padding: 6px 8px;
+        background: #fff8e1;
+        border: 1px solid #ffcc80;
+        border-radius: 3px;
+        font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+      }}
+      .sub-event-metadata pre {{
+        margin: 0;
+        white-space: pre-wrap;
+        font-size: 10px;
+        overflow: hidden;
+        word-break: break-word;
+      }}
+      .sub-event-metadata details {{
+        margin: 0;
+      }}
+      .sub-event-metadata summary {{
+        cursor: pointer;
+        color: #666;
+        font-size: 9px;
+      }}
+      .expand-triangle {{
+        display: inline-block;
+        transition: transform 0.2s ease;
+        margin-right: 4px;
+      }}
+      details[open] > summary .expand-triangle {{
+        transform: rotate(90deg);
+      }}
+      details > summary {{
+        list-style: none;
+      }}
+      details > summary::-webkit-details-marker {{
+        display: none;
+      }}
+      .substream-badge {{
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: 500;
+        margin-left: 10px;
+        margin-right: 6px;
+      }}
+      .substream-badge-input {{
+        background-color: #e8f4ff;
+        border: 1px solid #0066cc;
+        color: #0066cc;
+      }}
+      .substream-badge-output {{
+        background-color: #e8ffe8;
+        border: 1px solid #228b22;
+        color: #228b22;
+      }}
+      .block-footer {{
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        margin-top: 8px;
+        margin-right: 4px;
+        gap: 8px;
+      }}
+      .sub-event-footer {{
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        margin-top: 4px;
+        padding-top: 4px;
+        gap: 8px;
+      }}
+      .role-badge {{
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }}
+      .role-user {{
+        background-color: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #90caf9;
+      }}
+      .role-model {{
+        background-color: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #a5d6a7;
+      }}
+      .role-system {{
+        background-color: #f5f5f5;
+        color: #616161;
+        border: 1px solid #bdbdbd;
+      }}
+      .role-function-response {{
+        background-color: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #64b5f6;
+      }}
+      .role-unknown {{
+        background-color: #fff8e1;
+        color: #f57c00;
+        border: 1px solid #ffcc80;
+      }}
+      .block-header-left {{
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }}
+      .sub-event-role {{
+        margin-left: auto;
+      }}
     </style>
   </head>
   <body>
     <div id="left-panel" tabindex="0"></div>
+    <div id="resizer"></div>
     <div id="right-panel"></div>
     <div id="parts-cache" style="display: none;"></div>
     <script>
@@ -542,6 +918,7 @@
       const eventToParentSubtrace = {{}};
       let currentSubtraceBlocks = [];
       let currentSubtraceStartTime = null;
+      let rootTraceStartTime = null;
       let focusedLi = null;
 
       // Cache for rendered part content (keyed by part_ref)
@@ -579,7 +956,7 @@
           }} else if (mimetype.startsWith('audio/')) {{
               const audio = document.createElement('audio');
               audio.controls = true;
-              audio.src = `data:${{mimetype}};base64,${{data}}`;
+              audio.src = getAudioDataUrl(mimetype, data);
               element = audio;
           }}
 
@@ -604,6 +981,167 @@
         }}
 
         return btoa(binary);
+      }}
+
+      // Convert audio/l16 (raw 16-bit PCM) to WAV format data URL
+      // audio/l16 is typically 24000Hz, mono, 16-bit signed little-endian
+      function l16ToWavDataUrl(base64Data, sampleRate = 24000, numChannels = 1) {{
+          const binaryString = atob(base64Data);
+          const len = binaryString.length;
+          const pcmData = new Uint8Array(len);
+          for (let i = 0; i < len; i++) {{
+              pcmData[i] = binaryString.charCodeAt(i);
+          }}
+
+          const bitsPerSample = 16;
+          const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+          const blockAlign = numChannels * (bitsPerSample / 8);
+          const dataSize = pcmData.length;
+          const headerSize = 44;
+          const fileSize = headerSize + dataSize;
+
+          const buffer = new ArrayBuffer(fileSize);
+          const view = new DataView(buffer);
+
+          // RIFF header
+          view.setUint8(0, 'R'.charCodeAt(0));
+          view.setUint8(1, 'I'.charCodeAt(0));
+          view.setUint8(2, 'F'.charCodeAt(0));
+          view.setUint8(3, 'F'.charCodeAt(0));
+          view.setUint32(4, fileSize - 8, true);
+          view.setUint8(8, 'W'.charCodeAt(0));
+          view.setUint8(9, 'A'.charCodeAt(0));
+          view.setUint8(10, 'V'.charCodeAt(0));
+          view.setUint8(11, 'E'.charCodeAt(0));
+
+          // fmt subchunk
+          view.setUint8(12, 'f'.charCodeAt(0));
+          view.setUint8(13, 'm'.charCodeAt(0));
+          view.setUint8(14, 't'.charCodeAt(0));
+          view.setUint8(15, ' '.charCodeAt(0));
+          view.setUint32(16, 16, true); // subchunk1 size
+          view.setUint16(20, 1, true); // audio format (PCM)
+          view.setUint16(22, numChannels, true);
+          view.setUint32(24, sampleRate, true);
+          view.setUint32(28, byteRate, true);
+          view.setUint16(32, blockAlign, true);
+          view.setUint16(34, bitsPerSample, true);
+
+          // data subchunk
+          view.setUint8(36, 'd'.charCodeAt(0));
+          view.setUint8(37, 'a'.charCodeAt(0));
+          view.setUint8(38, 't'.charCodeAt(0));
+          view.setUint8(39, 'a'.charCodeAt(0));
+          view.setUint32(40, dataSize, true);
+
+          // Copy PCM data
+          const wavBytes = new Uint8Array(buffer);
+          wavBytes.set(pcmData, headerSize);
+
+          return `data:audio/wav;base64,${{bytesToBase64(wavBytes)}}`;
+      }}
+
+      // Get audio data URL, converting l16 to wav if needed
+      function getAudioDataUrl(mimetype, data) {{
+          if (mimetype === 'audio/l16' || mimetype.startsWith('audio/l16;')) {{
+              // Parse sample rate from mime type if present (e.g., "audio/l16;rate=24000")
+              let sampleRate = 24000;
+              const rateMatch = mimetype.match(/rate=(\d+)/);
+              if (rateMatch) {{
+                  sampleRate = parseInt(rateMatch[1], 10);
+              }}
+              return l16ToWavDataUrl(data, sampleRate);
+          }}
+          return `data:${{mimetype}};base64,${{data}}`;
+      }}
+
+      // Combine multiple base64-encoded audio chunks into a single audio data URL
+      // For L16, we need to decode each chunk, combine the binary, then create one WAV
+      function combineAudioChunks(chunks, mimetype) {{
+          if (!chunks || chunks.length === 0) return null;
+          
+          if (mimetype === 'audio/l16' || mimetype.startsWith('audio/l16;')) {{
+              // For L16: decode all chunks, combine binary, then create WAV
+              let totalLength = 0;
+              const binaryChunks = chunks.map(base64Data => {{
+                  const binaryString = atob(base64Data);
+                  const len = binaryString.length;
+                  const bytes = new Uint8Array(len);
+                  for (let i = 0; i < len; i++) {{
+                      bytes[i] = binaryString.charCodeAt(i);
+                  }}
+                  totalLength += len;
+                  return bytes;
+              }});
+              
+              // Combine all chunks into one Uint8Array
+              const combinedPcm = new Uint8Array(totalLength);
+              let offset = 0;
+              binaryChunks.forEach(chunk => {{
+                  combinedPcm.set(chunk, offset);
+                  offset += chunk.length;
+              }});
+              
+              // Parse sample rate from mime type
+              let sampleRate = 24000;
+              const rateMatch = mimetype.match(/rate=(\d+)/);
+              if (rateMatch) {{
+                  sampleRate = parseInt(rateMatch[1], 10);
+              }}
+              
+              // Create WAV from combined PCM data
+              const numChannels = 1;
+              const bitsPerSample = 16;
+              const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+              const blockAlign = numChannels * (bitsPerSample / 8);
+              const dataSize = combinedPcm.length;
+              const headerSize = 44;
+              const fileSize = headerSize + dataSize;
+
+              const buffer = new ArrayBuffer(fileSize);
+              const view = new DataView(buffer);
+
+              // RIFF header
+              view.setUint8(0, 'R'.charCodeAt(0));
+              view.setUint8(1, 'I'.charCodeAt(0));
+              view.setUint8(2, 'F'.charCodeAt(0));
+              view.setUint8(3, 'F'.charCodeAt(0));
+              view.setUint32(4, fileSize - 8, true);
+              view.setUint8(8, 'W'.charCodeAt(0));
+              view.setUint8(9, 'A'.charCodeAt(0));
+              view.setUint8(10, 'V'.charCodeAt(0));
+              view.setUint8(11, 'E'.charCodeAt(0));
+
+              // fmt subchunk
+              view.setUint8(12, 'f'.charCodeAt(0));
+              view.setUint8(13, 'm'.charCodeAt(0));
+              view.setUint8(14, 't'.charCodeAt(0));
+              view.setUint8(15, ' '.charCodeAt(0));
+              view.setUint32(16, 16, true);
+              view.setUint16(20, 1, true);
+              view.setUint16(22, numChannels, true);
+              view.setUint32(24, sampleRate, true);
+              view.setUint32(28, byteRate, true);
+              view.setUint16(32, blockAlign, true);
+              view.setUint16(34, bitsPerSample, true);
+
+              // data subchunk
+              view.setUint8(36, 'd'.charCodeAt(0));
+              view.setUint8(37, 'a'.charCodeAt(0));
+              view.setUint8(38, 't'.charCodeAt(0));
+              view.setUint8(39, 'a'.charCodeAt(0));
+              view.setUint32(40, dataSize, true);
+
+              // Copy PCM data
+              const wavBytes = new Uint8Array(buffer);
+              wavBytes.set(combinedPcm, headerSize);
+
+              return `data:audio/wav;base64,${{bytesToBase64(wavBytes)}}`;
+          }} else {{
+              // For other formats, just concatenate base64 (works for WAV since it's raw concatenation of audio data)
+              const combinedData = chunks.join('');
+              return `data:${{mimetype}};base64,${{combinedData}}`;
+          }}
       }}
 
       function getTimeDeltaMs(start, current) {{
@@ -643,6 +1181,37 @@
             return 0;
           }}
           return endTime.getTime() - startTime.getTime();
+      }}
+
+      function getSubtraceDuration(subTrace) {{
+          if (!subTrace || !subTrace.events) return {{ duration: 0, firstInputTime: null, lastOutputTime: null }};
+          let firstInputTime = null;
+          let lastOutputTime = null;
+          subTrace.events.forEach(event => {{
+              if (!event.sub_trace && event.timestamp) {{
+                  if (event.is_input) {{
+                      if (!firstInputTime) {{
+                          firstInputTime = event.timestamp;
+                      }}
+                  }} else {{
+                      lastOutputTime = event.timestamp;
+                  }}
+              }}
+          }});
+          if (firstInputTime && lastOutputTime) {{
+              return {{
+                  duration: getTimeDeltaMs(firstInputTime, lastOutputTime),
+                  firstInputTime: firstInputTime,
+                  lastOutputTime: lastOutputTime
+              }};
+          }}
+          if (firstInputTime) {{
+              return {{ duration: 0, firstInputTime: firstInputTime, lastOutputTime: null }};
+          }}
+          if (lastOutputTime) {{
+              return {{ duration: 0, firstInputTime: null, lastOutputTime: lastOutputTime }};
+          }}
+          return {{ duration: 0, firstInputTime: subTrace.start_time, lastOutputTime: subTrace.end_time }};
       }}
 
       function renderPart(partDict, partHash) {{
@@ -727,7 +1296,7 @@
                           }} else if (frMime.startsWith('audio/')) {{
                               const audio = document.createElement('audio');
                               audio.controls = true;
-                              audio.src = `data:${{frMime}};base64,${{frData}}`;
+                              audio.src = getAudioDataUrl(frMime, frData);
                               div.appendChild(audio);
                           }} else {{
                               const media_info = document.createElement('div');
@@ -806,7 +1375,7 @@
               }} else {{
                   const audio = document.createElement('audio');
                   audio.controls = true;
-                  audio.src = `data:${{mimetype}};base64,${{data}}`;
+                  audio.src = getAudioDataUrl(mimetype, data);
                   div.appendChild(audio);
               }}
           }} else if (data) {{
@@ -901,6 +1470,30 @@
           return span;
       }}
 
+      function createRoleBadge(role) {{
+          if (!role) return null;
+          const span = document.createElement('span');
+          span.className = 'role-badge';
+          const roleLower = role.toLowerCase();
+          // Rename 'tool' to 'Function Response' for clarity
+          if (roleLower === 'tool') {{
+              span.textContent = 'FUNCTION RESPONSE';
+              span.classList.add('role-function-response');
+          }} else {{
+              span.textContent = role;
+              if (roleLower === 'user') {{
+                  span.classList.add('role-user');
+              }} else if (roleLower === 'model') {{
+                  span.classList.add('role-model');
+              }} else if (roleLower === 'system') {{
+                  span.classList.add('role-system');
+              }} else {{
+                  span.classList.add('role-unknown');
+              }}
+          }}
+          return span;
+      }}
+
       function renderLine1Content(line1, mimeType, data, text, is_input, substream) {{
         if (mimeType) {{
             if (mimeType.startsWith('image/')) {{
@@ -911,7 +1504,7 @@
             }} else if (mimeType.startsWith('audio/')) {{
                 const audio = document.createElement('audio');
                 audio.controls = true;
-                audio.src = `data:${{mimeType}};base64,${{data}}`;
+                audio.src = getAudioDataUrl(mimeType, data);
                 audio.className = 'audio-small';
                 line1.appendChild(audio);
             }} else if (mimeType.startsWith('text/')) {{
@@ -934,33 +1527,29 @@
         }}
       }}
 
-      function createTraceView(trace, eventsById) {{
+      function createTraceView(trace, eventsById, rootStartTime = null) {{
           const ul = document.createElement('ul');
           const eventsToRender = trace.events;
           eventsToRender.forEach(event => {{
+              if (!event.sub_trace) {{
+                  return;
+              }}
+
               const li = document.createElement('li');
               li.dataset.eventId = event.id;
 
               const eventItem = document.createElement('div');
               eventItem.classList.add('event-item');
-
-              const partDict = getPartDict(event);
-              const mimeType = getMimeType(partDict);
-              const data = getData(partDict);
-              const text = getText(partDict);
-              const metadata = partDict?.metadata || {{}};
-              const role = metadata.role || '';
-              const substream = partDict?.substream_name || '';
+              eventItem.classList.add('event-item-sub');
 
               const details = document.createElement('div');
               details.className = 'event-details';
 
-              if (event.sub_trace) {{
-                  eventItem.classList.add('event-item-sub');
+              const header = document.createElement('div');
+              header.className = 'event-header';
 
-                  const header = document.createElement('div');
-                  header.className = 'event-header';
-
+              const hasChildren = event.sub_trace.events && event.sub_trace.events.some(e => e.sub_trace);
+              if (hasChildren) {{
                   const collapseBtn = document.createElement('button');
                   collapseBtn.className = 'collapse-btn';
                   collapseBtn.textContent = '+';
@@ -970,175 +1559,36 @@
                       e.stopPropagation();
                   }};
                   header.appendChild(collapseBtn);
-                  header.appendChild(createSpan('SUB', 'event-type event-type-sub'));
-                  header.appendChild(createSpan(event.sub_trace.name, ''));
-
-                  const subTraceDuration = getTraceDuration(event.sub_trace);
-                  const subTraceStartDelta = getTimeDeltaMs(trace.start_time, event.sub_trace.start_time);
-                  header.appendChild(createSpan(`+${{subTraceStartDelta}}ms`, 'event-time'));
-                  header.appendChild(createSpan(`dur:${{formatDuration(subTraceDuration)}}`, 'event-time'));
-                  if (event.relation) {{
-                      header.appendChild(createSpan(event.relation, 'event-time'));
-                  }}
-                  details.appendChild(header);
-
                   li.classList.add('collapsible');
                   li.classList.add('collapsed');
-              }} else {{
-                  if (event.is_input) {{
-                      eventItem.classList.add('event-item-in');
-                  }} else {{
-                      eventItem.classList.add('event-item-out');
-                  }}
-
-                  const header = document.createElement('div');
-                  header.className = 'event-header';
-                  header.appendChild(createSpan(event.is_input ? 'IN' : 'OUT', `event-type event-type-${{event.is_input ? 'in' : 'out'}}`));
-                  if (role) header.appendChild(createSpan(role, ''));
-                  header.appendChild(createSpan(`· +${{getTimeDeltaMs(trace.start_time, event.timestamp)}}ms`, 'event-time'));
-                  if (mimeType) header.appendChild(createSpan(`· ${{mimeType}}`, 'event-time'));
-                  details.appendChild(header);
-                  const part = partDict?.part || {{}};
-
-                  if (part.thought) {{
-                      const thoughtBadge = document.createElement('span');
-                      thoughtBadge.className = 'thought-badge';
-                      thoughtBadge.textContent = '💭 Thought';
-                      header.appendChild(thoughtBadge);
-                  }}
-
-                  if (part.function_call) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const fcName = part.function_call.name || 'unknown';
-                      content.innerHTML = `<span class="function-call-badge">📞 Function Call</span> <b>${{fcName}}</b>`;
-                      if (part.function_call.args) {{
-                          const argsPreview = JSON.stringify(part.function_call.args);
-                          const preview = argsPreview.length > 60 ? argsPreview.substring(0, 60) + '...' : argsPreview;
-                          const pre = document.createElement('pre');
-                          pre.textContent = preview;
-                          content.appendChild(pre);
-                      }}
-                      details.appendChild(content);
-                  }} else if (part.function_response) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const frName = part.function_response.name || 'unknown';
-                      let mediaIndicator = '';
-                      if (part.function_response.parts && part.function_response.parts.length > 0) {{
-                          const hasImage = part.function_response.parts.some(p => p.inline_data?.mime_type?.startsWith('image/'));
-                          const hasAudio = part.function_response.parts.some(p => p.inline_data?.mime_type?.startsWith('audio/'));
-                          if (hasImage) mediaIndicator += ' 🖼️';
-                          if (hasAudio) mediaIndicator += ' 🔊';
-                      }}
-                      content.innerHTML = `<span class="function-response-badge">📋 Function Response</span> <b>${{frName}}</b>${{mediaIndicator}}`;
-                      if (part.function_response.response) {{
-                          const respPreview = JSON.stringify(part.function_response.response);
-                          const preview = respPreview.length > 60 ? respPreview.substring(0, 60) + '...' : respPreview;
-                          const pre = document.createElement('pre');
-                          pre.textContent = preview;
-                          content.appendChild(pre);
-                      }}
-                      details.appendChild(content);
-                  }} else if (part.executable_code) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const lang = part.executable_code.language || 'code';
-                      content.innerHTML = `<span class="function-call-badge">💻 Code</span> <b>${{lang}}</b>`;
-                      if (part.executable_code.code) {{
-                          const codePreview = part.executable_code.code.substring(0, 80).replace(/\n/g, ' ');
-                          const preview = part.executable_code.code.length > 80 ? codePreview + '...' : codePreview;
-                          const pre = document.createElement('pre');
-                          pre.textContent = preview;
-                          content.appendChild(pre);
-                      }}
-                      details.appendChild(content);
-                  }} else if (part.code_execution_result) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const outcome = part.code_execution_result.outcome || 'UNKNOWN';
-                      const outcomeIcon = outcome === 'OUTCOME_OK' ? '✅' : '❌';
-                      content.innerHTML = `<span class="function-response-badge">${{outcomeIcon}} Result</span> <b>${{outcome}}</b>`;
-                      if (part.code_execution_result.output) {{
-                          const outPreview = part.code_execution_result.output.substring(0, 80).replace(/\n/g, ' ');
-                          const preview = part.code_execution_result.output.length > 80 ? outPreview + '...' : outPreview;
-                          const pre = document.createElement('pre');
-                          pre.textContent = preview;
-                          content.appendChild(pre);
-                      }}
-                      details.appendChild(content);
-                  }} else if (part.file_data) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const displayName = part.file_data.display_name || 'file';
-                      const fileMime = part.file_data.mime_type || '';
-                      content.innerHTML = `<span class="function-call-badge">📁 File</span> <b>${{displayName}}</b>`;
-                      if (fileMime) {{
-                          content.innerHTML += ` <span class="file-mime">${{fileMime}}</span>`;
-                      }}
-                      details.appendChild(content);
-                  }} else if (mimeType && mimeType.startsWith('image/') && event.part_hash !== undefined) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const cachedImg = getCachedPartContent(event.part_hash, 'thumb');
-                      if (cachedImg) {{
-                          content.appendChild(cachedImg);
-                      }}
-                      details.appendChild(content);
-                  }} else if (mimeType && mimeType.startsWith('audio/')) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      content.appendChild(createSpan(`🔊 Audio`, ''));
-                      details.appendChild(content);
-                  }} else if (text) {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      const pre = document.createElement('pre');
-                      pre.textContent = text.length > 100 ? text.substring(0, 100) + '...' : text;
-                      content.appendChild(pre);
-                      details.appendChild(content);
-                  }} else {{
-                      const content = document.createElement('div');
-                      content.className = 'event-content';
-                      content.innerHTML = `<span class="function-call-badge">📦 Data</span> <span class="file-mime">${{mimeType || 'unknown type'}}</span>`;
-                      details.appendChild(content);
-                  }}
-
-                  const footer = document.createElement('div');
-                  footer.className = 'event-footer';
-                  const footerMeta = document.createElement('div');
-                  footerMeta.className = 'event-meta';
-                  if (substream) footerMeta.appendChild(createSpan(`substream: ${{substream}}`, ''));
-                  footer.appendChild(footerMeta);
-
-                  const hasMetadata = Object.keys(metadata).length > 0;
-                  if (hasMetadata) {{
-                      const metadataBtn = document.createElement('button');
-                      metadataBtn.className = 'metadata-btn';
-                      metadataBtn.textContent = 'metadata';
-                      metadataBtn.onclick = (e) => {{
-                          const metaContent = eventItem.querySelector('.metadata-content');
-                          if (metaContent) {{
-                              metaContent.classList.toggle('expanded');
-                              metadataBtn.textContent = metaContent.classList.contains('expanded') ? 'hide' : 'metadata';
-                          }}
-                          e.stopPropagation();
-                      }};
-                      footer.appendChild(metadataBtn);
-                  }} else {{
-                      footer.appendChild(createSpan('no metadata', 'no-metadata'));
-                  }}
-                  details.appendChild(footer);
-
-                  if (hasMetadata) {{
-                      const metadataContent = document.createElement('div');
-                      metadataContent.className = 'metadata-content';
-                      const pre = document.createElement('pre');
-                      pre.textContent = JSON.stringify(metadata, null, 2);
-                      metadataContent.appendChild(pre);
-                      details.appendChild(metadataContent);
-                  }}
               }}
+
+              header.appendChild(createSpan(event.sub_trace.name, ''));
+
+              // Add status badges for error/cancelled traces
+              if (event.sub_trace.error) {{
+                  const errorBadge = document.createElement('span');
+                  errorBadge.className = 'trace-status-badge trace-status-error';
+                  errorBadge.textContent = 'ERROR';
+                  errorBadge.title = event.sub_trace.error;
+                  header.appendChild(errorBadge);
+              }} else if (event.sub_trace.cancelled) {{
+                  const cancelledBadge = document.createElement('span');
+                  cancelledBadge.className = 'trace-status-badge trace-status-cancelled';
+                  cancelledBadge.textContent = 'CANCELLED';
+                  header.appendChild(cancelledBadge);
+              }}
+
+              const subTraceTiming = getSubtraceDuration(event.sub_trace);
+              const effectiveRootStart = rootStartTime || trace.start_time;
+              const subTraceEventStart = subTraceTiming.firstInputTime || event.sub_trace.start_time;
+              const subTraceStartDelta = getTimeDeltaMs(effectiveRootStart, subTraceEventStart);
+              header.appendChild(createSpan(`+${{formatDuration(subTraceStartDelta)}}`, 'event-time'));
+              header.appendChild(createSpan(`dur:${{formatDuration(subTraceTiming.duration)}}`, 'event-time'));
+              if (event.relation) {{
+                  header.appendChild(createSpan(event.relation, 'event-time'));
+              }}
+              details.appendChild(header);
 
               eventItem.appendChild(details);
               li.appendChild(eventItem);
@@ -1153,13 +1603,14 @@
                   e.stopPropagation();
               }});
 
-              if (event.sub_trace) {{
+              if (hasChildren) {{
                   const div = document.createElement('div');
                   div.className = 'sub-trace-container';
                   div.style.paddingLeft = "12px";
-                  div.appendChild(createTraceView(event.sub_trace, eventsById));
+                  div.appendChild(createTraceView(event.sub_trace, eventsById, rootStartTime || trace.start_time));
                   li.appendChild(div);
               }}
+
               ul.appendChild(li);
           }});
           return ul;
@@ -1189,22 +1640,53 @@
           return 'text';
       }}
 
+      function getFunctionName(partDict) {{
+          const part = partDict?.part || {{}};
+          if (part.function_call) return part.function_call.name || '';
+          if (part.function_response) return part.function_response.name || '';
+          return '';
+      }}
+
       function groupEventsIntoBlocks(events) {{
           const blocks = [];
           let currentBlock = null;
 
           events.forEach(event => {{
+              // Handle error events specially - they always get their own block
+              if (event.error_message) {{
+                  if (currentBlock) blocks.push(currentBlock);
+                  currentBlock = null;
+                  blocks.push({{
+                      role: '',
+                      substream: '',
+                      isInput: false,
+                      modality: 'error',
+                      events: [event],
+                      eventIds: [event.id],
+                      startTime: event.timestamp,
+                      endTime: event.timestamp,
+                      audioData: [],
+                      errorMessage: event.error_message,
+                      functionName: ''
+                  }});
+                  return;
+              }}
+
               const partDict = getPartDict(event);
               const mimeType = getMimeType(partDict);
-              const role = partDict?.metadata?.role || '';
+              const role = partDict?.role || '';
               const substream = partDict?.substream_name || '';
               const isInput = event.is_input;
               const modality = getModalityType(mimeType, partDict);
+              const functionName = getFunctionName(partDict);
 
+              // Split blocks when function name changes for function_call and function_response
               const needsNewBlock = !currentBlock ||
                   currentBlock.role !== role ||
                   currentBlock.isInput !== isInput ||
-                  currentBlock.modality !== modality;
+                  currentBlock.modality !== modality ||
+                  currentBlock.substream !== substream ||
+                  ((modality === 'function_call' || modality === 'function_response') && currentBlock.functionName !== functionName);
 
               if (needsNewBlock) {{
                   if (currentBlock) blocks.push(currentBlock);
@@ -1217,7 +1699,8 @@
                       eventIds: [event.id],
                       startTime: event.timestamp,
                       endTime: event.timestamp,
-                      audioData: []
+                      audioData: [],
+                      functionName: functionName
                   }};
               }} else {{
                   currentBlock.events.push(event);
@@ -1228,7 +1711,7 @@
               if (modality === 'audio') {{
                   const data = getData(partDict);
                   const mime = getMimeType(partDict);
-                  if (data) {{
+                  if (data && mime) {{
                       if (!currentBlock.audioMimeType) currentBlock.audioMimeType = mime;
                       currentBlock.audioData.push(data);
                   }}
@@ -1280,8 +1763,7 @@
                   currentPlayingBlock = blockEl;
               }}
 
-              const combinedData = block.audioData.join('');
-              const audio = new Audio(`data:${{block.audioMimeType || 'audio/wav'}};base64,${{combinedData}}`);
+              const audio = new Audio(combineAudioChunks(block.audioData, block.audioMimeType || 'audio/wav'));
               currentAudio = audio;
 
               audio.onended = () => {{
@@ -1324,8 +1806,7 @@
                   currentPlayingBlock = blockEl;
               }}
 
-              const combinedData = block.audioData.join('');
-              const audio = new Audio(`data:${{block.audioMimeType || 'audio/wav'}};base64,${{combinedData}}`);
+              const audio = new Audio(combineAudioChunks(block.audioData, block.audioMimeType || 'audio/wav'));
               currentAudio = audio;
 
               audio.onended = () => {{
@@ -1342,65 +1823,148 @@
           playNextBlock();
       }}
 
+
       function renderContentBlock(block, blockId, subtraceStartTime) {{
           const div = document.createElement('div');
-          div.className = 'content-block ' + (block.isInput ? 'content-block-input' : 'content-block-output');
+          // Handle error modality specially
+          if (block.modality === 'error') {{
+              div.className = 'event-block expanded error-event';
+          }} else {{
+              div.className = 'event-block expanded ' + (block.isInput ? 'content-block-input' : 'content-block-output');
+          }}
           div.dataset.blockId = blockId;
           block.eventIds.forEach(id => div.dataset.eventIds = (div.dataset.eventIds || '') + id + ',');
           block.id = blockId;
 
           const header = document.createElement('div');
-          header.className = 'block-header';
+          header.className = 'event-block-header';
 
-          const metaParts = [];
-          if (block.role) metaParts.push(`role: ${{block.role}}`);
-          if (block.substream) metaParts.push(`substream: ${{block.substream}}`);
-          if (metaParts.length > 0) {{
-              const metaSpan = document.createElement('span');
-              metaSpan.className = 'block-meta';
-              metaSpan.textContent = metaParts.join('  ');
-              header.appendChild(metaSpan);
+          let blockTitle = '';
+          let useHtmlTitle = false;
+          const firstEvent = block.events[0];
+          const firstPartDict = getPartDict(firstEvent);
+          const firstPart = firstPartDict?.part || {{}};
+          const firstMime = getMimeType(firstPartDict);
+
+          if (block.modality === 'error') {{
+              useHtmlTitle = true;
+              blockTitle = `<span class="event-type-badge badge-error">❌ Error</span>`;
+          }} else if (block.modality === 'function_call') {{
+              useHtmlTitle = true;
+              blockTitle = `<span class="event-type-badge badge-function-call">📞 Function Call</span> ${{firstPart.function_call?.name || 'unknown'}}`;
+          }} else if (block.modality === 'function_response') {{
+              useHtmlTitle = true;
+              blockTitle = `<span class="event-type-badge badge-function-response">📋 Function Response</span> ${{firstPart.function_response?.name || 'unknown'}}`;
+          }} else if (block.modality === 'executable_code') {{
+              useHtmlTitle = true;
+              blockTitle = `<span class="event-type-badge badge-code">💻 Code</span> ${{firstPart.executable_code?.language || 'unknown'}}`;
+          }} else if (block.modality === 'code_execution_result') {{
+              const outcome = firstPart.code_execution_result?.outcome || 'UNKNOWN';
+              const isOk = outcome === 'OUTCOME_OK';
+              useHtmlTitle = true;
+              blockTitle = `<span class="event-type-badge ${{isOk ? 'badge-code-ok' : 'badge-code-error'}}">${{isOk ? '✅' : '❌'}} Code Result</span> ${{outcome}}`;
+          }} else if (block.modality === 'file_data') {{
+              blockTitle = '📁 File Data';
+          }} else if (block.modality === 'audio') {{
+              blockTitle = '🔊 Audio';
+          }} else if (block.modality === 'image') {{
+              blockTitle = '🖼️ Image';
+          }} else {{
+              blockTitle = '📝 Text';
           }}
 
-          if (block.startTime && subtraceStartTime) {{
-              const startMs = getTimeDeltaMs(subtraceStartTime, block.startTime);
-              const endMs = getTimeDeltaMs(subtraceStartTime, block.endTime);
+          const headerLeft = document.createElement('div');
+          headerLeft.className = 'block-header-left';
+
+          if (block.role) {{
+              const roleBadge = createRoleBadge(block.role);
+              if (roleBadge) headerLeft.appendChild(roleBadge);
+          }}
+
+          const titleSpan = document.createElement('span');
+          titleSpan.className = 'event-block-title';
+          if (useHtmlTitle) {{
+              titleSpan.innerHTML = blockTitle;
+          }} else {{
+              titleSpan.textContent = blockTitle;
+          }}
+          headerLeft.appendChild(titleSpan);
+          header.appendChild(headerLeft);
+
+          const meta = document.createElement('div');
+          meta.className = 'event-block-meta';
+
+          if (firstMime) {{
+              const mimeSpan = document.createElement('span');
+              mimeSpan.textContent = firstMime;
+              meta.appendChild(mimeSpan);
+          }}
+
+          if (block.startTime && rootTraceStartTime) {{
+              const startMs = getTimeDeltaMs(rootTraceStartTime, block.startTime);
+              const endMs = getTimeDeltaMs(rootTraceStartTime, block.endTime);
               const timeSpan = document.createElement('span');
-              timeSpan.className = 'block-time';
               if (startMs === endMs) {{
-                  timeSpan.textContent = `${{startMs}}ms`;
+                  timeSpan.textContent = `+${{formatDuration(startMs)}}`;
               }} else {{
-                  timeSpan.textContent = `${{startMs}}ms - ${{endMs}}ms`;
+                  timeSpan.textContent = `+${{formatDuration(startMs)}} → +${{formatDuration(endMs)}}`;
               }}
-              header.appendChild(timeSpan);
+              meta.appendChild(timeSpan);
           }}
+          header.appendChild(meta);
 
           div.appendChild(header);
 
-          const content = document.createElement('div');
-          content.className = 'block-content';
+          const body = document.createElement('div');
+          body.className = 'event-block-body';
 
           if (block.modality === 'text') {{
+              // Only merge text content, not metadata
               const allText = block.events.map(event => {{
                   const partDict = getPartDict(event);
                   return getText(partDict) || '';
               }}).join('');
+              
               if (allText) {{
                   const pre = document.createElement('pre');
+                  pre.className = 'sub-event-content';
                   pre.textContent = allText;
-                  content.appendChild(pre);
+                  body.appendChild(pre);
+              }} else {{
+                  // Check if there's any non-empty part content or metadata
+                  const hasNonEmptyContent = block.events.some(event => {{
+                      const partDict = getPartDict(event);
+                      const part = partDict?.part || {{}};
+                      const metadata = partDict?.metadata || {{}};
+                      const partKeys = Object.keys(part).filter(k => k !== 'text');
+                      const metaKeys = Object.keys(metadata);
+                      return partKeys.length > 0 || metaKeys.length > 0;
+                  }});
+                  
+                  const titleSpan = header.querySelector('.event-block-title');
+                  if (hasNonEmptyContent) {{
+                      // Has metadata or part content - show as Metadata
+                      if (titleSpan) {{
+                          titleSpan.innerHTML = '📋 Metadata';
+                      }}
+                  }} else {{
+                      // Truly empty - show as Empty
+                      if (titleSpan) {{
+                          titleSpan.innerHTML = '∅ Empty';
+                      }}
+                  }}
               }}
           }} else if (block.modality === 'audio') {{
               const indicator = document.createElement('div');
               indicator.className = 'audio-indicator';
               indicator.innerHTML = `<span class="audio-indicator-icon">🔊</span> Audio (${{block.events.length}} chunk${{block.events.length > 1 ? 's' : ''}})`;
-              content.appendChild(indicator);
+              body.appendChild(indicator);
           }} else if (block.modality === 'image') {{
               block.events.forEach(event => {{
                   if (event.part_hash !== undefined) {{
                       const cachedImg = getCachedPartContent(event.part_hash, 'full');
                       if (cachedImg) {{
-                          content.appendChild(cachedImg);
+                          body.appendChild(cachedImg);
                       }}
                   }} else {{
                       const partDict = getPartDict(event);
@@ -1409,153 +1973,376 @@
                       if (data) {{
                           const img = document.createElement('img');
                           img.src = `data:${{mime}};base64,${{data}}`;
-                          content.appendChild(img);
+                          body.appendChild(img);
                       }}
                   }}
               }});
-          }} else if (block.modality === 'function_call') {{
+          }} else if (block.modality === 'error') {{
+              const pre = document.createElement('pre');
+              pre.className = 'code-output outcome-error';
+              pre.textContent = block.errorMessage || 'Unknown error';
+              body.appendChild(pre);
+          }} else {{
+              // For all other modalities (function_call, function_response, 
+              // executable_code, code_execution_result, file_data, etc.), 
+              // only show media elements - JSON details are in sub-events
               block.events.forEach(event => {{
                   const partDict = getPartDict(event);
                   const part = partDict?.part || {{}};
-                  const fc = part.function_call || {{}};
-                  const fcDiv = document.createElement('div');
-                  fcDiv.className = 'function-block';
-                  fcDiv.innerHTML = `<span class="function-call-badge">📞 Function Call</span> <b>${{fc.name || 'unknown'}}</b>`;
-                  if (fc.id) {{
-                      fcDiv.innerHTML += ` <span class="file-mime">(id: ${{fc.id}})</span>`;
-                  }}
-                  if (fc.args) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-output';
-                      pre.textContent = JSON.stringify(fc.args, null, 2);
-                      fcDiv.appendChild(pre);
-                  }}
-                  content.appendChild(fcDiv);
-              }});
-          }} else if (block.modality === 'function_response') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const fr = part.function_response || {{}};
-                  const frDiv = document.createElement('div');
-                  frDiv.className = 'function-block';
-                  frDiv.innerHTML = `<span class="function-response-badge">📋 Function Response</span> <b>${{fr.name || 'unknown'}}</b>`;
-                  if (fr.id) {{
-                      frDiv.innerHTML += ` <span class="file-mime">(id: ${{fr.id}})</span>`;
-                  }}
-                  if (fr.response) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-output';
-                      pre.textContent = JSON.stringify(fr.response, null, 2);
-                      frDiv.appendChild(pre);
-                  }}
-                  if (fr.parts && fr.parts.length > 0) {{
-                      const mediaLabel = document.createElement('div');
-                      mediaLabel.innerHTML = '<b>Media Content:</b>';
-                      frDiv.appendChild(mediaLabel);
-                      fr.parts.forEach((frPart, idx) => {{
-                          if (frPart.inline_data && frPart.inline_data.mime_type && frPart.inline_data.data) {{
-                              const frMime = frPart.inline_data.mime_type;
-                              const frData = frPart.inline_data.data;
-                              if (frMime.startsWith('image/')) {{
+                  
+                  // Check if part is empty
+                  const isEmptyPart = Object.keys(part).length === 0 || 
+                      (Object.keys(part).length === 1 && part.text === '');
+                  
+                  if (isEmptyPart) {{
+                      const emptyDiv = document.createElement('div');
+                      emptyDiv.style.color = '#888';
+                      emptyDiv.style.fontStyle = 'italic';
+                      emptyDiv.textContent = '∅ Empty';
+                      body.appendChild(emptyDiv);
+                  }} else {{
+                      // Extract and display only media (images/audio) - no JSON
+                      function extractAndShowMedia(obj) {{
+                          if (!obj || typeof obj !== 'object') return;
+                          
+                          if (obj.inline_data && obj.inline_data.mime_type && obj.inline_data.data) {{
+                              const mime = obj.inline_data.mime_type;
+                              const data = obj.inline_data.data;
+                              if (mime.startsWith('image/')) {{
                                   const img = document.createElement('img');
-                                  img.src = `data:${{frMime}};base64,${{frData}}`;
+                                  img.src = `data:${{mime}};base64,${{data}}`;
                                   img.style.maxWidth = '100%';
-                                  frDiv.appendChild(img);
-                              }} else if (frMime.startsWith('audio/')) {{
+                                  img.style.maxHeight = '300px';
+                                  body.appendChild(img);
+                              }} else if (mime.startsWith('audio/')) {{
                                   const audio = document.createElement('audio');
                                   audio.controls = true;
-                                  audio.src = `data:${{frMime}};base64,${{frData}}`;
-                                  frDiv.appendChild(audio);
-                              }} else {{
-                                  const mediaInfo = document.createElement('div');
-                                  mediaInfo.className = 'media-indicator';
-                                  mediaInfo.innerHTML = `📎 ${{frMime}} (part ${{idx + 1}})`;
-                                  frDiv.appendChild(mediaInfo);
+                                  audio.src = getAudioDataUrl(mime, data);
+                                  body.appendChild(audio);
                               }}
                           }}
-                      }});
+                          
+                          // Recurse into arrays and objects
+                          if (Array.isArray(obj)) {{
+                              obj.forEach(item => extractAndShowMedia(item));
+                          }} else {{
+                              Object.keys(obj).forEach(key => {{
+                                  if (key !== 'inline_data') {{
+                                      extractAndShowMedia(obj[key]);
+                                  }}
+                              }});
+                          }}
+                      }}
+                      
+                      extractAndShowMedia(part);
                   }}
-                  content.appendChild(frDiv);
-              }});
-          }} else if (block.modality === 'executable_code') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const ec = part.executable_code || {{}};
-                  const codeDiv = document.createElement('div');
-                  codeDiv.className = 'function-block';
-                  const lang = ec.language || 'code';
-                  codeDiv.innerHTML = `<span class="function-call-badge">💻 Code</span> <b>${{lang}}</b>`;
-                  if (ec.code) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-block';
-                      pre.textContent = ec.code;
-                      codeDiv.appendChild(pre);
-                  }}
-                  content.appendChild(codeDiv);
-              }});
-          }} else if (block.modality === 'code_execution_result') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const cer = part.code_execution_result || {{}};
-                  const resultDiv = document.createElement('div');
-                  resultDiv.className = 'function-block';
-                  const outcome = cer.outcome || 'UNKNOWN';
-                  const outcomeIcon = outcome === 'OUTCOME_OK' ? '✅' : '❌';
-                  const outcomeClass = outcome === 'OUTCOME_OK' ? 'outcome-success' : 'outcome-error';
-                  resultDiv.innerHTML = `<span class="function-response-badge">${{outcomeIcon}} Result</span> <span class="${{outcomeClass}}">${{outcome}}</span>`;
-                  if (cer.output) {{
-                      const pre = document.createElement('pre');
-                      pre.className = 'code-output';
-                      pre.textContent = cer.output;
-                      resultDiv.appendChild(pre);
-                  }}
-                  content.appendChild(resultDiv);
-              }});
-          }} else if (block.modality === 'file_data') {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const part = partDict?.part || {{}};
-                  const fd = part.file_data || {{}};
-                  const fileDiv = document.createElement('div');
-                  fileDiv.className = 'function-block file-info';
-                  const displayName = fd.display_name || 'Unnamed file';
-                  const fileUri = fd.file_uri || '';
-                  const fileMime = fd.mime_type || '';
-                  if (fileUri) {{
-                      const link = document.createElement('a');
-                      link.href = fileUri;
-                      link.target = '_blank';
-                      link.textContent = `📁 ${{displayName}}`;
-                      fileDiv.appendChild(link);
-                  }} else {{
-                      fileDiv.innerHTML = `📁 ${{displayName}}`;
-                  }}
-                  if (fileMime) {{
-                      const mimeSpan = document.createElement('span');
-                      mimeSpan.className = 'file-mime';
-                      mimeSpan.textContent = ` (${{fileMime}})`;
-                      fileDiv.appendChild(mimeSpan);
-                  }}
-                  content.appendChild(fileDiv);
-              }});
-          }} else {{
-              block.events.forEach(event => {{
-                  const partDict = getPartDict(event);
-                  const unknownDiv = document.createElement('div');
-                  unknownDiv.className = 'function-block';
-                  unknownDiv.innerHTML = '<span class="function-call-badge">📦 Data</span>';
-                  const pre = document.createElement('pre');
-                  pre.className = 'code-output';
-                  pre.textContent = JSON.stringify(partDict?.part || {{}}, null, 2);
-                  unknownDiv.appendChild(pre);
-                  content.appendChild(unknownDiv);
               }});
           }}
 
-          div.appendChild(content);
+          if (block.events.length > 0) {{
+              const subEventsSection = document.createElement('details');
+              subEventsSection.style.marginTop = '8px';
+              const summary = document.createElement('summary');
+              summary.style.cursor = 'pointer';
+              summary.style.fontSize = '10px';
+              summary.style.color = '#666';
+              summary.style.display = 'flex';
+              summary.style.justifyContent = 'space-between';
+              summary.style.alignItems = 'center';
+              summary.style.listStyle = 'none';
+              
+              const eventsTextWrapper = document.createElement('span');
+              const triangle = document.createElement('span');
+              triangle.className = 'expand-triangle';
+              triangle.textContent = '▶';
+              eventsTextWrapper.appendChild(triangle);
+              
+              const eventsText = document.createElement('span');
+              eventsText.textContent = `${{block.events.length}} event${{block.events.length > 1 ? 's' : ''}}`;
+              eventsTextWrapper.appendChild(eventsText);
+              summary.appendChild(eventsTextWrapper);
+              
+              if (block.substream) {{
+                  const substreamBadge = document.createElement('span');
+                  substreamBadge.className = 'substream-badge ' + (block.isInput ? 'substream-badge-input' : 'substream-badge-output');
+                  substreamBadge.textContent = `substream: ${{block.substream}}`;
+                  summary.appendChild(substreamBadge);
+              }}
+              
+              subEventsSection.appendChild(summary);
+
+              block.events.forEach((event, idx) => {{
+                  const partDict = getPartDict(event);
+                  const mimeType = getMimeType(partDict);
+                  const metadata = partDict?.metadata || {{}};
+                  const substream = partDict?.substream_name || '';
+                  const part = partDict?.part || {{}};
+
+                  const subEvent = document.createElement('div');
+                  subEvent.className = 'sub-event';
+
+                  const subHeader = document.createElement('div');
+                  subHeader.className = 'sub-event-header';
+
+                  const subMeta = document.createElement('div');
+                  subMeta.className = 'sub-event-meta';
+                  subMeta.appendChild(createSpan(`#${{idx + 1}}`, ''));
+                  if (mimeType) subMeta.appendChild(createSpan(mimeType, ''));
+                  subHeader.appendChild(subMeta);
+
+                  const partRole = partDict?.role || '';
+                  if (partRole) {{
+                      const roleBadge = createRoleBadge(partRole);
+                      if (roleBadge) {{
+                          roleBadge.classList.add('sub-event-role');
+                          subHeader.appendChild(roleBadge);
+                      }}
+                  }}
+
+                  if (event.timestamp && rootTraceStartTime) {{
+                      const timeMs = getTimeDeltaMs(rootTraceStartTime, event.timestamp);
+                      const timeSpan = document.createElement('span');
+                      timeSpan.className = 'sub-event-time';
+                      timeSpan.textContent = `+${{timeMs}}ms`;
+                      subHeader.appendChild(timeSpan);
+                  }}
+
+                  subEvent.appendChild(subHeader);
+
+                  const subContent = document.createElement('div');
+                  subContent.className = 'sub-event-content';
+
+                  if (mimeType?.startsWith('audio/')) {{
+                      subContent.innerHTML = '<span style="color:#888;font-style:italic;">🔊 Audio content</span>';
+                  }} else if (mimeType?.startsWith('image/')) {{
+                      if (event.part_hash !== undefined) {{
+                          const cachedImg = getCachedPartContent(event.part_hash, 'full');
+                          if (cachedImg) {{
+                              subContent.appendChild(cachedImg);
+                          }}
+                      }} else {{
+                          const data = getData(partDict);
+                          if (data) {{
+                              const img = document.createElement('img');
+                              img.src = `data:${{mimeType}};base64,${{data}}`;
+                              img.style.maxWidth = '200px';
+                              img.style.maxHeight = '200px';
+                              subContent.appendChild(img);
+                          }}
+                      }}
+                  }} else {{
+                      // For all other content types, show text or JSON
+                      const text = getText(partDict);
+                      if (text) {{
+                          const pre = document.createElement('pre');
+                          pre.style.fontSize = '10px';
+                          pre.style.margin = '4px 0';
+                          pre.style.whiteSpace = 'pre-wrap';
+                          pre.textContent = text;
+                          subContent.appendChild(pre);
+                      }} else {{
+                          // No text - check if part has content or is empty
+                          const partKeys = Object.keys(part).filter(k => k !== 'text');
+                          if (partKeys.length > 0) {{
+                              // Render JSON with inline media and formatted text
+                              function renderJsonValue(value, indent = 0) {{
+                                  const container = document.createElement('span');
+                                  const indentStr = '  '.repeat(indent);
+                                  
+                                  if (value === null) {{
+                                      container.textContent = 'null';
+                                      container.style.color = '#888';
+                                  }} else if (typeof value === 'boolean') {{
+                                      container.textContent = value.toString();
+                                      container.style.color = '#0066cc';
+                                  }} else if (typeof value === 'number') {{
+                                      container.textContent = value.toString();
+                                      container.style.color = '#008800';
+                                  }} else if (typeof value === 'string') {{
+                                      // Render text with newlines
+                                      const pre = document.createElement('pre');
+                                      pre.style.display = 'inline';
+                                      pre.style.margin = '0';
+                                      pre.style.padding = '0';
+                                      pre.style.background = 'transparent';
+                                      pre.style.border = 'none';
+                                      pre.style.whiteSpace = 'pre-wrap';
+                                      pre.style.color = '#aa3333';
+                                      if (value.length > 200) {{
+                                          pre.textContent = '"' + value.substring(0, 100) + `... (${{value.length}} chars)"`;
+                                      }} else {{
+                                          pre.textContent = '"' + value + '"';
+                                      }}
+                                      container.appendChild(pre);
+                                  }} else if (Array.isArray(value)) {{
+                                      container.appendChild(document.createTextNode('['));
+                                      if (value.length > 20) {{
+                                          // Truncate long arrays
+                                          const truncated = [...value.slice(0, 10), `... (${{value.length - 20}} more) ...`, ...value.slice(-10)];
+                                          truncated.forEach((item, i) => {{
+                                              container.appendChild(document.createTextNode('\n' + indentStr + '  '));
+                                              container.appendChild(renderJsonValue(item, indent + 1));
+                                              if (i < truncated.length - 1) container.appendChild(document.createTextNode(','));
+                                          }});
+                                      }} else {{
+                                          value.forEach((item, i) => {{
+                                              container.appendChild(document.createTextNode('\n' + indentStr + '  '));
+                                              container.appendChild(renderJsonValue(item, indent + 1));
+                                              if (i < value.length - 1) container.appendChild(document.createTextNode(','));
+                                          }});
+                                      }}
+                                      if (value.length > 0) container.appendChild(document.createTextNode('\n' + indentStr));
+                                      container.appendChild(document.createTextNode(']'));
+                                  }} else if (typeof value === 'object') {{
+                                      // Check for objects with inline media (multiple patterns)
+                                      // Pattern 1: {{inline_data: {{mime_type, data}}}}
+                                      // Pattern 2: {{mime_type, data}} directly (like in function response parts)
+                                      const inlineData = value.inline_data || 
+                                          (value.mime_type && value.data ? value : null);
+                                      
+                                      if (inlineData && inlineData.mime_type && inlineData.data) {{
+                                          const mime = inlineData.mime_type;
+                                          const data = inlineData.data;
+                                          
+                                          // Build the JSON structure around the media
+                                          if (value.inline_data) {{
+                                              container.appendChild(document.createTextNode('{{ "inline_data": {{ "mime_type": "' + mime + '", "data": '));
+                                          }} else {{
+                                              container.appendChild(document.createTextNode('{{ "mime_type": "' + mime + '", "data": '));
+                                          }}
+                                          
+                                          // Render media based on type
+                                          if (mime.startsWith('image/')) {{
+                                              const img = document.createElement('img');
+                                              img.src = `data:${{mime}};base64,${{data}}`;
+                                              img.style.maxWidth = '200px';
+                                              img.style.maxHeight = '150px';
+                                              img.style.verticalAlign = 'middle';
+                                              img.style.margin = '4px';
+                                              img.style.border = '1px solid #ccc';
+                                              container.appendChild(img);
+                                          }} else if (mime.startsWith('audio/')) {{
+                                              const audio = document.createElement('audio');
+                                              audio.controls = true;
+                                              audio.src = getAudioDataUrl(mime, data);
+                                              audio.style.verticalAlign = 'middle';
+                                              audio.style.height = '24px';
+                                              container.appendChild(audio);
+                                          }} else if (mime.startsWith('video/')) {{
+                                              const video = document.createElement('video');
+                                              video.controls = true;
+                                              video.src = `data:${{mime}};base64,${{data}}`;
+                                              video.style.maxWidth = '200px';
+                                              video.style.maxHeight = '150px';
+                                              video.style.verticalAlign = 'middle';
+                                              container.appendChild(video);
+                                          }} else {{
+                                              // Other binary data - show placeholder
+                                              const placeholder = document.createElement('span');
+                                              placeholder.style.color = '#888';
+                                              placeholder.style.fontStyle = 'italic';
+                                              placeholder.textContent = `[Binary: ${{data.length}} bytes]`;
+                                              container.appendChild(placeholder);
+                                          }}
+                                          
+                                          // Close the JSON structure
+                                          if (value.inline_data) {{
+                                              container.appendChild(document.createTextNode(' }} }}'));
+                                          }} else {{
+                                              container.appendChild(document.createTextNode(' }}'));
+                                          }}
+                                      }} else {{
+                                          // Regular object - render all keys
+                                          const keys = Object.keys(value);
+                                          container.appendChild(document.createTextNode('{{'));
+                                          keys.forEach((key, i) => {{
+                                              container.appendChild(document.createTextNode('\n' + indentStr + '  "' + key + '": '));
+                                              container.appendChild(renderJsonValue(value[key], indent + 1));
+                                              if (i < keys.length - 1) container.appendChild(document.createTextNode(','));
+                                          }});
+                                          if (keys.length > 0) container.appendChild(document.createTextNode('\n' + indentStr));
+                                          container.appendChild(document.createTextNode('}}'));
+                                      }}
+                                  }}
+                                  return container;
+                              }}
+                              
+                              const pre = document.createElement('pre');
+                              pre.style.fontSize = '9px';
+                              pre.style.margin = '4px 0';
+                              pre.style.whiteSpace = 'pre-wrap';
+                              pre.appendChild(renderJsonValue(part));
+                              subContent.appendChild(pre);
+                          }} else {{
+                              // Empty part
+                              const emptySpan = document.createElement('span');
+                              emptySpan.style.color = '#888';
+                              emptySpan.style.fontStyle = 'italic';
+                              emptySpan.textContent = '∅ Empty';
+                              subContent.appendChild(emptySpan);
+                          }}
+                      }}
+                  }}
+
+                  subEvent.appendChild(subContent);
+
+                  // Footer with substream badge on the right
+                  const hasMetadata = Object.keys(metadata).length > 0;
+                  if (substream) {{
+                      const subEventFooter = document.createElement('div');
+                      subEventFooter.className = 'sub-event-footer';
+                      subEventFooter.style.justifyContent = 'flex-end';
+                      
+                      const substreamBadge = document.createElement('span');
+                      substreamBadge.className = 'substream-badge ' + (block.isInput ? 'substream-badge-input' : 'substream-badge-output');
+                      substreamBadge.textContent = `substream: ${{substream}}`;
+                      subEventFooter.appendChild(substreamBadge);
+                      
+                      subEvent.appendChild(subEventFooter);
+                  }}
+
+                  // Metadata section - collapsible if multiple keys, inline if single
+                  if (hasMetadata) {{
+                      const metaKeys = Object.keys(metadata);
+                      const metaDiv = document.createElement('div');
+                      metaDiv.className = 'sub-event-metadata';
+                      
+                      if (metaKeys.length === 1) {{
+                          // Single key-value: render inline
+                          const key = metaKeys[0];
+                          const value = metadata[key];
+                          const metaSpan = document.createElement('span');
+                          metaSpan.innerHTML = `<b>${{key}}:</b> ${{typeof value === 'object' ? JSON.stringify(value) : value}}`;
+                          metaDiv.appendChild(metaSpan);
+                      }} else {{
+                          // Multiple keys: render as collapsible
+                          const details = document.createElement('details');
+                          const summary = document.createElement('summary');
+                          const triangle = document.createElement('span');
+                          triangle.className = 'expand-triangle';
+                          triangle.textContent = '\u25b6';
+                          summary.appendChild(triangle);
+                          const summaryText = document.createElement('span');
+                          summaryText.textContent = `metadata (${{metaKeys.length}} entries)`;
+                          summary.appendChild(summaryText);
+                          details.appendChild(summary);
+                          const pre = document.createElement('pre');
+                          pre.textContent = JSON.stringify(metadata, null, 2);
+                          details.appendChild(pre);
+                          metaDiv.appendChild(details);
+                      }}
+                      
+                      subEvent.appendChild(metaDiv);
+                  }}
+
+                  subEventsSection.appendChild(subEvent);
+              }});
+
+              body.appendChild(subEventsSection);
+          }}
+
+          div.appendChild(body);
+
           return div;
       }}
 
@@ -1779,7 +2566,8 @@
               </div>
           `;
           leftPanel.appendChild(toolbar);
-          leftPanel.appendChild(createTraceView(traceData, eventsById));
+          rootTraceStartTime = traceData.start_time;
+          leftPanel.appendChild(createTraceView(traceData, eventsById, traceData.start_time));
 
           if (isLargeTrace) {{
               collapseAll();
@@ -1811,15 +2599,48 @@
               }}
           }});
 
-          const firstLi = document.querySelector('#left-panel li');
-          if(firstLi) {{
-              setFocused(firstLi);
-              firstLi.classList.add('selected');
+          // Prefer selecting the first subtrace so the right panel shows content immediately
+          let firstSubtraceLi = document.querySelector('#left-panel li.collapsible');
+          if (!firstSubtraceLi) {{
+              firstSubtraceLi = document.querySelector('#left-panel li');
+          }}
+          if(firstSubtraceLi) {{
+              setFocused(firstSubtraceLi);
+              firstSubtraceLi.classList.add('selected');
               renderSelectedEvents(eventsById);
           }}
       }}
 
       initTraceViewer();
+
+      // Resizable split panel
+      const resizer = document.getElementById('resizer');
+      const leftPanel = document.getElementById('left-panel');
+      let isResizing = false;
+
+      resizer.addEventListener('mousedown', (e) => {{
+          isResizing = true;
+          resizer.classList.add('dragging');
+          document.body.style.cursor = 'col-resize';
+          document.body.style.userSelect = 'none';
+          e.preventDefault();
+      }});
+
+      document.addEventListener('mousemove', (e) => {{
+          if (!isResizing) return;
+          const containerWidth = document.body.clientWidth;
+          const newWidth = Math.max(200, Math.min(containerWidth - 206, e.clientX));
+          leftPanel.style.width = newWidth + 'px';
+      }});
+
+      document.addEventListener('mouseup', () => {{
+          if (isResizing) {{
+              isResizing = false;
+              resizer.classList.remove('dragging');
+              document.body.style.cursor = '';
+              document.body.style.userSelect = '';
+          }}
+      }});
     </script>
   </body>
 </html>

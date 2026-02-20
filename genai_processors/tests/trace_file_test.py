@@ -14,6 +14,9 @@ from genai_processors import context as context_lib
 from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
+from genai_processors import streams
+from genai_processors.core import function_calling
+from genai_processors.core import realtime
 from genai_processors.dev import trace_file
 from google.genai import types as genai_types
 import numpy as np
@@ -76,6 +79,17 @@ def create_audio_part() -> content_api.ProcessorPart:
   )
 
 
+def collect_processor_names(t: trace_file.SyncFileTrace) -> set[str]:
+  """Collects processor names from a trace and its sub-traces."""
+  names = set()
+  if t.name:
+    names.add(t.name)
+  for event in t.events:
+    if event.sub_trace:
+      names.update(collect_processor_names(event.sub_trace))
+  return names
+
+
 class SubTraceProcessor(processor.Processor):
 
   def __init__(self):
@@ -127,39 +141,39 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     root_trace = trace_file.SyncFileTrace.load(trace_path)
     self.assertEqual(root_trace.events[0].relation, 'call')
 
-    # We have:
+    # We have (with debug module exclusion, TTFTSingleStream and its internal
+    # processors log_on_close/log_on_first are not traced):
     # root_trace:
     #  \__ SubTraceProcessor (call)
-    #      \__ TTFTSingleStream
-    #           \__ _ChainProcessor
-    #               \__ log_on_close (added by TTFTSingleStream)
-    #               \__ to_upper_fn
-    #               \__ add_one
-    #               \__ log_on_first (added by TTFTSingleStream)
+    #      \__ chain (from _ChainProcessor wrapping the user processors)
+    #          \__ to_upper_fn
+    #          \__ add_one
 
     # Get SubTraceProcessor
     trace = cast(trace_file.SyncFileTrace, root_trace.events[0].sub_trace)
     self.assertFalse(trace.events[0].is_input)
     self.assertEqual(trace.events[0].relation, 'chain')
-    # Get TTFTSingleStream
+    # Get chain (was TTFTSingleStream -> _ChainProcessor, now just chain)
     sub_trace = cast(trace_file.SyncFileTrace, trace.events[0].sub_trace)
     self.assertIsNotNone(sub_trace)
-    self.assertEqual(trace.events[0].relation, 'chain')
-    # Get _ChainProcessor
-    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[0].sub_trace)
-    # Get to_upper_fn
-    sub_trace = cast(trace_file.SyncFileTrace, sub_trace.events[1].sub_trace)
-    self.assertIsNotNone(sub_trace)
-    self.assertIn('to_upper_fn', sub_trace.name)
+    self.assertIn('chain', sub_trace.name)
+    # Get to_upper_fn (first sub-trace of chain)
+    to_upper_trace = cast(
+        trace_file.SyncFileTrace, sub_trace.events[0].sub_trace
+    )
+    self.assertIsNotNone(to_upper_trace)
+    self.assertIn('to_upper_fn', to_upper_trace.name)
     # Check the output of to_upper_fn
-    self.assertFalse(sub_trace.events[1].is_input)
+    self.assertFalse(to_upper_trace.events[1].is_input)
     self.assertEqual(
-        root_trace.parts_store[sub_trace.events[1].part_hash]['part']['text'],
+        root_trace.parts_store[to_upper_trace.events[1].part_hash]['part'][
+            'text'
+        ],
         'HELLO_sub_trace',
     )
-    self.assertIsNotNone(sub_trace.start_time)
-    self.assertIsNotNone(sub_trace.end_time)
-    self.assertLess(sub_trace.start_time, sub_trace.end_time)
+    self.assertIsNotNone(to_upper_trace.start_time)
+    self.assertIsNotNone(to_upper_trace.end_time)
+    self.assertLess(to_upper_trace.start_time, to_upper_trace.end_time)
 
     # Check events from SubTraceProcessor.
     self.assertTrue(trace.events[1].is_input)
@@ -304,6 +318,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
               name='get_weather',
               response={'temperature': 22, 'conditions': 'sunny'},
               function_call_id='call_12345',
+              substream_name='tool_response',
               role='user',
           )
       )
@@ -318,6 +333,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
               name='generate_image',
               args={'prompt': 'A sunny day in San Francisco'},
               role='model',
+              metadata={'generation_complete': True, 'turn_id': 123},
           )
       )
       await trace.add_output(
@@ -402,6 +418,793 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     self.assertIn('function_response', html_content)
     self.assertIn('executable_code', html_content)
     self.assertIn('code_execution_result', html_content)
+
+  async def test_debug_processors_excluded_from_trace(self):
+    """Test that processors from genai_processors.debug are excluded from trace.
+
+    This test verifies that when a processor is wrapped with debug utilities
+    like TTFTSingleStream or log_stream, those debug processors do not appear
+    in the trace. Only the user-defined processor chain should be traced.
+    """
+    trace_dir = self.trace_dir
+
+    # Create a simple processor chain wrapped with debug utilities
+    processor_chain = to_upper_fn + add_one
+    # Wrap with TTFTSingleStream (from debug module - should be excluded)
+    wrapped_processor = debug.TTFTSingleStream('Debug Test', processor_chain)
+    # Also wrap with log_stream (from debug module - should be excluded)
+    wrapped_processor = debug.log_stream('Test Log') + wrapped_processor
+
+    # Create mixed input: audio, image, and text
+    img_part = create_image_part()
+    audio_part = create_audio_part()
+    parts = [
+        audio_part,
+        img_part,
+        content_api.ProcessorPart('hello', role='user'),
+        content_api.ProcessorPart('world', role='user'),
+    ]
+
+    # First call
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Debug Exclusion Test'
+    ):
+      _ = await processor.apply_async(wrapped_processor, parts[:2])
+      _ = await processor.apply_async(wrapped_processor, parts[2:])
+
+    # Verify HTML file was created
+    html_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Debug Exclusion Test' in f and f.endswith('.html')
+    ]
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Debug Exclusion Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(html_files), 1)
+    self.assertEqual(len(json_files), 1)
+
+    # Load the trace and verify no debug processors are present
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    # Debug processors should NOT be in the trace
+    debug_processor_names = [
+        'TTFTSingleStream',
+        'log_stream',
+        'print_stream',
+        'log_on_close',
+        'log_on_first',
+    ]
+    for debug_name in debug_processor_names:
+      for name in all_names:
+        self.assertNotIn(
+            debug_name,
+            name,
+            f'Debug processor "{debug_name}" should not appear in trace,'
+            f' but found "{name}"',
+        )
+
+    # User-defined processors SHOULD be in the trace
+    self.assertTrue(
+        any('to_upper_fn' in name for name in all_names),
+        f'to_upper_fn should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('add_one' in name for name in all_names),
+        f'add_one should be in trace, found: {all_names}',
+    )
+
+  async def test_live_processor_trace(self):
+    """Test that LiveProcessor generates correct traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    call_counter = 0
+
+    @processor.processor_function
+    async def fake_turn_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      nonlocal call_counter
+      call_counter += 1
+      buffer = content_api.ProcessorContent()
+      async for part in content:
+        buffer += part
+      await asyncio.sleep(0.001 * call_counter)
+      yield content_api.ProcessorPart(
+          f'model({buffer.as_text()})', role='model'
+      )
+
+    live_processor = realtime.LiveProcessor(
+        turn_processor=fake_turn_model,
+        duration_prompt_sec=60,
+    )
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Live Processor Test'
+    ):
+      input_parts = []
+      for i in range(10):
+        input_parts += [
+            content_api.ProcessorPart(f'hello_{i}', role='user'),
+            content_api.ProcessorPart(f'world_{i}', role='user'),
+            content_api.END_OF_TURN,
+        ]
+      input_stream = streams.stream_content(input_parts, with_delay_sec=0.01)
+      _ = await streams.gather_stream(live_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Live Processor Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    self.assertTrue(
+        any('LiveProcessor' in name for name in all_names),
+        f'LiveProcessor should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('fake_turn_model' in name for name in all_names),
+        f'fake_turn_model should be in trace, found: {all_names}',
+    )
+
+  async def test_parallel_processor_trace_names(self):
+    """Test that parallel processors have human-readable names in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.processor_function
+    async def processor_a(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        if mime_types.is_text(part.mimetype):
+          yield part.text + '_a'
+        else:
+          yield part
+
+    @processor.processor_function
+    async def processor_b(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        if mime_types.is_text(part.mimetype):
+          yield part.text + '_b'
+        else:
+          yield part
+
+    parallel_processor = processor.parallel_concat([processor_a, processor_b])
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Parallel Processor Test'
+    ):
+      _ = await processor.apply_async(
+          parallel_processor, [content_api.ProcessorPart('hello')]
+      )
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Parallel Processor Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    self.assertTrue(
+        any('parallel' in name.lower() for name in all_names),
+        f'parallel should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('processor_a' in name for name in all_names),
+        f'processor_a should be in trace, found: {all_names}',
+    )
+    self.assertTrue(
+        any('processor_b' in name for name in all_names),
+        f'processor_b should be in trace, found: {all_names}',
+    )
+    for name in all_names:
+      self.assertNotIn(
+          '_ParallelProcessor:',
+          name,
+          f'Trace name "{name}" should not have internal class prefix',
+      )
+
+  async def test_part_processor_chain_trace_names(self):
+    """Test that chained part processors have human-readable names in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.part_processor_function
+    async def part_proc_x(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      if mime_types.is_text(part.mimetype):
+        yield part.text + '_x'
+      else:
+        yield part
+
+    @processor.part_processor_function
+    async def part_proc_y(
+        part: content_api.ProcessorPart,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      if mime_types.is_text(part.mimetype):
+        yield part.text + '_y'
+      else:
+        yield part
+
+    chained_part_processor = part_proc_x + part_proc_y
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Part Processor Chain Test'
+    ):
+      _ = await processor.apply_async(
+          chained_part_processor, [content_api.ProcessorPart('hello')]
+      )
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Part Processor Chain Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    for name in all_names:
+      self.assertNotIn(
+          '_PartProcessorWrapper:',
+          name,
+          f'Trace name "{name}" should not have internal class prefix',
+      )
+      self.assertNotIn(
+          '_ChainPartProcessor:',
+          name,
+          f'Trace name "{name}" should not have internal class prefix',
+      )
+
+  async def test_realtime_async_function_with_image(self):
+    """Test that images returned by async functions are traced.
+
+    This test verifies that when using FunctionCalling with an async function
+    that returns images, the function calls, function responses with images,
+    and image parts are all correctly captured in the trace.
+    """
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    # Create an image part that will be returned by the async function
+    test_image = create_image_part()
+
+    # Define an async function that generates an image
+    async def generate_image(prompt: str) -> content_api.ProcessorPart:
+      """Generates an image based on the prompt."""
+      await asyncio.sleep(0.01)  # Simulate async work
+      del prompt  # Unused in test
+      return test_image
+
+    # Mock model that issues a function call and then responds after
+    call_count = 0
+
+    @processor.processor_function
+    async def mock_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      """Mock model that issues a generate_image function call."""
+      nonlocal call_count
+      async for part in content:
+        del part  # consume input
+      call_count += 1
+      if call_count == 1:
+        # First call: issue a function call
+        yield content_api.ProcessorPart.from_function_call(
+            name='generate_image',
+            args={'prompt': 'A cat'},
+            role='model',
+        )
+      else:
+        # Second call (after function response): respond with text
+        yield content_api.ProcessorPart(
+            'Here is the generated image.',
+            role='model',
+        )
+
+    # Wrap model with FunctionCalling
+    fc_processor = function_calling.FunctionCalling(
+        model=realtime.LiveProcessor(mock_model),
+        fns=[generate_image],
+        is_bidi_model=True,
+    )
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Async Function Image Test'
+    ):
+      input_parts = [
+          content_api.ProcessorPart('Generate an image of a cat', role='user'),
+          content_api.END_OF_TURN,
+      ]
+      input_stream = streams.stream_content(
+          input_parts, with_delay_sec=0.1, delay_end=True
+      )
+      _ = await streams.gather_stream(fc_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Async Function Image Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    root_trace = trace_file.SyncFileTrace.load(json_path)
+
+    all_names = collect_processor_names(root_trace)
+
+    # Verify FunctionCalling is in trace
+    self.assertTrue(
+        any('FunctionCalling' in name for name in all_names),
+        f'FunctionCalling should be in trace, found: {all_names}',
+    )
+    # Verify the image is captured in the trace's parts_store
+    self.assertIsNotNone(root_trace.parts_store)
+    assert root_trace.parts_store is not None  # Type narrowing for pytype
+
+    image_found = False
+    function_call_found = False
+    function_response_found = False
+
+    # Recursively gather all events from trace and its subtraces
+    def check_events(trace_obj):
+      nonlocal image_found, function_call_found, function_response_found
+      for event in trace_obj.events:
+        if event.sub_trace:
+          check_events(event.sub_trace)
+          continue
+        if not event.part_hash:
+          continue
+        part_dict = root_trace.parts_store.get(event.part_hash, {})
+        part = part_dict.get('part', {})
+        mimetype = part_dict.get('mimetype', '')
+
+        # Check for image parts
+        inline_data = part.get('inline_data', {})
+        if mimetype.startswith('image/'):
+          image_found = True
+        elif inline_data.get('mime_type', '').startswith('image/'):
+          image_found = True
+
+        # Check for function call
+        if part.get('function_call', {}).get('name') == 'generate_image':
+          function_call_found = True
+
+        # Check for function response
+        func_resp = part.get('function_response', {})
+        if func_resp.get('name') == 'generate_image':
+          function_response_found = True
+          # Check if function response contains image data in parts
+          # Parts can be directly in func_resp['parts'] or in
+          # func_resp['response']['parts']
+          resp_parts = func_resp.get('parts', []) or func_resp.get(
+              'response', {}
+          ).get('parts', [])
+          for resp_part in resp_parts:
+            inline_blob = resp_part.get('inline_data', {})
+            if inline_blob.get('mime_type', '').startswith('image/'):
+              image_found = True
+
+    check_events(root_trace)
+
+    self.assertTrue(
+        function_call_found,
+        'Function call should be in trace events',
+    )
+    self.assertTrue(
+        function_response_found,
+        'Function response should be in trace events',
+    )
+    self.assertTrue(
+        image_found,
+        'Image returned by async function should be in trace events',
+    )
+
+  async def test_processor_exception_trace(self):
+    """Test that exceptions in processors are captured in traces."""
+
+    @processor.processor_function
+    async def failing_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        yield part.text + '_before_error'
+        raise ValueError('Test error message')
+
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    with self.assertRaises(ValueError):
+      async with trace_file.SyncFileTrace(
+          trace_dir=trace_dir, name='Exception Test'
+      ):
+        input_stream = streams.stream_content(['hello'])
+        _ = await streams.gather_stream(failing_processor(input_stream))
+
+    # The trace should still be saved even after an exception
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Exception Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    # Check that the error is recorded with full traceback
+    self.assertIsNotNone(loaded_trace.error)
+    self.assertIn('Traceback', loaded_trace.error)
+    self.assertIn('ValueError', loaded_trace.error)
+    self.assertIn('Test error message', loaded_trace.error)
+    self.assertIn(
+        'failing_processor', loaded_trace.error
+    )  # Function name in trace
+    self.assertFalse(loaded_trace.cancelled)
+
+    # Check that an error event was recorded with full traceback
+    error_events = [e for e in loaded_trace.events if e.error_message]
+    self.assertEqual(len(error_events), 1)
+    self.assertIn('Traceback', error_events[0].error_message)
+    self.assertIn('ValueError', error_events[0].error_message)
+
+  async def test_processor_cancellation_trace(self):
+    """Test that cancellation is captured in traces."""
+
+    @processor.processor_function
+    async def slow_processor(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        yield part.text + '_output'
+        await asyncio.sleep(10)  # Long sleep to allow cancellation
+
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    async def run_with_timeout():
+      async with trace_file.SyncFileTrace(
+          trace_dir=trace_dir, name='Cancellation Test'
+      ):
+        input_stream = streams.stream_content(['hello'])
+        _ = await streams.gather_stream(slow_processor(input_stream))
+
+    # Run the trace with a timeout to trigger cancellation
+    with self.assertRaises(asyncio.TimeoutError):
+      await asyncio.wait_for(run_with_timeout(), timeout=0.1)
+
+    # The trace should still be saved after cancellation
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Cancellation Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    self.assertTrue(loaded_trace.cancelled)
+    cancelled_subtraces = [
+        e.sub_trace
+        for e in loaded_trace.events
+        if e.sub_trace and e.sub_trace.cancelled
+    ]
+    self.assertGreater(
+        len(cancelled_subtraces),
+        0,
+        'At least one sub-trace should be marked as cancelled',
+    )
+
+  async def test_realtime_processor_exception_trace(self):
+    """Test that exceptions in realtime processors are captured in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.processor_function
+    async def failing_turn_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      async for part in content:
+        if 'trigger_error' in part.text:
+          raise RuntimeError('Realtime test error')
+        yield content_api.ProcessorPart(f'model({part.text})', role='model')
+
+    live_processor = realtime.LiveProcessor(turn_processor=failing_turn_model)
+
+    with self.assertRaises(RuntimeError):
+      async with trace_file.SyncFileTrace(
+          trace_dir=trace_dir, name='Realtime Exception Test'
+      ):
+        input_parts = [
+            content_api.ProcessorPart('hello', role='user'),
+            content_api.END_OF_TURN,
+            content_api.ProcessorPart('trigger_error', role='user'),
+            content_api.END_OF_TURN,
+        ]
+        input_stream = streams.stream_content(input_parts, with_delay_sec=0.1)
+        _ = await streams.gather_stream(live_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Realtime Exception Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    # Check that the error is recorded with full traceback
+    self.assertIsNotNone(loaded_trace.error)
+    self.assertIn('Traceback', loaded_trace.error)
+    self.assertIn('RuntimeError', loaded_trace.error)
+    self.assertIn('Realtime test error', loaded_trace.error)
+
+  async def test_realtime_processor_cancellation_trace(self):
+    """Test that cancellation in realtime processors is captured in traces."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    @processor.processor_function
+    async def slow_turn_model(
+        content: AsyncIterable[content_api.ProcessorPart],
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      buffer = content_api.ProcessorContent()
+      async for part in content:
+        buffer += part
+        await asyncio.sleep(0.5)  # Sleep to allow cancellation
+      yield content_api.ProcessorPart(
+          f'model({buffer.as_text()})', role='model'
+      )
+
+    live_processor = realtime.LiveProcessor(turn_processor=slow_turn_model)
+
+    async with trace_file.SyncFileTrace(
+        trace_dir=trace_dir, name='Realtime Cancellation Test'
+    ):
+      input_parts = [
+          content_api.ProcessorPart('hello', role='user'),
+          content_api.ProcessorPart('world', role='user'),
+          content_api.END_OF_TURN,
+      ]
+      input_stream = streams.stream_content(input_parts, with_delay_sec=0.1)
+      _ = await streams.gather_stream(live_processor(input_stream))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Realtime Cancellation Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_trace = trace_file.SyncFileTrace.load(json_path)
+
+    # The root trace should not be marked as cancelled. Only the sub-trace for
+    # the first model call should be marked as cancelled.
+    self.assertFalse(loaded_trace.cancelled)
+
+    def find_cancelled_traces(trace):
+      """Recursively find all cancelled traces."""
+      cancelled = []
+      for event in trace.events:
+        if event.sub_trace:
+          if event.sub_trace.cancelled:
+            cancelled.append(event.sub_trace)
+          cancelled.extend(find_cancelled_traces(event.sub_trace))
+      return cancelled
+
+    cancelled_traces = find_cancelled_traces(loaded_trace)
+    self.assertGreater(
+        len(cancelled_traces),
+        0,
+        'At least one sub-trace should be marked as cancelled',
+    )
+
+  async def test_trace_max_size_bytes(self):
+    trace = trace_file.SyncFileTrace(name='test_max_size', max_size_bytes=300)
+    async with trace:
+      p1 = content_api.ProcessorPart('part1')
+      p2 = content_api.ProcessorPart(
+          'part2_' + '0123456789' * 20,  # Approx 200 chars
+          role='user',
+          substream_name='test',
+          metadata={'key': 'value'},
+      )
+      p3 = content_api.ProcessorPart.from_bytes(
+          data=b'img',
+          mimetype='image/png',
+          metadata={trace_file._IMAGE_SIZE_KEY: (200, 200)},
+      )
+      await trace.add_input(p1)
+      await trace.add_input(p2)
+      await trace.add_input(p3)
+
+    self.assertEqual(len(trace.events), 3)
+    # part1 should be stored fully.
+    self.assertEqual(
+        trace.parts_store[trace.events[0].part_hash],
+        {
+            'part': {'text': 'part1'},
+            'metadata': {},
+            'mimetype': 'text/plain',
+            'role': '',
+            'substream_name': '',
+        },
+    )
+    # part 2&3 should exceed limit and be stored as metadata + extra args only.
+    self.assertEqual(
+        trace.parts_store[trace.events[1].part_hash],
+        {
+            'mimetype': 'text/plain',
+            'role': 'user',
+            'substream_name': 'test',
+            'metadata': {'key': 'value'},
+        },
+    )
+    self.assertEqual(
+        trace.parts_store[trace.events[2].part_hash],
+        {
+            'mimetype': 'image/png',
+            'role': '',
+            'substream_name': '',
+            'metadata': {trace_file._IMAGE_SIZE_KEY: (200, 200)},
+        },
+    )
+
+  async def test_empty_and_metadata_only_parts(self):
+    """Test that empty parts and metadata-only parts are captured correctly."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    root_trace = trace_file.SyncFileTrace(
+        trace_dir=trace_dir,
+        name='Empty And Metadata Parts Test',
+    )
+    async with root_trace:
+      trace = root_trace.add_sub_trace(name='sub_trace', relation='call')
+      # Empty text part
+      await trace.add_input(content_api.ProcessorPart(''))
+      # Part with only metadata
+      await trace.add_input(
+          content_api.ProcessorPart(
+              '', metadata={'turn_complete': True, 'model_turn': 'done'}
+          )
+      )
+      # Non-empty text part
+      await trace.add_output(content_api.ProcessorPart('Hello world'))
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Empty And Metadata Parts Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_root_trace = trace_file.SyncFileTrace.load(json_path)
+    loaded_trace = cast(
+        trace_file.SyncFileTrace, loaded_root_trace.events[0].sub_trace
+    )
+
+    # Verify empty text part
+    empty_part = loaded_root_trace.parts_store[loaded_trace.events[0].part_hash]
+    self.assertEqual(empty_part['part'].get('text', ''), '')
+    self.assertEqual(empty_part['metadata'], {})
+
+    # Verify metadata-only part
+    meta_part = loaded_root_trace.parts_store[loaded_trace.events[1].part_hash]
+    self.assertEqual(meta_part['part'].get('text', ''), '')
+    self.assertEqual(meta_part['metadata']['turn_complete'], True)
+    self.assertEqual(meta_part['metadata']['model_turn'], 'done')
+
+    # Verify non-empty text part
+    text_part = loaded_root_trace.parts_store[loaded_trace.events[2].part_hash]
+    self.assertEqual(text_part['part']['text'], 'Hello world')
+
+  async def test_function_response_with_all_fields(self):
+    """Test that function responses with all fields (id, name, response) are captured."""
+    trace_dir = os.getenv('TEST_UNDECLARED_OUTPUTS_DIR') or self.trace_dir
+
+    root_trace = trace_file.SyncFileTrace(
+        trace_dir=trace_dir,
+        name='Function Response Fields Test',
+    )
+    async with root_trace:
+      trace = root_trace.add_sub_trace(name='sub_trace', relation='call')
+      # Function response with all fields
+      await trace.add_input(
+          content_api.ProcessorPart.from_function_response(
+              name='get_weather',
+              response={'temperature': 22, 'conditions': 'sunny'},
+              function_call_id='call_123',
+              role='user',
+          )
+      )
+      # Function response with media parts (image and audio)
+      img_part = create_image_part()
+      audio_part = create_audio_part()
+      # Create a ProcessorContent with the media parts
+      media_response = content_api.ProcessorContent([img_part, audio_part])
+      await trace.add_input(
+          content_api.ProcessorPart.from_function_response(
+              name='generate_multimedia',
+              response=media_response,
+              function_call_id='call_456',
+              role='user',
+          )
+      )
+      # Function call with metadata
+      await trace.add_output(
+          content_api.ProcessorPart.from_function_call(
+              name='search_web',
+              args={'query': 'python tutorials'},
+              role='model',
+              metadata={'turn_id': 42},
+          )
+      )
+
+    json_files = [
+        f
+        for f in os.listdir(trace_dir)
+        if 'Function Response Fields Test' in f and f.endswith('.json')
+    ]
+    self.assertEqual(len(json_files), 1)
+
+    json_path = os.path.join(trace_dir, json_files[0])
+    loaded_root_trace = trace_file.SyncFileTrace.load(json_path)
+    loaded_trace = cast(
+        trace_file.SyncFileTrace, loaded_root_trace.events[0].sub_trace
+    )
+
+    # Verify function response fields
+    fr_part = loaded_root_trace.parts_store[loaded_trace.events[0].part_hash]
+    func_resp = fr_part['part'].get('function_response', {})
+    self.assertEqual(func_resp.get('name'), 'get_weather')
+    self.assertEqual(func_resp.get('id'), 'call_123')
+    # Response structure varies - just verify it exists or has parts
+    self.assertTrue(
+        func_resp.get('response') is not None
+        or func_resp.get('parts') is not None,
+        f'Expected response or parts in function_response, got: {func_resp}',
+    )
+
+    # Verify function response with media parts
+    media_fr_part = loaded_root_trace.parts_store[
+        loaded_trace.events[1].part_hash
+    ]
+    media_func_resp = media_fr_part['part'].get('function_response', {})
+    self.assertEqual(media_func_resp.get('name'), 'generate_multimedia')
+    self.assertEqual(media_func_resp.get('id'), 'call_456')
+    # Should have parts containing media
+    self.assertTrue(
+        media_func_resp.get('parts') is not None,
+        'Expected parts in multimedia function_response, got:'
+        f' {media_func_resp}',
+    )
+
+    # Verify function call with metadata (now at index 2)
+    fc_part = loaded_root_trace.parts_store[loaded_trace.events[2].part_hash]
+    func_call = fc_part['part'].get('function_call', {})
+    self.assertEqual(func_call.get('name'), 'search_web')
+    self.assertEqual(func_call.get('args', {}).get('query'), 'python tutorials')
+    self.assertEqual(fc_part['metadata'].get('turn_id'), 42)
 
 
 if __name__ == '__main__':

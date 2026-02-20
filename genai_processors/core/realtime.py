@@ -98,6 +98,7 @@ class LiveProcessor(Processor):
       turn_processor: Processor,
       duration_prompt_sec: float | None = 600,  # 10 minutes
       trigger_model_mode: AudioTriggerMode = AudioTriggerMode.FINAL_TRANSCRIPTION,
+      debug_latency: bool = False,
   ):
     """Initializes the live model processor.
 
@@ -122,11 +123,13 @@ class LiveProcessor(Processor):
         START_OF_SPEECH) the audio parts where the user talked. If the
         `turn_processor` accepts audio and text inputs, quality can be improved
         by using FINAL_TRANSCRIPTION at the cost of latency.
+      debug_latency: Whether to include TTFT processor for latency debugging.
     """
 
     self._single_turn_processor = turn_processor
     self.duration_prompt_sec = duration_prompt_sec
     self._trigger_model_mode = trigger_model_mode
+    self._debug_latency = debug_latency
 
   async def _conversation_loop(
       self,
@@ -141,6 +144,7 @@ class LiveProcessor(Processor):
         generation=self._single_turn_processor,
         rolling_prompt=rolling_prompt,
         user_not_talking=user_not_talking,
+        debug_latency=self._debug_latency,
     )
 
     async for part in content:
@@ -157,7 +161,7 @@ class LiveProcessor(Processor):
               content_api.ProcessorPart(part, substream_name='')
           )
           if self._trigger_model_mode == AudioTriggerMode.FINAL_TRANSCRIPTION:
-            # await conversation_model.cancel()
+            await conversation_model.cancel()
             await conversation_model.turn()
       elif mime_types.is_dataclass(part.mimetype, speech_to_text.StartOfSpeech):
         # User starts talking.
@@ -171,8 +175,12 @@ class LiveProcessor(Processor):
           await conversation_model.turn()
       elif content_api.is_end_of_turn(part):
         # A conversation turn is requested outside of audio/speech signals.
-        part.metadata.pop('turn_complete', None)
-        conversation_model.user_input(part)
+        # Remove turn_complete metadata as it is an internal signal that
+        # should not be passed to the model. Copy the metadata to avoid
+        # modifying the original part.
+        new_part = part.copy()
+        new_part.metadata.pop('turn_complete', None)
+        conversation_model.user_input(new_part)
         await conversation_model.cancel()
         await conversation_model.turn()
       else:
@@ -216,9 +224,15 @@ class LiveModelProcessor(LiveProcessor):
       turn_processor: Processor,
       duration_prompt_sec: float | None = 600,  # 10 minutes
       trigger_model_mode: AudioTriggerMode = AudioTriggerMode.FINAL_TRANSCRIPTION,
+      debug_latency: bool = False,
   ):
     logging.warning('Please use LiveProcessor instead of LiveModelProcessor.')
-    super().__init__(turn_processor, duration_prompt_sec, trigger_model_mode)
+    super().__init__(
+        turn_processor,
+        duration_prompt_sec,
+        trigger_model_mode,
+        debug_latency=debug_latency,
+    )
 
 
 class _RealTimeConversationModel:
@@ -230,15 +244,20 @@ class _RealTimeConversationModel:
       generation: Processor,
       rolling_prompt: window.RollingPrompt,
       user_not_talking: asyncio.Event,
+      debug_latency: bool = False,
   ):
     self._output_queue = output_queue
     self._prompt = rolling_prompt
     self._user_not_talking = user_not_talking
+    self._debug_latency = debug_latency
 
     self._generation = generation
     # We start enqueuing what is in the prompt into the model to process parts
     # ahead of time whenever possible, we will finalize this call in turn().
-    p = debug.TTFTSingleStream('Model Generate', self._generation)
+    if self._debug_latency:
+      p = debug.TTFTSingleStream('Model Generate', self._generation)
+    else:
+      p = self._generation
     self._pending_generate_output = processor.create_task(
         context.context_cancel_coro(
             self._generate_output(p(self._prompt.pending())),
@@ -317,7 +336,10 @@ class _RealTimeConversationModel:
     await self._prompt.finalize_pending()
     # Prepare a new pending task for the next turn. This will do all the
     # pre-processing ahead of time whenever possible.
-    p = debug.TTFTSingleStream('Model Generate', self._generation)
+    if self._debug_latency:
+      p = debug.TTFTSingleStream('Model Generate', self._generation)
+    else:
+      p = self._generation
     stream_content = p(self._prompt.pending())
     self._pending_generate_output = processor.create_task(
         context.context_cancel_coro(
@@ -346,7 +368,8 @@ class _RealTimeConversationModel:
     try:
       async for part in content:
         self._output_queue.put_nowait(part)
-        part_to_prompt.append(part)
+        if not context.is_reserved_substream(part.substream_name):
+          part_to_prompt.append(part)
     finally:
       # We add the prompt whatever has been output. We do this once everything
       # is output to avoid feeding the prompt while it's used to compute the

@@ -270,8 +270,8 @@ class Window(Processor):
         modifies it in place to compress the history.
       max_concurrency: The maximum number of concurrent window_processor
         invocations. If 0 or less, concurrency is unlimited.
-      stride: Only process every `stride` window, skipping the rest. Must be
-        >= 1.
+      stride: Only process every `stride` window, skipping the rest. Must be >=
+        1.
     """
     if stride < 1:
       raise ValueError('stride must be >= 1')
