@@ -134,7 +134,7 @@ def is_text(mime: str) -> bool:
 
 
 def is_json(mime: str) -> bool:
-  """Returns whether the content is a human-readable json."""
+  """Returns whether the content is a human-readable JSON."""
   return mime.lower().startswith(TEXT_JSON)
 
 
@@ -164,7 +164,7 @@ def is_video(mime: str) -> bool:
     mime: The mime string.
 
   Returns:
-    True of it is a video, False otherwise.
+    True if it is a video, False otherwise.
   """
   return (mime.lower() in INPUT_VIDEO_TYPES) or mime.lower().startswith(
       'video/'
@@ -227,7 +227,7 @@ def is_proto_message(
     mime: str, proto_message: type[pb_message.Message] | None = None
 ) -> bool:
   """Returns whether the mimetype is a proto message."""
-  # We do case insenstive comparison for the `application/x-protobuf` part of
+  # We do case insensitive comparison for the `application/x-protobuf` part of
   # the mime type.
   if not mime.lower().startswith(_PROTOBUF_MIMETYPE):
     return False

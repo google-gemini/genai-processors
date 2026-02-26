@@ -105,17 +105,17 @@ class CancellableContextTaskGroup(asyncio.TaskGroup):
       except ValueError:
         # ValueError is raised when the Context self._current_taskgroup_token
         # was created in doesn't match the current Context.
-        # This can happen when an asyncgenerator is garbage collected.
+        # This can happen when an async generator is garbage collected.
         # The task loop will call loop.call_soon(loop.create_task, agen.aclose).
-        # aclose raises GeneratorExit in the asyncgenerator which is seen here
+        # aclose raises GeneratorExit in the async generator which is seen here
         # but from a different context.
         if et is GeneratorExit:
           logging.log_first_n(
               logging.WARNING,
               'GeneratorExit was seen in processors.context. This'
-              ' indicates that the asyncgenerator that opened the context has'
+              ' indicates that the async generator that opened the context has'
               ' been closed from a different context. For example, it has been'
-              ' garbage collected. This is usually means a task executing the'
+              ' garbage collected. This usually means a task executing the'
               ' generator was also garbage collected. Consider turning on'
               ' asyncio debug mode to investigate further.',
               1,

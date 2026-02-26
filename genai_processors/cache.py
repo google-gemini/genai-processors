@@ -114,7 +114,7 @@ class InMemoryCache(cache_base.CacheBase):
     Args:
       ttl_hours: Time-to-live for cache items in hours.
       max_items: Maximum number of items in the cache. Must be positive.
-      base: An instance of InMemoryCachewith which this instance should share
+      base: An instance of InMemoryCache with which this instance should share
         the cached items. Used to create a view of the cache `with_key_prefix`.
       hash_fn: Function to convert a ProcessorContentTypes query into a string
         key. If None, `default_processor_content_hash` is used. If it returns

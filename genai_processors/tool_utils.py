@@ -27,8 +27,8 @@ def raise_for_gemini_server_side_tools(
   """Raises ValueError if the tool list contains a server-side tool.
 
   Gemini API provides a set of server-side tools. In general, they are not
-  available on other LLM implementations. This helper method allows to warn the
-  developer if they try use this unimplemented functionality.
+  available on other LLM implementations. This helper method allows warning the
+  developer if they try to use this unimplemented functionality.
 
   Args:
     tools: List of tools.

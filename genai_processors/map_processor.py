@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-r"""Chaining of a sequence of 1:many function across a stream concurrently.
+r"""Chaining of a sequence of 1:many functions across a stream concurrently.
 
 To execute all functions concurrently we build up a tree of results.
 Given:
@@ -49,7 +49,7 @@ For the tree above the following has happened:
 
 
 Currently no results have been returned to the user as the left-most node is
-still pending. Once the 'f1(f0(c0)[0])' sub-tree completes it's results
+still pending. Once the 'f1(f0(c0)[0])' sub-tree completes, its results
 (along with the two that are buffered) will be returned in order.
 """
 
@@ -210,7 +210,7 @@ def _eager_run_fn(
 ) -> AsyncIterable[_T]:
   """Executes fn on part in an asyncio.task.
 
-  Must be called called in an async context. It eagerly schedules a task on
+  Must be called in an async context. It eagerly schedules a task on
   the event loop to execute the whole of `fn` on the part. Results from the
   AsyncIterable returned by `fn` can be retrieved via the AsyncIterable returned
   by this method.
@@ -262,7 +262,7 @@ def _chain_part_functions(
 ) -> AsyncIterable[_T]:
   """Executes a sequence of functions (fn) on a part.
 
-  This executes a tree of work as describe in the module level comment.
+  This executes a tree of work as described in the module level comment.
 
   Consider composing 2 PartFns `(f, g)` on a part `c`. We create a new
   PartFn:
@@ -272,7 +272,7 @@ def _chain_part_functions(
   This is a tree of work with depth 2. `_chain_part_functions` supports
   arbitrary amounts of functions.
 
-  This must be called called in an async context. It immediately schedules tasks
+  This must be called in an async context. It immediately schedules tasks
   on the event loop to execute the tree of work on the part. Results from the
   AsyncIterable returned by composing `fns` can be retrieved via the
   AsyncIterable returned by this method.
@@ -346,12 +346,12 @@ def _parallel_part_functions(
   """Executes each part function in a sequence of part functions concurrently.
 
   This method is similar to `_chain_part_functions` except that all of the
-  PartFns are exectued on exactly `part` instead of being chained together.
+  PartFns are executed on exactly `part` instead of being chained together.
   The resulting AsyncIterables returned by call each fn are concatenated
   together in the provided fns order.
 
-  This must be called called in an async context. It immediately schedules tasks
-  on the event loop to execute each fn in fns on on the part.
+  This must be called in an async context. It immediately schedules tasks
+  on the event loop to execute each fn in fns on the part.
 
   Args:
     fns: the part functions to execute on the part.

@@ -50,7 +50,7 @@ class ProcessorPart:
   _part: genai_types.Part | None = None
   # Metadata about the part. Can store arbitrary key/value pairs.
   _metadata: dict[str, Any] = {}
-  # Mime type of the part.
+  # MIME type of the part.
   _mimetype: str | None = None
   # Role of the part.
   _role: str = ''
@@ -132,7 +132,7 @@ class ProcessorPart:
           if value.format:
             if suffix != value.format.lower():
               raise ValueError(
-                  f'The image format {value.format} and does not match the'
+                  f'The image format {value.format} does not match the'
                   f' mimetype {suffix}.'
               )
         else:
@@ -325,7 +325,7 @@ class ProcessorPart:
 
   @property
   def tool_cancellation(self) -> str | None:
-    """Returns an id of a function call to be cancelled.
+    """Returns an ID of a function call to be cancelled.
 
     If the part is not a tool cancellation request, returns None.
 
@@ -402,7 +402,7 @@ class ProcessorPart:
   def from_function_call(
       cls, *, name: str, args: dict[str, Any], **kwargs
   ) -> 'ProcessorPart':
-    """Constructs a ProcessorPart from bytes & mimetype."""
+    """Constructs a ProcessorPart from function name & arguments."""
     part = genai_types.Part.from_function_call(name=name, args=args)
     return cls(part, **kwargs)
 
@@ -524,7 +524,7 @@ class ProcessorPart:
   def from_tool_cancellation(
       cls, *, function_call_id: str, **kwargs
   ) -> 'ProcessorPart':
-    """Constructs a ProcessorPart from a tool cancellation id.
+    """Constructs a ProcessorPart from a tool cancellation ID.
 
     The role is overridden to 'model'.
 
@@ -541,7 +541,7 @@ class ProcessorPart:
     )
     if 'role' in kwargs and kwargs['role'].lower() != 'model':
       logging.warning(
-          'Role {kwargs["role"]} is not supported for tool cancellation.'
+          f'Role {kwargs["role"]} is not supported for tool cancellation.'
           ' Overriding it with the model role.'
       )
     extra_args = kwargs

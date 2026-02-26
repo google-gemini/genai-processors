@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
-from collections.abc import AsyncIterable, AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterable, Callable, Sequence
 import contextlib
 import contextvars
 import functools
@@ -59,7 +59,7 @@ _MAX_QUEUE_SIZE = 10_000
 # Interface Definition & util functions
 
 
-# This is needed because in some placess we pass async instead of ProcessorFn.
+# This is needed because in some places we pass async instead of ProcessorFn.
 def _key_prefix(
     p: Processor | PartProcessor | ProcessorFn | PartProcessorFn,
 ) -> str:

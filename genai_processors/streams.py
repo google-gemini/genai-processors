@@ -134,7 +134,7 @@ async def merge(
       empty.
 
   Yields:
-    a item from one of the input streams. The order in which the items are
+    An item from one of the input streams. The order in which the items are
     yielded is random and interleaved (likely order of generation). This means
     the order of the items within one stream is preserved but not across
     streams.
@@ -247,7 +247,7 @@ async def aenumerate(
 async def endless_stream() -> AsyncIterable[Any]:
   """Empty input stream for the live agents.
 
-  The Live API and VideoIn / PyAudioIn processors lifetime is bound to the
+  The Live API and VideoIn / PyAudioIn processors' lifetime is bound to the
   incoming Part stream. More complex setups would use the stream to send
   additional data such as the initial context or text entered in the terminal.
 

@@ -234,7 +234,7 @@ def _serialize_content(value: ProcessorContent) -> bytes:
 
 
 def _deserialize_content(data_bytes: bytes) -> ProcessorContent:
-  """Deserializer for ProcessorContent from bytes (via JSON)."""
+  """Deserializes ProcessorContent from bytes (via JSON)."""
   json_string_val = data_bytes.decode('utf-8')
   list_of_part_dicts_val = json.loads(json_string_val)
   return ProcessorContent([

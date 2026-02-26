@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Switch processors to route parts to different processorss."""
+"""Switch processors to route parts to different processors."""
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ Processor: TypeAlias = processor.Processor
 class Switch(Processor, Generic[_T]):
   """Switch between processors.
 
-  Convenient way to create a processor that route the parts of the input stream
+  Convenient way to create a processor that routes the parts of the input stream
   to different processors based on a condition (aka a case). The condition can
   be:
 
@@ -49,8 +49,8 @@ class Switch(Processor, Generic[_T]):
     ```
   2. a function that takes any value returned by the match_fn passed in the
      constructor and returns a boolean. We have a shortcut for boolean functions
-     that tests for equality, e.g. `lambda x: x == "a"`. They can be replace
-     with the value itself , e.g. `"a"`. Example:
+     that tests for equality, e.g. `lambda x: x == "a"`. They can be replaced
+     with the value itself, e.g. `"a"`. Example:
     ```python
     # The match_fn is applied to the input part and the result is compared to
     # the value passed in the case() method.
@@ -160,7 +160,7 @@ class PartSwitch(PartProcessor, Generic[_T]):
   Simple match conditions based on equality:
 
   ```python
-  # Applies content_api.as_text on the input part and checks equality with
+  # Applies content_api.as_text to the input part and checks equality with
   # the string "a" or "b".
   switch_processor = (
       switch.Switch(content_api.as_text)

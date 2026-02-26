@@ -62,7 +62,7 @@ class TTFTSingleStream(processor.Processor):
     is about to start generating the output.
 
     The event starts in a cleared state when the first part of the input
-    stream is yielded. It is also cleared at the end of the wrappedprocessor,
+    stream is yielded. It is also cleared at the end of the wrapped processor,
     when all the output parts have been yielded.
 
     Its default value is unset and this event is set only for a short time
