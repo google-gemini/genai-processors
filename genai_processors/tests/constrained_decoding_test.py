@@ -14,13 +14,13 @@
 # ==============================================================================
 import dataclasses
 import enum
+import unittest
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import dataclasses_json
 from genai_processors import content_api
 from genai_processors import mime_types
-from genai_processors import processor
 from genai_processors.core import constrained_decoding
 
 
@@ -40,7 +40,9 @@ class Color(enum.StrEnum):
   GREEN = 'GREEN'
 
 
-class ConstrainedDecodingTest(parameterized.TestCase):
+class ConstrainedDecodingTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
 
   @parameterized.named_parameters(
       (
@@ -123,11 +125,12 @@ class ConstrainedDecodingTest(parameterized.TestCase):
           ],
       ),
   )
-  def test_json_to_dataclass_success(self, dc_type, input_parts, expected):
+  async def test_json_to_dataclass_success(
+      self, dc_type, input_parts, expected
+  ):
     """Tests successful parsing for various types and inputs."""
     p = constrained_decoding.StructuredOutputParser(dc_type)
-    output = processor.apply_sync(p, input_parts)
-    self.assertEqual(output, expected)
+    self.assertEqual(await p(input_parts).gather(), expected)
 
   @parameterized.named_parameters(
       (
@@ -155,11 +158,11 @@ class ConstrainedDecodingTest(parameterized.TestCase):
           "'BLUE' is not a valid Color",
       ),
   )
-  def test_json_to_dataclass_failure(
+  async def test_json_to_dataclass_failure(
       self, dc_type, input_str, error_msg_substr
   ):
     p = constrained_decoding.StructuredOutputParser(dc_type)
-    output = processor.apply_sync(p, [input_str])
+    output = await p(input_str).gather()
 
     self.assertLen(output, 1)
     part = output[0]

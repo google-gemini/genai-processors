@@ -13,13 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for Google Drive processors."""
-
+import unittest
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import drive
 
 FAKE_PDF_BYTES = b'%PDF-1.4 fake pdf content'
@@ -28,7 +27,9 @@ FAKE_SPREADSHEET_ID = 'fake-spreadsheet-id'
 FAKE_PRESENTATION_ID = 'fake-presentation-id'
 
 
-class GoogleDriveProcessorTestBase(parameterized.TestCase):
+class GoogleDriveProcessorTestBase(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
   """Base class for Google Drive processor tests with shared mock setup."""
 
   def setUp(self):
@@ -51,23 +52,24 @@ class DocsProcessorTest(GoogleDriveProcessorTestBase):
     self.mock_export = self.mock_files.export.return_value
     self.mock_export.execute.return_value = FAKE_PDF_BYTES
 
-  def test_ignores_non_matching_part(self):
+  async def test_ignores_non_matching_part(self):
     """Tests that the processor ignores parts with non-matching mimetypes."""
     p = drive.Docs(creds=self.mock_creds)
     non_matching_part = content_api.ProcessorPart('some text')
 
-    output = processor.apply_sync(p, [non_matching_part])
-
-    self.assertEqual(output, [non_matching_part])
+    self.assertEqual(
+        await p(non_matching_part).gather(),
+        [non_matching_part],
+    )
     self.mock_build.assert_not_called()
 
-  def test_fetches_doc_as_pdf(self):
+  async def test_fetches_doc_as_pdf(self):
     """Tests that Docs processor fetches a doc and returns it as a PDF."""
     p = drive.Docs(creds=self.mock_creds)
     req = drive.DocsRequest(doc_id=FAKE_DOC_ID)
     req_part = content_api.ProcessorPart.from_dataclass(req)
 
-    output = processor.apply_sync(p, [req_part])
+    output = await p(req_part).gather()
 
     self.mock_build.assert_called_once_with(
         'drive', 'v3', credentials=self.mock_creds
@@ -110,7 +112,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
           ],
       ),
   )
-  def test_fetches_sheet_as_csv(self, request, expected_outputs):
+  async def test_fetches_sheet_as_csv(self, request, expected_outputs):
     """Tests that Sheets processor fetches sheet data and returns it as CSV."""
     self.mock_build.reset_mock()
     self.mock_get.reset_mock()
@@ -168,7 +170,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
     p = drive.Sheets(creds=self.mock_creds)
     req_part = content_api.ProcessorPart.from_dataclass(request)
 
-    output = processor.apply_sync(p, [req_part])
+    output = await p(req_part).gather()
 
     self.mock_build.assert_called_once_with(
         'sheets', 'v4', credentials=self.mock_creds
@@ -183,7 +185,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
       self.assertEqual(part.text, expected_text)
       self.assertEqual(part.mimetype, expected_mimetype)
 
-  def test_handles_parse_failure(self):
+  async def test_handles_parse_failure(self):
     """Tests that a failure to parse sheet data is handled gracefully."""
     # Return data that will cause an IndexError
     self.mock_get.execute.return_value = {
@@ -193,7 +195,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
     req = drive.SheetsRequest(spreadsheet_id=FAKE_SPREADSHEET_ID)
     req_part = content_api.ProcessorPart.from_dataclass(req)
 
-    output = processor.apply_sync(p, [req_part])
+    output = await p(req_part).gather()
 
     self.assertLen(output, 1)
     self.assertEqual(output[0].text, 'Failed to parse sheet data.')
@@ -242,7 +244,7 @@ class SlidesProcessorTest(GoogleDriveProcessorTestBase):
           ],
       ),
   )
-  def test_fetches_slides_as_pdfs(
+  async def test_fetches_slides_as_pdfs(
       self, request, expected_getpage_calls, expected_outputs
   ):
     """Tests that Slides processor fetches slides and returns them as PDFs."""
@@ -264,7 +266,7 @@ class SlidesProcessorTest(GoogleDriveProcessorTestBase):
     p = drive.Slides(creds=self.mock_creds)
     req_part = content_api.ProcessorPart.from_dataclass(request)
 
-    output = processor.apply_sync(p, [req_part])
+    output = await p(req_part).gather()
 
     self.mock_build.assert_called_once_with(
         'drive', 'v3', credentials=self.mock_creds

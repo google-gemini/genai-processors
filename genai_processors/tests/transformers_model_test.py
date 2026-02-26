@@ -13,11 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 
+import unittest
 from unittest import mock
 from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import transformers_model
 import torch
 import transformers
@@ -34,7 +34,9 @@ class MockInputs(dict):
     return self
 
 
-class TransformersModelTest(parameterized.TestCase):
+class TransformersModelTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
 
   def setUp(self):
     super().setUp()
@@ -99,23 +101,21 @@ class TransformersModelTest(parameterized.TestCase):
         )
     )
 
-  def test_simple_inference(self):
+  async def test_simple_inference(self):
     self.output_tokens = [[1, 2], [3, 4]]
     model = transformers_model.TransformersModel(model_name='unused')
 
-    output = processor.apply_sync(model, ['Test prompt'])
-
-    self.assertEqual(content_api.as_text(output), 'Hello, world!')
+    self.assertEqual(await model('Test prompt').text(), 'Hello, world!')
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
 
-  def test_system_instruction(self):
+  async def test_system_instruction(self):
     self.output_tokens = [[1, 2], [3, 4]]
     model = transformers_model.TransformersModel(
         model_name='unused',
         generate_content_config={'system_instruction': 'Be nice.'},
     )
-    processor.apply_sync(model, ['Test prompt'])
+    await model('Test prompt')
     self.mock_processor.apply_chat_template.assert_called_once_with(
         [
             {
@@ -133,7 +133,7 @@ class TransformersModelTest(parameterized.TestCase):
         return_tensors='pt',
     )
 
-  def test_function_call_from_previous_turn(self):
+  async def test_function_call_from_previous_turn(self):
     """Tests that function calls from previous turns are formatted correctly.
 
     In this case FunctionCall is passed as a part of the conversation history,
@@ -159,13 +159,10 @@ class TransformersModelTest(parameterized.TestCase):
         generate_content_config={'tools': [emulate_vigorous_thinking]},
     )
     model._parse_function_calls = True
-    processor.apply_sync(
-        model,
-        [
-            content_api.ProcessorPart.from_function_call(
-                name='emulate_vigorous_thinking', args={'thinking_budget': 1.5}
-            )
-        ],
+    await model(
+        content_api.ProcessorPart.from_function_call(
+            name='emulate_vigorous_thinking', args={'thinking_budget': 1.5}
+        )
     )
     self.mock_processor.apply_chat_template.assert_called_once_with(
         [{
@@ -208,7 +205,7 @@ class TransformersModelTest(parameterized.TestCase):
       ('str', 'foo', 'dict', {'result': 'foo'}),
       ('str_as_string', 'foo', 'string', 'foo'),
   )
-  def test_function_response(
+  async def test_function_response(
       self, response, tool_response_format, expected_content
   ):
     """Tests that function responses are correctly formatted."""
@@ -216,14 +213,11 @@ class TransformersModelTest(parameterized.TestCase):
         model_name='unused',
         tool_response_format=tool_response_format,
     )
-    processor.apply_sync(
-        model,
-        [
-            content_api.ProcessorPart.from_function_response(
-                name='emulate_vigorous_thinking',
-                response=response,
-            )
-        ],
+    await model(
+        content_api.ProcessorPart.from_function_response(
+            name='emulate_vigorous_thinking',
+            response=response,
+        ),
     )
     content = (
         response
@@ -242,7 +236,7 @@ class TransformersModelTest(parameterized.TestCase):
         return_tensors='pt',
     )
 
-  def test_function_call_decoding(self):
+  async def test_function_call_decoding(self):
     self.output_tokens = [
         [1, 2],
         [3, 4],
@@ -257,16 +251,17 @@ class TransformersModelTest(parameterized.TestCase):
     })
     model = transformers_model.TransformersModel(model_name='unused')
     model._parse_function_calls = True
-    output = processor.apply_sync(model, ['Test prompt'])
-    expected_output = [
-        content_api.ProcessorPart('Hello, world!'),
-        content_api.ProcessorPart.from_function_call(
-            name='emulate_vigorous_thinking',
-            args={'reason': 'cheap', 'thinking_budget': 1.5},
-            role='model',
-        ),
-    ]
-    self.assertEqual(output, expected_output)
+    self.assertEqual(
+        await model('Test prompt').gather(),
+        [
+            'Hello, world!',
+            content_api.ProcessorPart.from_function_call(
+                name='emulate_vigorous_thinking',
+                args={'reason': 'cheap', 'thinking_budget': 1.5},
+                role='model',
+            ),
+        ],
+    )
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
 
@@ -277,32 +272,33 @@ class TransformersModelTest(parameterized.TestCase):
       ('merged_with_text', [[1, 2], [3, 4, 5, 8], [6], [5, 8, 6]]),
       ('monolith', [[1, 2, 3, 4, 5, 8, 6, 5, 8, 6]]),
   )
-  def test_double_function_call_decoding(self, output_tokens):
+  async def test_double_function_call_decoding(self, output_tokens):
     self.output_tokens = output_tokens
     self.decode_map.update({
         8: 'call:emulate_vigorous_thinking{thinking_budget:1.5}',
     })
     model = transformers_model.TransformersModel(model_name='unused')
     model._parse_function_calls = True
-    output = processor.apply_sync(model, ['Test prompt'])
-    expected_output = [
-        content_api.ProcessorPart('Hello, world!'),
-        content_api.ProcessorPart.from_function_call(
-            name='emulate_vigorous_thinking',
-            args={'thinking_budget': 1.5},
-            role='model',
-        ),
-        content_api.ProcessorPart.from_function_call(
-            name='emulate_vigorous_thinking',
-            args={'thinking_budget': 1.5},
-            role='model',
-        ),
-    ]
-    self.assertEqual(output, expected_output)
+    self.assertEqual(
+        await model('Test prompt').gather(),
+        [
+            'Hello, world!',
+            content_api.ProcessorPart.from_function_call(
+                name='emulate_vigorous_thinking',
+                args={'thinking_budget': 1.5},
+                role='model',
+            ),
+            content_api.ProcessorPart.from_function_call(
+                name='emulate_vigorous_thinking',
+                args={'thinking_budget': 1.5},
+                role='model',
+            ),
+        ],
+    )
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
 
-  def test_escape_function_arg_parsing(self):
+  async def test_escape_function_arg_parsing(self):
     # 7 = escape token id
     self.output_tokens = [
         [1, 2],
@@ -324,29 +320,30 @@ class TransformersModelTest(parameterized.TestCase):
     })
     model = transformers_model.TransformersModel(model_name='unused')
     model._parse_function_calls = True
-    output = processor.apply_sync(model, ['Test prompt'])
-    expected_output = [
-        content_api.ProcessorPart('Hello, world!'),
-        content_api.ProcessorPart.from_function_call(
-            name='emulate_vigorous_thinking',
-            args={
-                'reason': 'cheap<escape>',
-                'thinking_budget': 1.5,
-                'complex_arg': {
-                    'arg1': 'val1',
-                    'arg2': {
-                        'arg21': 'this is a "fun" function with , arg: "13"'
+    self.assertEqual(
+        await model('Test prompt').gather(),
+        [
+            'Hello, world!',
+            content_api.ProcessorPart.from_function_call(
+                name='emulate_vigorous_thinking',
+                args={
+                    'reason': 'cheap<escape>',
+                    'thinking_budget': 1.5,
+                    'complex_arg': {
+                        'arg1': 'val1',
+                        'arg2': {
+                            'arg21': 'this is a "fun" function with , arg: "13"'
+                        },
                     },
                 },
-            },
-            role='model',
-        ),
-    ]
-    self.assertEqual(output, expected_output)
+                role='model',
+            ),
+        ],
+    )
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
 
-  def test_escape_another_function_arg_parsing(self):
+  async def test_escape_another_function_arg_parsing(self):
     # 7 = escape token id
     self.output_tokens = [
         [1, 2],
@@ -366,21 +363,22 @@ class TransformersModelTest(parameterized.TestCase):
     })
     model = transformers_model.TransformersModel(model_name='unused')
     model._parse_function_calls = True
-    output = processor.apply_sync(model, ['Test prompt'])
-    expected_output = [
-        content_api.ProcessorPart('Hello, world!'),
-        content_api.ProcessorPart.from_function_call(
-            name='read_a_file',
-            args={
-                'file_data': {
-                    'display_name': 'foo.txt',
-                    'file_uri': '/path/to/foo.txt',
-                }
-            },
-            role='model',
-        ),
-    ]
-    self.assertEqual(output, expected_output)
+    self.assertEqual(
+        await model('Test prompt').gather(),
+        [
+            'Hello, world!',
+            content_api.ProcessorPart.from_function_call(
+                name='read_a_file',
+                args={
+                    'file_data': {
+                        'display_name': 'foo.txt',
+                        'file_uri': '/path/to/foo.txt',
+                    }
+                },
+                role='model',
+            ),
+        ],
+    )
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
 

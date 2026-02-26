@@ -65,8 +65,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     combined_processor = processor_0 + processor_1
 
-    input_stream = get_processor_parts(['foo', 'bar'])
-    output = processor.apply_sync(combined_processor, input_stream)
+    output = processor.apply_sync(combined_processor, ['foo', 'bar'])
     output = [output.text for output in output]
     self.assertSequenceEqual(output, ['test', 'foo', 'test', 'bar'])
 
@@ -181,9 +180,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
     exception = None
     tb = None
     try:
-      processor.apply_sync(
-          combined_processor, [content_api.ProcessorPart('bar')]
-      )
+      processor.apply_sync(combined_processor, content_api.ProcessorPart('bar'))
     except ValueError as e:
       exception = str(e)
       tb = traceback.format_exc()
@@ -224,7 +221,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     output = processor.apply_sync(
         yield_non_normalized_parts + _check_is_part,
-        ['Agent: '],
+        'Agent: ',
     )
     self.assertEqual(content_api.as_text(output), 'Agent: Hello world!')
 
@@ -250,7 +247,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     output = processor.apply_sync(
         YieldNonNormalizedParts() + _check_is_part,
-        ['Agent: '],
+        'Agent: ',
     )
     self.assertEqual(content_api.as_text(output), 'Agent: Hello world!')
 
@@ -483,7 +480,7 @@ class ProcessorTest(unittest.TestCase):
     self.assertEqual(substreams_seen, {'data'})
 
 
-class TestWithProcessors(unittest.TestCase):
+class TestWithProcessors(unittest.IsolatedAsyncioTestCase):
 
   def setUp(self):
     super().setUp()
@@ -570,7 +567,7 @@ class ProcessorChainMixTest(TestWithProcessors):
         await asyncio.sleep(0.1)
       yield part
 
-  def test_processor_plus_processor(self):
+  async def test_processor_plus_processor(self):
 
     class TwiceAgain(processor.Processor):
 
@@ -582,52 +579,40 @@ class ProcessorChainMixTest(TestWithProcessors):
           yield part
           yield part
 
-    inputs = [content_api.ProcessorPart('1')]
     twice_again = TwiceAgain()
     four_times = self.twice + twice_again
-    content = processor.apply_sync(four_times, inputs)
-    self.assertSequenceEqual(content, inputs * 4)
+    self.assertSequenceEqual(await four_times('1').text(), '1111')
     four_times = twice_again + self.twice
-    content = processor.apply_sync(four_times, inputs)
-    self.assertSequenceEqual(content, inputs * 4)
+    self.assertSequenceEqual(await four_times('1').text(), '1111')
     four_times = self.twice + self.twice
-    content = processor.apply_sync(four_times, inputs)
-    self.assertSequenceEqual(content, inputs * 4)
+    self.assertSequenceEqual(await four_times('1').text(), '1111')
     four_times_zero = self.twice + self.twice + self.tozero
-    content = processor.apply_sync(four_times_zero, inputs)
-    self.assertSequenceEqual(content, [content_api.ProcessorPart('0')] * 4)
+    self.assertSequenceEqual(await four_times_zero('1').text(), '0000')
 
-  def test_part_processor_pass_thru(self):
+  async def test_part_processor_pass_thru(self):
     p = processor.passthrough()
-    inputs = [content_api.ProcessorPart('0')]
 
     q = p + self.insert_1 + p
-    content = content_api.ProcessorContent(processor.apply_sync(q, inputs))
-    self.assertEqual(content_api.as_text(content), '10')
-    # self.assertIsInstance(self, q, processor._ChainPartProcessor)
+    self.assertEqual(await q('0').text(), '10')
     self.assertEqual(
         cast(processor._ChainPartProcessor, q)._processor_list,
         [self.insert_1],
     )
 
     r = p + p + self.insert_1
-    content = processor.apply_sync(r, inputs)
-    self.assertEqual(content_api.as_text(content), '10')
+    self.assertEqual(await r('0').text(), '10')
 
     s = self.insert_1 + p + self.insert_1
-    content = processor.apply_sync(s, inputs)
-    self.assertEqual(content_api.as_text(content), '1110')
+    self.assertEqual(await s('0').text(), '1110')
 
     u = self.insert_1 + p + p
-    content = processor.apply_sync(u, inputs)
-    self.assertEqual(content_api.as_text(content), '10')
+    self.assertEqual(await u('0').text(), '10')
 
     v = self.insert_1 + self.insert_1
     w = p + v
     # This assignment should not change w (twice called x2).
     v = v + self.insert_1  # pylint: disable=unused-variable
-    content = processor.apply_sync(w, inputs)
-    self.assertEqual(content_api.as_text(content), '1110')
+    self.assertEqual(await w('0').text(), '1110')
 
   def test_processor_plus_partprocessor(self):
     inputs = [content_api.ProcessorPart('0')]
@@ -1273,7 +1258,7 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
             // processor.PASSTHROUGH_ALWAYS
         )
     )
-    result = processor.apply_sync(p, [content_api.ProcessorPart('0')])
+    result = processor.apply_sync(p, content_api.ProcessorPart('0'))
     self.assertLen(result, 10)
     # The first results should be the status or debug streams before the sleep.
     for i in range(3):
@@ -1692,7 +1677,7 @@ class CachedProcessorTest(
     )
 
     # First call (cache miss)
-    result = await processor.apply_async(cached_p, ['A'])
+    result = await processor.apply_async(cached_p, 'A')
     self.assertEqual(content_api.as_text(result), 'processed:A')
     call_tracker.assert_called_once()
 
@@ -1700,13 +1685,13 @@ class CachedProcessorTest(
     await asyncio.sleep(0.01)
 
     # Second call (cache hit)
-    result = await processor.apply_async(cached_p, ['A'])
+    result = await processor.apply_async(cached_p, 'A')
     self.assertEqual(content_api.as_text(result), 'processed:A')
     # Call tracker has not been called a second time.
     call_tracker.assert_called_once()
 
     # Third call with different content (cache miss)
-    result = await processor.apply_async(cached_p, ['B'])
+    result = await processor.apply_async(cached_p, 'B')
     self.assertEqual(content_api.as_text(result), 'processed:B')
     self.assertEqual(call_tracker.call_count, 2)
 
@@ -1823,11 +1808,11 @@ class CachedProcessorTest(
     cached_p = processor.CachedProcessor(trackable_processor)
 
     # Call without cache in context
-    result = await processor.apply_async(cached_p, ['A'])
+    result = await processor.apply_async(cached_p, 'A')
     self.assertEqual(content_api.as_text(result), 'processed:A')
     call_tracker.assert_called_once()
 
-    result = await processor.apply_async(cached_p, ['A'])
+    result = await processor.apply_async(cached_p, 'A')
     self.assertEqual(content_api.as_text(result), 'processed:A')
     self.assertEqual(call_tracker.call_count, 2)
 
@@ -1835,14 +1820,14 @@ class CachedProcessorTest(
     cache_instance = cache.InMemoryCache()
     processor.CachedProcessor.set_cache(cache_instance)
 
-    result = await processor.apply_async(cached_p, ['B'])
+    result = await processor.apply_async(cached_p, 'B')
     self.assertEqual(content_api.as_text(result), 'processed:B')
     self.assertEqual(call_tracker.call_count, 3)
 
     # Give some time for the background cache-put task to complete.
     await asyncio.sleep(0.01)
 
-    result = await processor.apply_async(cached_p, ['B'])
+    result = await processor.apply_async(cached_p, 'B')
     self.assertEqual(content_api.as_text(result), 'processed:B')
     self.assertEqual(call_tracker.call_count, 3)  # Cache hit
 
@@ -1867,7 +1852,7 @@ class CachedProcessorTest(
     )
 
     # First call with 'A', returns exception, should not be cached.
-    result = await processor.apply_async(cached_p, ['A'])
+    result = await processor.apply_async(cached_p, 'A')
     self.assertTrue(mime_types.is_exception(result[0].mimetype))
     call_tracker.assert_called_once()
 
@@ -1875,12 +1860,12 @@ class CachedProcessorTest(
     await asyncio.sleep(0.01)
 
     # Second call with 'A', should be a cache miss and call processor again.
-    result = await processor.apply_async(cached_p, ['A'])
+    result = await processor.apply_async(cached_p, 'A')
     self.assertTrue(mime_types.is_exception(result[0].mimetype))
     self.assertEqual(call_tracker.call_count, 2)
 
     # Call with 'B', returns no exception, should be cached.
-    result = await processor.apply_async(cached_p, ['B'])
+    result = await processor.apply_async(cached_p, 'B')
     self.assertEqual(content_api.as_text(result), 'processed:B')
     self.assertEqual(call_tracker.call_count, 3)
 
@@ -1888,7 +1873,7 @@ class CachedProcessorTest(
     await asyncio.sleep(0.01)
 
     # Call with 'B' again, should be cache hit.
-    result = await processor.apply_async(cached_p, ['B'])
+    result = await processor.apply_async(cached_p, 'B')
     self.assertEqual(content_api.as_text(result), 'processed:B')
     self.assertEqual(call_tracker.call_count, 3)
 

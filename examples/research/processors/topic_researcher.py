@@ -90,7 +90,7 @@ class TopicResearcher(processor.PartProcessor):
   ) -> AsyncIterable[ProcessorPart]:
 
     input_topic = part.get_dataclass(interfaces.Topic)
-    response = self._pipeline(content_api.ProcessorContent(part))
+    response = self._pipeline(part)
 
     updated_topic = interfaces.Topic(
         topic=input_topic.topic,

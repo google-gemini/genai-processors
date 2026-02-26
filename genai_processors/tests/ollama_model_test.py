@@ -1,15 +1,14 @@
 import dataclasses
 import enum
 import http
-import inspect
 import json
+import unittest
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 import dataclasses_json
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import ollama_model
 from google.genai import types as genai_types
 import httpx
@@ -29,9 +28,11 @@ class OkEnum(enum.StrEnum):
   OKAY = 'okay'
 
 
-class OllamaProcessorTest(parameterized.TestCase):
+class OllamaProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
 
-  def test_inference(self):
+  async def test_inference(self):
     def request_handler(request: httpx.Request):
       self.assertEqual(str(request.url), 'http://127.0.0.1:11434/api/chat')
       self.assertEqual(
@@ -78,19 +79,16 @@ class OllamaProcessorTest(parameterized.TestCase):
               response_mime_type='text/x.enum',
           ),
       )
-      output = processor.apply_sync(
-          model,
-          [
-              content_api.ProcessorPart(
-                  b'PNG\x47\x0D\x0A\x1A\x0A', mimetype='image/png'
-              ),
-              'is this image okay?',
-          ],
-      )
+      output = model([
+          content_api.ProcessorPart(
+              b'PNG\x47\x0D\x0A\x1A\x0A', mimetype='image/png'
+          ),
+          'is this image okay?',
+      ])
 
-    self.assertEqual(content_api.as_text(output), 'OK')
+    self.assertEqual(await output.text(), 'OK')
 
-  def test_inference_with_tool(self):
+  async def test_inference_with_tool(self):
     def request_handler(request: httpx.Request):
       json_body = json.loads(request.content.decode('utf-8'))
       self.assertEqual(
@@ -175,13 +173,14 @@ class OllamaProcessorTest(parameterized.TestCase):
 
       conversation = ['What is the weather in Boston?']
 
-      output = processor.apply_sync(model, conversation)
-      self.assertLen(output, 1)
+      output = await model(conversation).gather()
       self.assertEqual(
-          output[0],
-          content_api.ProcessorPart.from_function_call(
-              name='get_weather', args={'location': 'Boston, MA'}
-          ),
+          output,
+          [
+              content_api.ProcessorPart.from_function_call(
+                  name='get_weather', args={'location': 'Boston, MA'}
+              )
+          ],
       )
       conversation.extend(output)
 
@@ -191,13 +190,13 @@ class OllamaProcessorTest(parameterized.TestCase):
               response={'weather': '72 and sunny'},
           )
       )
-      output = processor.apply_sync(model, conversation)
 
       self.assertEqual(
-          content_api.as_text(output), 'The weather in Boston is 72 and sunny.'
+          await model(conversation).text(),
+          'The weather in Boston is 72 and sunny.',
       )
 
-  def test_callable_tool(self):
+  async def test_callable_tool(self):
     def get_weather(location: str) -> str:
       """Get the current weather using a weather stone.
 
@@ -260,11 +259,11 @@ class OllamaProcessorTest(parameterized.TestCase):
       )
 
       self.assertEqual(
-          content_api.as_text(processor.apply_sync(model, 'Nice weather, eh?')),
+          await model('Nice weather, eh?').text(),
           'Stone under water (but pub still open)',
       )
 
-  def test_json_parsing_by_default(self):
+  async def test_json_parsing_by_default(self):
 
     def request_handler(request: httpx.Request):
       del request  # Unused.
@@ -288,14 +287,14 @@ class OllamaProcessorTest(parameterized.TestCase):
           model_name='gemma3',
           generate_content_config={'response_schema': MyData},
       )
-      output = processor.apply_sync(model, ['some prompt'])
+      output = await model('some prompt').gather()
 
       self.assertLen(output, 1)
       self.assertEqual(
           output[0].get_dataclass(MyData), MyData(name='test', value=123)
       )
 
-  def test_stream_json_true_bypasses_parsing(self):
+  async def test_stream_json_true_bypasses_parsing(self):
 
     def request_handler(request: httpx.Request):
       del request  # Unused.
@@ -319,10 +318,10 @@ class OllamaProcessorTest(parameterized.TestCase):
           generate_content_config={'response_schema': MyData},
           stream_json=True,
       )
-      output = processor.apply_sync(model, ['some prompt'])
 
       self.assertEqual(
-          content_api.as_text(output), '{"name": "test", "value": 123}'
+          await model('some prompt').text(),
+          '{"name": "test", "value": 123}',
       )
 
 

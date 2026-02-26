@@ -1,5 +1,6 @@
 import concurrent.futures
 import time
+import unittest
 from unittest import mock
 
 from absl.testing import absltest
@@ -9,25 +10,19 @@ from genai_processors.core import pdf
 from PIL import Image
 
 
-class PDFExtractTest(absltest.TestCase):
+class PDFExtractTest(absltest.TestCase, unittest.IsolatedAsyncioTestCase):
 
   def setUp(self):
     super().setUp()
     self.pdf_processor = pdf.PDFExtract()
 
-  def test_apply_non_pdf_part(self):
+  async def test_apply_non_pdf_part(self):
     """Test that non-PDF parts are passed through unchanged."""
     part = content_api.ProcessorPart(b'test data', mimetype='text/plain')
-
-    processed_parts = processor.apply_sync(
-        self.pdf_processor.to_processor(), [part]
-    )
-
-    self.assertLen(processed_parts, 1)
-    self.assertEqual(processed_parts[0], part)
+    self.assertEqual(await self.pdf_processor(part).gather(), [part])
 
   @mock.patch('pypdfium2.PdfDocument')
-  def test_apply_pdf_part_no_images(self, mock_pdf_document):
+  async def test_apply_pdf_part_no_images(self, mock_pdf_document):
     """Test that PDF parts with no images are processed correctly."""
     mock_page = mock.Mock()
     mock_page.get_objects.return_value = []
@@ -42,9 +37,7 @@ class PDFExtractTest(absltest.TestCase):
         b'pdf data', mimetype=pdf.PDF_MIMETYPE, metadata=metadata
     )
 
-    processed_parts = processor.apply_sync(
-        self.pdf_processor.to_processor(), [part]
-    )
+    processed_parts = await self.pdf_processor(part).gather()
 
     # Assert start and end markers, page header, page text
     content_parts = [c for c in processed_parts if not c.substream_name]
@@ -58,7 +51,7 @@ class PDFExtractTest(absltest.TestCase):
     )
 
   @mock.patch('pypdfium2.PdfDocument')
-  def test_apply_pdf_part_with_images(self, mock_pdf_document):
+  async def test_apply_pdf_part_with_images(self, mock_pdf_document):
     """Test that PDF parts with images are processed correctly."""
     mock_page = mock.Mock()
     mock_page.get_objects.return_value = [mock.Mock()]
@@ -76,9 +69,7 @@ class PDFExtractTest(absltest.TestCase):
         b'pdf data', mimetype=pdf.PDF_MIMETYPE, metadata=metadata
     )
 
-    processed_parts = processor.apply_sync(
-        self.pdf_processor.to_processor(), [part]
-    )
+    processed_parts = await self.pdf_processor(part).gather()
 
     # Assert start and end markers, page header, screenshot messages, screenshot
     # parts, page text

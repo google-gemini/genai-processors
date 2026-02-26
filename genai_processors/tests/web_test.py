@@ -45,9 +45,9 @@ class WebTest(unittest.IsolatedAsyncioTestCase, parameterized.TestCase):
 
       fetch_request = text.FetchRequest(url=url)
       p = web.UrlFetch() + text.HtmlCleaner(cleaning_mode=cleaning_mode)
-      output = await processor.apply_async(
-          p, [content_api.ProcessorPart.from_dataclass(fetch_request)]
-      )
+      output = await p(
+          content_api.ProcessorPart.from_dataclass(fetch_request)
+      ).gather()
       expected_output_parts = [
           content_api.ProcessorPart(
               f'Fetch result for URL: {url}\n',
@@ -79,25 +79,22 @@ class WebTest(unittest.IsolatedAsyncioTestCase, parameterized.TestCase):
     with mock.patch.object(httpx, 'AsyncClient', return_value=mock_client):
       fetch_request = text.FetchRequest(url=url)
       p = web.UrlFetch()
-      output = await processor.apply_async(
-          p, [content_api.ProcessorPart.from_dataclass(fetch_request)]
-      )
+      output = await p(
+          content_api.ProcessorPart.from_dataclass(fetch_request)
+      ).gather()
       self.assertLen(output, 2)
-      # The error is yielded in the status stream, this means it bubbles up
-      # to the client as soon as it is produced and therefore appears before
-      # the fetch result part.
-      self.assertTrue(mime_types.is_exception(output[0].mimetype))
-      self.assertStartsWith(
-          output[0].text, 'An unexpected error occurred: HTTPStatusError'
-      )
-      self.assertStartsWith(output[0].substream_name, processor.STATUS_STREAM)
       self.assertEqual(
-          output[1],
+          output[0],
           content_api.ProcessorPart(
               f'Fetch result for URL: {url}\n',
               mimetype='text/plain',
           ),
       )
+      self.assertTrue(mime_types.is_exception(output[1].mimetype))
+      self.assertStartsWith(
+          output[1].text, 'An unexpected error occurred: HTTPStatusError'
+      )
+      self.assertStartsWith(output[1].substream_name, processor.STATUS_STREAM)
 
 
 if __name__ == '__main__':

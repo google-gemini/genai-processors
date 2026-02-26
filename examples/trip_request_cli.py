@@ -170,7 +170,7 @@ async def run_trip_request() -> None:
 
     # For each user input, we run a new trip request agent. No re-use of
     # previous user inputs here.
-    async for part in trip_request_agent(content_api.ProcessorContent(text)):
+    async for part in trip_request_agent(text):
       if content_api.is_text(part.mimetype):
         print(part.text, end='', flush=True)
 

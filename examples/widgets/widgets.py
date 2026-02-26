@@ -85,13 +85,13 @@ class ImageGenerator:
         response='Image generated', will_continue=False
     )
 
-    content = content_api.ProcessorContent([
+    content = [
         (
             'Generate an illustration based on the following description. '
             'You may produce a short clarification after the image.\n'
         ),
         description,
-    ])
+    ]
 
     async for part in self._image_generator(content):
       # We use ui substream to send it directly to the UI.
@@ -131,7 +131,7 @@ class PlotGenerator:
         response='Plot generated', will_continue=False
     )
 
-    content = content_api.ProcessorContent([
+    content = [
         (
             'Generate a standalone HTML file containing an SVG visualization'
             ' of the data described below. Use inline SVG code directly'
@@ -146,7 +146,7 @@ class PlotGenerator:
             ' Do not leave big margins on any side of the SVG.\n'
         ),
         description,
-    ])
+    ]
 
     # By streaming the output, we allow the browser to render it as it is being
     # generated.

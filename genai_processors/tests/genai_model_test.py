@@ -142,7 +142,7 @@ class GenaiModelTest(parameterized.TestCase):
         api_key='unused', model_name='gemini-1.5-pro', **model_kwargs
     )
 
-    output = processor.apply_sync(model, ['Test prompt'])
+    output = processor.apply_sync(model, 'Test prompt')
     mock_generate_stream.assert_called_once()
     validate_output(self, output)
 

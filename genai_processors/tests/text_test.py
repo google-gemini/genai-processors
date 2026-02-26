@@ -706,9 +706,8 @@ class HtmlCleanerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     input_part = content_api.ProcessorPart(
         self.HTML_CONTENT, mimetype='text/html'
     )
-    output = await processor.apply_async(cleaner, [input_part])
     self.assertSequenceEqual(
-        output,
+        await cleaner(input_part).gather(),
         [
             content_api.ProcessorPart(
                 expected_output,

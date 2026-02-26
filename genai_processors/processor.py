@@ -81,10 +81,17 @@ def _combined_key_prefix(
 
 
 async def _normalize_part_stream(
-    content: AsyncIterable[ProcessorPartTypes],
+    content: AsyncIterable[ProcessorPartTypes] | ProcessorContentTypes,
     producer: Any = None,
 ) -> AsyncIterable[ProcessorPart]:
   """Yields ProcessorParts given a stream of content convertible to them."""
+  if not isinstance(content, AsyncIterable):
+    try:
+      for part in ProcessorContent(content):
+        yield part
+    except ValueError as e:
+      raise ValueError(f'{e} produced by {producer}') from e
+    return
   async for part in content:
     match part:
       case ProcessorPart():
@@ -140,7 +147,7 @@ class Processor(abc.ABC):
 
   @typing.final
   def __call__(
-      self, content: AsyncIterable[ProcessorPartTypes]
+      self, content: AsyncIterable[ProcessorPartTypes] | ProcessorContentTypes
   ) -> ProcessorStream:
     """Processes the given content.
 
@@ -176,7 +183,7 @@ class Processor(abc.ABC):
   @typing.final
   async def _call_impl(
       self,
-      content: AsyncIterable[ProcessorPartTypes],
+      content: AsyncIterable[ProcessorPartTypes] | ProcessorContentTypes,
       current_trace: trace_lib.Trace | None,
   ) -> AsyncIterable[ProcessorPart]:
     """__call__ implementation."""
@@ -362,7 +369,7 @@ class PartProcessor(abc.ABC):
   """Any class implementing a part processor should inherit from this."""
 
   @typing.final
-  def __call__(self, part: ProcessorPart) -> ProcessorStream:
+  def __call__(self, part: ProcessorPartTypes) -> ProcessorStream:
     """Processes the given part.
 
     Descendants should override `call` method instead of this one:
@@ -375,6 +382,8 @@ class PartProcessor(abc.ABC):
     Yields:
       the result of processing the input Part.
     """
+    if not isinstance(part, ProcessorPart):
+      part = ProcessorPart(part)
     # TODO(kibergus): Propagate parent trace from the Processor.__call__.
     return ProcessorStream(self._call_impl(part), trace=None)
 

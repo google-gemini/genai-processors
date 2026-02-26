@@ -249,7 +249,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
         audio_part,
     ]
     async with trace_file.SyncFileTrace(trace_dir=trace_dir, name='Trace test'):
-      await processor.apply_async(p, parts)
+      await p(parts)
 
     html_files = [
         f
@@ -449,8 +449,8 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     async with trace_file.SyncFileTrace(
         trace_dir=trace_dir, name='Debug Exclusion Test'
     ):
-      _ = await processor.apply_async(wrapped_processor, parts[:2])
-      _ = await processor.apply_async(wrapped_processor, parts[2:])
+      await wrapped_processor(parts[:2])
+      await wrapped_processor(parts[2:])
 
     # Verify HTML file was created
     html_files = [
@@ -587,9 +587,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     async with trace_file.SyncFileTrace(
         trace_dir=trace_dir, name='Parallel Processor Test'
     ):
-      _ = await processor.apply_async(
-          parallel_processor, [content_api.ProcessorPart('hello')]
-      )
+      await parallel_processor('hello')
 
     json_files = [
         f
@@ -649,9 +647,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
     async with trace_file.SyncFileTrace(
         trace_dir=trace_dir, name='Part Processor Chain Test'
     ):
-      _ = await processor.apply_async(
-          chained_part_processor, [content_api.ProcessorPart('hello')]
-      )
+      await chained_part_processor.to_processor()('hello')
 
     json_files = [
         f

@@ -1,22 +1,23 @@
 import http
+import unittest
 from unittest import mock
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import github
 import httpx
 
 
-class GithubProcessorTest(parameterized.TestCase):
+class GithubProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
 
-  def test_ignores_non_url_parts(self):
+  async def test_ignores_non_url_parts(self):
     p = github.GithubProcessor(api_key='unused')
-    output = processor.apply_sync(p, [content_api.ProcessorPart('normal text')])
-    self.assertEqual(content_api.as_text(output), 'normal text')
+    self.assertEqual(await p('normal text').text(), 'normal text')
 
-  def test_fetches_github_content(self):
+  async def test_fetches_github_content(self):
     url = content_api.ProcessorPart.from_dataclass(
         dataclass=github.GithubUrl(
             url='https://github.com/owner/repo/blob/main/path/to/file.txt'
@@ -43,9 +44,7 @@ class GithubProcessorTest(parameterized.TestCase):
         transport=httpx.MockTransport(request_handler)
     )
     with mock.patch.object(httpx, 'AsyncClient', return_value=mock_client):
-      output = processor.apply_sync(p, [url])
-
-    self.assertEqual(content_api.as_text(output), 'File content')
+      self.assertEqual(await p(url).text(), 'File content')
 
 
 if __name__ == '__main__':

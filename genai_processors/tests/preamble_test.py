@@ -1,11 +1,12 @@
+import unittest
+
 from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import preamble as preamble_lib
 
 
-class PreambleTest(parameterized.TestCase):
+class PreambleTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
   @parameterized.parameters([
       ('a', 'abc'),
@@ -15,14 +16,11 @@ class PreambleTest(parameterized.TestCase):
       ),
       (content_api.ProcessorContent('a'), 'abc'),
   ])
-  def test_adds_preamble(self, preamble, expected_text):
+  async def test_adds_preamble(self, preamble, expected_text):
     pr = preamble_lib.Preamble(content=preamble)
-    output = processor.apply_sync(
-        pr, [content_api.ProcessorPart('b'), content_api.ProcessorPart('c')]
-    )
-    self.assertEqual(content_api.as_text(output), expected_text)
+    self.assertEqual(await pr(['b', 'c']).text(), expected_text)
 
-  def test_adds_preamble_from_factory(self):
+  async def test_adds_preamble_from_factory(self):
     global_state = 'a'
 
     def preamble_factory():
@@ -33,18 +31,15 @@ class PreambleTest(parameterized.TestCase):
 
     # global state = 'a' at time of applying the processor, so it should
     # prepend 'a'.
-    output = processor.apply_sync(pr, ['c'])
-    self.assertEqual(content_api.as_text(output), 'ac')
+    self.assertEqual(await pr('c').text(), 'ac')
 
     # global state = 'b' at time of applying the processor, so it should
     # prepend 'b'.
     global_state = 'b'
-    output = processor.apply_sync(pr, ['c'])
-
-    self.assertEqual(content_api.as_text(output), 'bc')
+    self.assertEqual(await pr('c').text(), 'bc')
 
 
-class SuffixTest(parameterized.TestCase):
+class SuffixTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
   @parameterized.parameters([
       ('a', 'bca'),
@@ -54,14 +49,11 @@ class SuffixTest(parameterized.TestCase):
       ),
       (content_api.ProcessorContent('a'), 'bca'),
   ])
-  def test_adds_suffix(self, suffix, expected_text):
+  async def test_adds_suffix(self, suffix, expected_text):
     pr = preamble_lib.Suffix(content=suffix)
-    output = processor.apply_sync(
-        pr, [content_api.ProcessorPart('b'), content_api.ProcessorPart('c')]
-    )
-    self.assertEqual(content_api.as_text(output), expected_text)
+    self.assertEqual(await pr(['b', 'c']).text(), expected_text)
 
-  def test_adds_suffix_from_factory(self):
+  async def test_adds_suffix_from_factory(self):
     global_state = 'a'
 
     def suffix_factory():
@@ -72,15 +64,12 @@ class SuffixTest(parameterized.TestCase):
 
     # global state = 'a' at time of applying the processor, so it should
     # prepend 'a'.
-    output = processor.apply_sync(pr, ['c'])
-    self.assertEqual(content_api.as_text(output), 'ca')
+    self.assertEqual(await pr('c').text(), 'ca')
 
     # global state = 'b' at time of applying the processor, so it should
     # prepend 'b'.
     global_state = 'b'
-    output = processor.apply_sync(pr, ['c'])
-
-    self.assertEqual(content_api.as_text(output), 'cb')
+    self.assertEqual(await pr('c').text(), 'cb')
 
 
 if __name__ == '__main__':

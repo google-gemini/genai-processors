@@ -4,7 +4,6 @@ import unittest
 from absl.testing import absltest
 import dataclasses_json
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import jinja_template
 
 from google.protobuf import struct_pb2
@@ -12,115 +11,72 @@ from google.protobuf import struct_pb2
 
 class JinjaTemplateTest(unittest.IsolatedAsyncioTestCase):
 
-  def test_empty_template(self):
+  async def test_empty_template(self):
     p = jinja_template.JinjaTemplate('')
-    output = processor.apply_sync(p, [])
-    self.assertEqual(content_api.as_text(output), '')
+    self.assertEqual(await p([]).text(), '')
 
-  def test_empty_template_with_processor_content(self):
+  async def test_empty_template_with_processor_content(self):
     p = jinja_template.JinjaTemplate('')
-    output = processor.apply_sync(p, [content_api.ProcessorPart('Hello World')])
-    self.assertEqual(content_api.as_text(output), '')
+    self.assertEqual(await p('Hello World').text(), '')
 
-  def test_template_without_content_variable(self):
+  async def test_template_without_content_variable(self):
     p = jinja_template.JinjaTemplate(
         'Hello {{ name }}',
         content_varname='content',
         name='World',
     )
-    output = processor.apply_sync(p, [])
-    self.assertEqual(content_api.as_text(output), 'Hello World')
+    self.assertEqual(await p([]).text(), 'Hello World')
 
-  def test_template_with_content_variable_only(self):
+  async def test_template_with_content_variable_only(self):
     p = jinja_template.JinjaTemplate(
         '{{ content }}',
         content_varname='content',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart('Hello '),
-            content_api.ProcessorPart('World'),
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), 'Hello World')
+    self.assertEqual(await p(['Hello ', 'World']).text(), 'Hello World')
 
-  def test_empty_content_value(self):
+  async def test_empty_content_value(self):
     p = jinja_template.JinjaTemplate(
         '{{ content }}',
         content_varname='content',
     )
-    output = processor.apply_sync(p, [])
-    self.assertEqual(content_api.as_text(output), '')
+    self.assertEqual(await p([]).text(), '')
 
-  def test_template_starting_with_content(self):
+  async def test_template_starting_with_content(self):
     p = jinja_template.JinjaTemplate(
         '{{ content }} is amazing',
         content_varname='content',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart('The '),
-            content_api.ProcessorPart('world'),
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), 'The world is amazing')
+    self.assertEqual(await p(['The ', 'world']).text(), 'The world is amazing')
 
-  def test_template_ending_with_content(self):
+  async def test_template_ending_with_content(self):
     p = jinja_template.JinjaTemplate(
         'Amazing is {{ content }}',
         content_varname='content',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart('the '),
-            content_api.ProcessorPart('world'),
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), 'Amazing is the world')
+    self.assertEqual(await p(['the ', 'world']).text(), 'Amazing is the world')
 
-  def test_template_with_multiple_content_variables(self):
+  async def test_template_with_multiple_content_variables(self):
     p = jinja_template.JinjaTemplate(
         '{{ content }} = {{ content }} = {{ content }}',
         content_varname='content',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart('4'),
-            content_api.ProcessorPart('2'),
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), '42 = 42 = 42')
+    self.assertEqual(await p(['4', '2']).text(), '42 = 42 = 42')
 
-  def test_template_with_consecutive_content_variables(self):
+  async def test_template_with_consecutive_content_variables(self):
     p = jinja_template.JinjaTemplate(
         '{{ content }}{{ content }}{{ content }}',
         content_varname='content',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart('4'),
-            content_api.ProcessorPart('2'),
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), '424242')
+    self.assertEqual(await p(['4', '2']).text(), '424242')
 
-  def test_template_with_content_and_custom_variables(self):
+  async def test_template_with_content_and_custom_variables(self):
     p = jinja_template.JinjaTemplate(
         'Hello {{ name }}, answer this question: {{ content }}',
         content_varname='content',
         name='World',
     )
-    output = processor.apply_sync(
-        p,
-        [content_api.ProcessorPart('What is this landmark?')],
-    )
     self.assertEqual(
-        content_api.as_text(output),
+        await p('What is this landmark?').text(),
         'Hello World, answer this question: What is this landmark?',
     )
 
@@ -144,126 +100,101 @@ class ExampleDataClass:
   last_name: str
 
 
-class RenderDataClassTest(unittest.TestCase):
+class RenderDataClassTest(unittest.IsolatedAsyncioTestCase):
 
-  def test_render_basic_dataclass(self):
+  async def test_render_basic_dataclass(self):
 
     p = jinja_template.RenderDataClass(
         template_str='Hello {{ data.first_name }} {{ data.last_name }}!',
         data_class=ExampleDataClass,
     )
-    output = processor.apply_sync(
-        p,
-        [
+    self.assertEqual(
+        await p(
             content_api.ProcessorPart.from_dataclass(
                 dataclass=ExampleDataClass(first_name='John', last_name='Doe')
-            )
-        ],
+            ),
+        ).text(),
+        'Hello John Doe!',
     )
-    self.assertEqual(content_api.as_text(output), 'Hello John Doe!')
 
-  def test_render_dataclass_with_additional_variables(self):
+  async def test_render_dataclass_with_additional_variables(self):
 
     shopping_list = ['A', 'B', 'C']
     p = jinja_template.RenderDataClass(
         template_str=(
-            'Hello {{ data.first_name }},\n This is your shopping list:\n{%'
+            'Hello {{ data.first_name }}, This is your shopping list:\n{%'
             ' for item in your_list %}This is item: {{ item }}\n{% endfor %}'
         ),
         data_class=ExampleDataClass,
         your_list=shopping_list,
     )
-    output = processor.apply_sync(
-        p,
-        [
+    self.assertEqual(
+        await p(
             content_api.ProcessorPart.from_dataclass(
                 dataclass=ExampleDataClass(first_name='John', last_name='Doe')
-            )
-        ],
+            ),
+        ).text(),
+        (
+            'Hello John, This is your shopping list:\n'
+            'This is item: A\n'
+            'This is item: B\n'
+            'This is item: C\n'
+        ),
     )
-    expected_output = (
-        'Hello John,\n This is your shopping list:\n'
-        'This is item: A\n'
-        'This is item: B\n'
-        'This is item: C\n'
-    )
-    self.assertEqual(content_api.as_text(output), expected_output)
 
-  def test_render_dataclass_without_dataclass(self):
+  async def test_render_dataclass_without_dataclass(self):
     p = jinja_template.RenderDataClass(
         template_str='Hello {{ data.first_name }}!',
         data_class=ExampleDataClass,
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart(
-                'not a dataclass',
-                mimetype='text/plain',
-            )
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), 'not a dataclass')
+    self.assertEqual(await p('not a dataclass').text(), 'not a dataclass')
 
 
-class RenderJsonTest(unittest.TestCase):
+class RenderJsonTest(unittest.IsolatedAsyncioTestCase):
 
-  def test_render_basic_json(self):
+  async def test_render_basic_json(self):
     p = jinja_template.RenderJson(
         template_str=(
             'Hello {{ data.first_name }} {{ data.last_name }}, address: {{'
             ' data.address.street }}!'
         ),
     )
-    output = processor.apply_sync(
-        p,
-        [
+    self.assertEqual(
+        await p(
             content_api.ProcessorPart(
                 '{"first_name": "John", "last_name": "Doe", "address":'
                 ' {"street": "123 Main St", "city": "Anytown", "state": "CA"}}',
                 mimetype='application/json',
-            )
-        ],
-    )
-    self.assertEqual(
-        content_api.as_text(output), 'Hello John Doe, address: 123 Main St!'
+            ),
+        ).text(),
+        'Hello John Doe, address: 123 Main St!',
     )
 
-  def test_render_json_with_additional_variables(self):
+  async def test_render_json_with_additional_variables(self):
     p = jinja_template.RenderJson(
         template_str='Hello {{ data.name }}! {{ other_var }}',
         other_var='Welcome',
     )
-    output = processor.apply_sync(
-        p,
-        [
+    self.assertEqual(
+        await p(
             content_api.ProcessorPart(
                 '{"name": "John"}',
                 mimetype='application/json',
-            )
-        ],
+            ),
+        ).text(),
+        'Hello John! Welcome',
     )
-    self.assertEqual(content_api.as_text(output), 'Hello John! Welcome')
 
-  def test_render_json_without_json(self):
+  async def test_render_json_without_json(self):
     p = jinja_template.RenderJson(
         template_str='Hello {{ data.name }}!',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart(
-                'not a json',
-                mimetype='text/plain',
-            )
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), 'not a json')
+    self.assertEqual(await p('not a json').text(), 'not a json')
 
 
-class RenderProtoMessageTest(unittest.TestCase):
+class RenderProtoMessageTest(unittest.IsolatedAsyncioTestCase):
 
-  def test_render_basic_proto_message(self):
+  async def test_render_basic_proto_message(self):
     p = jinja_template.RenderProtoMessage(
         proto_message=struct_pb2.Struct,
         template_str=(
@@ -271,9 +202,9 @@ class RenderProtoMessageTest(unittest.TestCase):
             ' data.age }}!'
         ),
     )
-    output = processor.apply_sync(
-        p,
-        [
+    # number_value are floats.
+    self.assertEqual(
+        await p(
             content_api.ProcessorPart.from_proto_message(
                 proto_message=struct_pb2.Struct(
                     fields={
@@ -281,13 +212,12 @@ class RenderProtoMessageTest(unittest.TestCase):
                         'age': struct_pb2.Value(number_value=25),
                     }
                 )
-            )
-        ],
+            ),
+        ).text(),
+        'Name: John, age: 25.0!',
     )
-    # number_value are floats.
-    self.assertEqual(content_api.as_text(output), 'Name: John, age: 25.0!')
 
-  def test_render_proto_message_with_additional_variables(self):
+  async def test_render_proto_message_with_additional_variables(self):
     p = jinja_template.RenderProtoMessage(
         proto_message=struct_pb2.Struct,
         template_str=(
@@ -295,35 +225,25 @@ class RenderProtoMessageTest(unittest.TestCase):
         ),
         other_var='Welcome',
     )
-    output = processor.apply_sync(
-        p,
-        [
+    self.assertEqual(
+        await p(
             content_api.ProcessorPart.from_proto_message(
                 proto_message=struct_pb2.Struct(
                     fields={
                         'name': struct_pb2.Value(string_value='John'),
                     }
                 )
-            )
-        ],
+            ),
+        ).text(),
+        'Name: John! Welcome',
     )
-    self.assertEqual(content_api.as_text(output), 'Name: John! Welcome')
 
-  def test_render_proto_message_without_proto_message(self):
+  async def test_render_proto_message_without_proto_message(self):
     p = jinja_template.RenderProtoMessage(
         proto_message=struct_pb2.Struct,
         template_str='Name: {{ data.name }}!',
     )
-    output = processor.apply_sync(
-        p,
-        [
-            content_api.ProcessorPart(
-                'not a proto',
-                mimetype='text/plain',
-            )
-        ],
-    )
-    self.assertEqual(content_api.as_text(output), 'not a proto')
+    self.assertEqual(await p('not a proto').text(), 'not a proto')
 
 
 if __name__ == '__main__':
