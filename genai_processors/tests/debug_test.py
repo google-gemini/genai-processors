@@ -83,7 +83,7 @@ class DebugTest(unittest.IsolatedAsyncioTestCase):
   async def test_debug_with_model_call(self):
     waiting_time = 0.5
     input_stream = streams.stream_content(
-        ProcessorContent(['test']), with_delay_sec=waiting_time
+        ProcessorContent('test'), with_delay_sec=waiting_time
     )
     now = time.perf_counter()
     model_fake_with_debug = debug.TTFTSingleStream('test', model_fake)
