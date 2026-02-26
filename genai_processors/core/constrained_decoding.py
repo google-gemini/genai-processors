@@ -34,7 +34,7 @@ def _item_parser(
 
     def parse_dataclass(data: Any) -> content_api.ProcessorPart:
       instance = item_type.from_dict(data)
-      return content_api.ProcessorPart.from_dataclass(dataclass=instance)
+      return content_api.ProcessorPart.from_dataclass(instance)
 
     return parse_dataclass
 

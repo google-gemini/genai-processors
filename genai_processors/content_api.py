@@ -549,7 +549,7 @@ class ProcessorPart:
     return cls(part, **extra_args)
 
   @classmethod
-  def from_dataclass(cls, *, dataclass: Any, **kwargs) -> 'ProcessorPart':
+  def from_dataclass(cls, dataclass: Any, **kwargs) -> 'ProcessorPart':
     """Constructs a ProcessorPart from a dataclass."""
     part = ProcessorPart(
         json.dumps(dataclasses.asdict(dataclass)),

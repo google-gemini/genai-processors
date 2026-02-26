@@ -46,7 +46,7 @@ class WebTest(unittest.IsolatedAsyncioTestCase, parameterized.TestCase):
       fetch_request = text.FetchRequest(url=url)
       p = web.UrlFetch() + text.HtmlCleaner(cleaning_mode=cleaning_mode)
       output = await processor.apply_async(
-          p, [content_api.ProcessorPart.from_dataclass(dataclass=fetch_request)]
+          p, [content_api.ProcessorPart.from_dataclass(fetch_request)]
       )
       expected_output_parts = [
           content_api.ProcessorPart(
@@ -80,7 +80,7 @@ class WebTest(unittest.IsolatedAsyncioTestCase, parameterized.TestCase):
       fetch_request = text.FetchRequest(url=url)
       p = web.UrlFetch()
       output = await processor.apply_async(
-          p, [content_api.ProcessorPart.from_dataclass(dataclass=fetch_request)]
+          p, [content_api.ProcessorPart.from_dataclass(fetch_request)]
       )
       self.assertLen(output, 2)
       # The error is yielded in the status stream, this means it bubbles up

@@ -14,10 +14,8 @@
 # ==============================================================================
 """Processor which generate topics for a given research query."""
 
-import json
 from typing import AsyncIterable
 
-from genai_processors import content_api
 from genai_processors import processor
 from genai_processors.core import genai_model
 from genai_processors.core import preamble
@@ -121,4 +119,4 @@ Your JSON:
       yield processor.status(
           f'Topic {i + 1}: "{t.topic}"\n\n*({t.relationship_to_user_content})*'
       )
-      yield ProcessorPart.from_dataclass(dataclass=t)
+      yield ProcessorPart.from_dataclass(t)

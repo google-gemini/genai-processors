@@ -97,7 +97,7 @@ class TopicResearcher(processor.PartProcessor):
         relationship_to_user_content=input_topic.relationship_to_user_content,
         research_text=await response.text(),
     )
-    yield ProcessorPart.from_dataclass(dataclass=updated_topic)
+    yield ProcessorPart.from_dataclass(updated_topic)
     yield processor.status(f"""Researched topic!
 
 ## {updated_topic.topic}

@@ -76,7 +76,7 @@ pipeline = (
 
 req = drive.DocsRequest(doc_id='YOUR-DOC-ID')
 
-req_part = processor.ProcessorPart.from_dataclass(dataclass=req)
+req_part = processor.ProcessorPart.from_dataclass(req)
 
 input_stream = processor.stream_content([req_part])
 
@@ -116,7 +116,7 @@ pipeline = (
 
 req = drive.SheetsRequest(spreadsheet_id='YOUR-SPREADSHEET-ID')
 
-req_part = processor.ProcessorPart.from_dataclass(dataclass=req)
+req_part = processor.ProcessorPart.from_dataclass(req)
 
 input_stream = processor.stream_content([req_part])
 
@@ -155,7 +155,7 @@ pipeline = (
 
 req = drive.SlidesRequest(presentation_id='YOUR-PRESENTATION-ID')
 
-req_part = processor.ProcessorPart.from_dataclass(dataclass=req)
+req_part = processor.ProcessorPart.from_dataclass(req)
 
 input_stream = processor.stream_content([req_part])
 
@@ -163,6 +163,7 @@ async for content_part in pipeline(input_stream):
   print(content_part.text)
 ```
 """
+
 import csv
 import dataclasses
 import io

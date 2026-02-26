@@ -65,7 +65,7 @@ class DocsProcessorTest(GoogleDriveProcessorTestBase):
     """Tests that Docs processor fetches a doc and returns it as a PDF."""
     p = drive.Docs(creds=self.mock_creds)
     req = drive.DocsRequest(doc_id=FAKE_DOC_ID)
-    req_part = content_api.ProcessorPart.from_dataclass(dataclass=req)
+    req_part = content_api.ProcessorPart.from_dataclass(req)
 
     output = processor.apply_sync(p, [req_part])
 
@@ -166,7 +166,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
         ]
     }
     p = drive.Sheets(creds=self.mock_creds)
-    req_part = content_api.ProcessorPart.from_dataclass(dataclass=request)
+    req_part = content_api.ProcessorPart.from_dataclass(request)
 
     output = processor.apply_sync(p, [req_part])
 
@@ -191,7 +191,7 @@ class SheetsProcessorTest(GoogleDriveProcessorTestBase):
     }
     p = drive.Sheets(creds=self.mock_creds)
     req = drive.SheetsRequest(spreadsheet_id=FAKE_SPREADSHEET_ID)
-    req_part = content_api.ProcessorPart.from_dataclass(dataclass=req)
+    req_part = content_api.ProcessorPart.from_dataclass(req)
 
     output = processor.apply_sync(p, [req_part])
 
@@ -262,7 +262,7 @@ class SlidesProcessorTest(GoogleDriveProcessorTestBase):
 
     self.mock_pdf_writer.write.side_effect = write_side_effect
     p = drive.Slides(creds=self.mock_creds)
-    req_part = content_api.ProcessorPart.from_dataclass(dataclass=request)
+    req_part = content_api.ProcessorPart.from_dataclass(request)
 
     output = processor.apply_sync(p, [req_part])
 
@@ -277,8 +277,8 @@ class SlidesProcessorTest(GoogleDriveProcessorTestBase):
         self.mock_pdf_reader_cls.call_args[0][0].read(), FAKE_PDF_BYTES
     )
     self.mock_pdf_reader.getPage.assert_has_calls(expected_getpage_calls)
-    self.assertEqual(
-        len(expected_getpage_calls), self.mock_pdf_reader.getPage.call_count
+    self.assertLen(
+        expected_getpage_calls, self.mock_pdf_reader.getPage.call_count
     )
 
     self.assertLen(output, len(expected_outputs) * 2)
