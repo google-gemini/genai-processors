@@ -34,6 +34,7 @@ from genai_processors.contrib.langchain_model import LangChainModel
 from genai_processors.core import genai_model
 from genai_processors.core import ollama_model
 from genai_processors.core import transformers_model
+from genai_processors.examples import smart_model
 from google.genai import types as genai_types
 import langchain_google_genai
 
@@ -98,28 +99,40 @@ def turn_based_model(
     if not model_name:
       model_name = 'gemini-2.5-flash'
 
-    return genai_model.GenaiModel(
+    is_smart = False
+    if model_name.startswith('smart:'):
+      is_smart = True
+      model_name = model_name[len('smart:') :]
+
+    config = genai_types.GenerateContentConfig(
+        system_instruction=[
+            part.text
+            for part in content_api.ProcessorContent(system_instruction)
+        ],
+        response_modalities=['TEXT'],
+        # Adds google search as a tool. This is not needed for the model to
+        # work but it is useful to ask questions that can be answered by
+        # google search.
+        tools=tools
+        if tools is not None
+        else [genai_types.Tool(google_search=genai_types.GoogleSearch())],
+        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
+            disable=disable_automatic_function_calling
+        ),
+    )
+
+    model_instance = genai_model.GenaiModel(
         api_key=API_KEY,
         model_name=model_name,
-        generate_content_config=genai_types.GenerateContentConfig(
-            system_instruction=[
-                part.text
-                for part in content_api.ProcessorContent(system_instruction)
-            ],
-            response_modalities=['TEXT'],
-            # Adds google search as a tool. This is not needed for the model to
-            # work but it is useful to ask questions that can be answered by
-            # google search.
-            tools=tools
-            if tools is not None
-            else [genai_types.Tool(google_search=genai_types.GoogleSearch())],
-            automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-                disable=disable_automatic_function_calling
-            ),
-        ),
+        generate_content_config=config,
         # Make the newest features available for the examples.
         http_options=genai_types.HttpOptions(api_version='v1alpha'),
     )
+
+    if is_smart:
+      return smart_model.CriticReviser(model=model_instance)
+    else:
+      return model_instance
 
   if _MODEL_TYPE.value == _ModelType.OLLAMA.value:
     if not model_name:
