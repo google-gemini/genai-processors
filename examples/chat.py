@@ -20,8 +20,10 @@ its content. This allows sending images and other modalities to the model.
 """
 
 import asyncio
+import contextlib
 import os
 from typing import AsyncIterable, Sequence
+
 from absl import app
 from absl import flags
 from genai_processors import content_api
@@ -30,6 +32,7 @@ from genai_processors.core import function_calling
 from genai_processors.core import pdf
 from genai_processors.core import realtime
 from genai_processors.core import text
+from genai_processors.dev import trace_file
 from genai_processors.examples import mcp as mcp_examples
 from genai_processors.examples import models
 import httpx
@@ -54,6 +57,12 @@ _API_KEY_HEADER = flags.DEFINE_string(
     'api_key_header',
     'X-Goog-Api-Key',
     'Name of the header containing the API key for remote MCP servers.',
+)
+
+_TRACE_DIR = flags.DEFINE_string(
+    'trace_dir',
+    None,
+    'If set, enable tracing and write traces to this directory.',
 )
 
 SYSTEM_INSTRUCTIONS = [
@@ -135,7 +144,13 @@ async def run_chat() -> None:
   # interface. It also supports customizable context compression.
 
   # See models.py for the list of supported models and flags used to select one.
-  async with _get_mcp_session() as mcp_session:
+  async with contextlib.AsyncExitStack() as stack:
+    mcp_session = await stack.enter_async_context(_get_mcp_session())
+    if _TRACE_DIR.value:
+      await stack.enter_async_context(
+          trace_file.SyncFileTrace(trace_dir=_TRACE_DIR.value, name='chat')
+      )
+
     model = models.turn_based_model(
         system_instruction=SYSTEM_INSTRUCTIONS,
         disable_automatic_function_calling=True,
