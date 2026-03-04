@@ -1,0 +1,129 @@
+/* GitHub Light Theme (Default) */
+[data-md-color-scheme="default"] {
+  --md-default-bg-color: #ffffff;
+  --md-default-fg-color: #24292f;
+  --md-default-fg-color--light: #57606a;
+  --md-default-fg-color--lighter: #6e7781;
+  --md-default-fg-color--lightest: #8c959f;
+  
+  /* Primary color overrides */
+  --md-primary-fg-color: #24292f;
+  --md-primary-bg-color: #ffffff;
+  
+  /* Code blocks */
+  --md-code-bg-color: #f6f8fa;
+  --md-code-fg-color: #24292f;
+  
+  /* Admonitions */
+  --md-admonition-bg-color: #f6f8fa;
+  
+  /* Sidebar */
+  --md-drawer-bg-color: #f6f8fa;
+}
+
+/* GitHub Dark Theme (Dimmed/Black style) */
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #0d1117;
+  --md-bg-color: #0d1117;
+  --md-text-color: #c9d1d9;
+  --md-text-link-color: #58a6ff;
+  --md-code-bg-color: #161b22;
+  --md-card-bg-color: #161b22;
+  
+  --md-default-fg-color: #c9d1d9;
+  --md-default-fg-color--light: #8b949e;
+  --md-default-fg-color--lighter: #8b949e;
+  --md-default-fg-color--lightest: #6e7681;
+  
+  /* Primary color overrides */
+  --md-primary-fg-color: #0d1117;
+  --md-primary-bg-color: #ffffff;
+  
+  /* Admonitions */
+  --md-admonition-bg-color: #161b22;
+  
+  /* Sidebar */
+  --md-drawer-bg-color: #0d1117;
+}
+
+/* Header/AppBar styling */
+.md-header {
+  /* Let theme handle background-color based on scheme usually, or scope it */
+}
+[data-md-color-scheme="slate"] .md-header {
+  background-color: #161b22;
+}
+
+/* Sidebar styling */
+.md-sidebar {
+  /* specific sidebar styling if needed */
+}
+[data-md-color-scheme="slate"] .md-sidebar {
+  background-color: #0d1117;
+}
+
+/* Content adjustment */
+.md-content {
+  /* content background */
+}
+[data-md-color-scheme="slate"] .md-content {
+  background-color: #0d1117;
+}
+
+/* Grid cards specific styling */
+[data-md-color-scheme="slate"] .card {
+    background-color: #161b22 !important;
+    border: 1px solid #30363d;
+}
+
+/* Table styling */
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) {
+    border: 1px solid #30363d;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) th {
+    background-color: #161b22;
+    color: #c9d1d9;
+}
+
+[data-md-color-scheme="slate"] .md-typeset table:not([class]) td {
+    border-top: 1px solid #30363d;
+}
+
+/* Syntax highlighting adjustments if needed */
+[data-md-color-scheme="slate"] .highlight {
+    background-color: #161b22 !important;
+}
+
+/* Icon sizing and alignment */
+.lg {
+    font-size: 1.33333em;
+    line-height: 0.75em;
+    vertical-align: -15%;
+}
+
+.middle {
+    vertical-align: middle;
+}
+
+/* Navigation Indentation */
+.md-nav__item .md-nav__item {
+    margin-left: 0.5em;
+}
+
+.md-nav__item .md-nav__item .md-nav__item {
+    margin-left: 1em;
+}
+
+
+
+/* Add more space between top-level sections if they are direct children of the main list */
+.md-nav--primary > .md-nav__list > .md-nav__item {
+    margin-bottom: 0.5em;
+}
+
+/* Remove Table of Contents */
+.md-sidebar--secondary {
+  display: none !important;
+}
+
