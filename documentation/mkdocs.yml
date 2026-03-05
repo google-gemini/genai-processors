@@ -31,6 +31,7 @@ theme:
 
 plugins:
   - search
+  - include-markdown
 
 extra_css:
   - stylesheets/extra.css

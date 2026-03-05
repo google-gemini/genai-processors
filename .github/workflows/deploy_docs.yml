@@ -1,0 +1,32 @@
+name: Publish Documentation
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.x
+
+      - name: Install dependencies
+        run: |
+          pip install mkdocs-material
+          pip install mkdocs-include-markdown-plugin
+
+      - name: Deploy to GitHub Pages
+        # This tells the action to run 'mkdocs' from inside your subfolder
+        working-directory: ./documentation
+        run: mkdocs gh-deploy --force
