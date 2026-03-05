@@ -63,9 +63,17 @@ nav:
   - Rapid Prototyping:
     - AI Studio: rapid-prototyping/ai-studio.md
     - Command Line: rapid-prototyping/cli.md
+  - Development:
+    - Tracing: development/tracing.md
+    - Caching: development/caching.md
   - Tutorials:
     - Content API: https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb
     - Processor Basics: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/processor_intro.ipynb
     - Create a Processor: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/create_your_own_processor.ipynb
     - Live Processors: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/live_processor_intro.ipynb
     - Function Calling: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/function_calling.ipynb
+  - Examples:
+    - Research Agent: https://github.com/google-gemini/genai-processors/blob/main/examples/research/README.md
+    - Live commentator: https://github.com/google-gemini/genai-processors/blob/main/examples/live/README.md
+    - Widgets: https://github.com/google-gemini/genai-processors/blob/main/examples/widgets/README.md
+    - CLI: https://github.com/google-gemini/genai-processors/blob/main/examples/README.md

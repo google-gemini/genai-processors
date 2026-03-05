@@ -29,7 +29,7 @@ asynchronous, and composable AI applications and agents.
 
     Explore real-world applications, agents, and CLI tools.
 
-    [:octicons-arrow-right-24: Examples](examples/realtime-cli.md)
+    [:octicons-arrow-right-24: Examples](https://github.com/google-gemini/genai-processors/blob/main/examples/README.md)
 
 -   :material-chip:{ .lg .middle } __Built-in Processors__
 
