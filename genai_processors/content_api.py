@@ -541,8 +541,9 @@ class ProcessorPart:
     )
     if 'role' in kwargs and kwargs['role'].lower() != 'model':
       logging.warning(
-          f'Role {kwargs["role"]} is not supported for tool cancellation.'
-          ' Overriding it with the model role.'
+          'Role %s is not supported for tool cancellation.'
+          ' Overriding it with the model role.',
+          kwargs['role'],
       )
     extra_args = kwargs
     extra_args['role'] = 'model'

@@ -792,7 +792,11 @@ class _ChainPartProcessor(PartProcessor):
 
   @functools.cached_property
   def trace_name(self) -> str:
-    """Returns combined trace_names of sub-processors (excluding excluded ones)."""
+    """Returns combined trace_names of sub-processors.
+
+    Excludes processors that are excluded from tracing.
+    """
+
     names = []
     for p in self._processor_list:
       module = getattr(p, 'trace_module', p.__class__.__module__)
@@ -948,7 +952,10 @@ class _ChainProcessor(Processor):
 
   @functools.cached_property
   def trace_name(self) -> str:
-    """Returns combined trace_names of sub-processors (excluding excluded ones)."""
+    """Returns combined trace_names of sub-processors.
+
+    Excludes processors that are excluded from tracing.
+    """
     names = []
     for p in self._processor_list:
       module = getattr(p, 'trace_module', p.__class__.__module__)
@@ -964,7 +971,8 @@ class _ChainProcessor(Processor):
 
 
 async def _capture_reserved_substreams(
-    content: AsyncIterable[ProcessorPart], queue: asyncio.Queue
+    content: AsyncIterable[ProcessorPart],
+    queue: asyncio.Queue[ProcessorPart | None],
 ) -> AsyncIterable[ProcessorPart]:
   reserved_substreams = context_lib.get_reserved_substreams()
   async for part in content:
@@ -1325,10 +1333,10 @@ async def _passthrough_always(
 
 # Parallel processor to add to return the input part whenever the other
 # processors in the // operations do not return anything.
-PASSTHROUGH_FALLBACK = _passthrough_fallback
+PASSTHROUGH_FALLBACK = _passthrough_fallback  # pylint: disable=invalid-name
 
 # Parallel processor to add to return the input part in any case.
-PASSTHROUGH_ALWAYS = _passthrough_always
+PASSTHROUGH_ALWAYS = _passthrough_always  # pylint: disable=invalid-name
 
 # Part processor yielding part unchanged.
 # Useful as an initialization of a chain.
@@ -1425,7 +1433,9 @@ def source(stop_on_first: bool = True) -> _SourceDecorator:
         self._source = _normalize_part_stream(
             source_fn(*args, **kwargs), producer=source_fn
         )
-        ProcessorStream.__init__(self, parts=self._source, trace=None)
+        ProcessorStream.__init__(  # pylint: disable=non-parent-init-called
+            self, parts=self._source, trace=None
+        )
 
       async def call(
           self, content: AsyncIterable[ProcessorPart]
