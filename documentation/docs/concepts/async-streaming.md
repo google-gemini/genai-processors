@@ -11,9 +11,9 @@ async for part in my_processor(input_stream):
 ```
 
 The
-[ContentStream](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ContentStream\)class
-is an extension of `AsyncIterable[ProcessorPart]` that simplifies data handling
-with built-in convenience methods:
+[ContentStream](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ContentStream)
+class is an extension of `AsyncIterable[ProcessorPart]` that simplifies data
+handling with built-in convenience methods:
 
 *   `await stream.text()`: Concatenates all parts and returns the full text.
 

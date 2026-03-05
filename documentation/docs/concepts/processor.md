@@ -11,7 +11,7 @@ For a runnable introduction to the concepts described here, check out the
 
 At its heart, a Processor is a transformation pipeline: it takes an input stream
 of
-[ProcessorParts](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ProcessorPart\)
+[ProcessorParts](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ProcessorPart)
 data and produces an output stream of parts. These parts represent different
 modalities —such as text, images, or files— allowing the pipeline to handle
 complex, multi-modal data.
@@ -141,13 +141,9 @@ async def shouter(
 | Feature         | Processor                   | PartProcessor               |
 | --------------- | --------------------------- | --------------------------- |
 | **Input**       | Stream (AsyncIterable)      | Single Item (ProcessorPart) |
-| **State**       | Can maintain state across   | Stateless per-part          |
-|                 | the stream                  |                             |
-| **Concurrency** | Sequential (unless manually | Automatic (Parallelized DFS |
-|                 | managed)                    | map over a chain of         |
-|                 |                             | PartProcessors              |
-| **Use Case**    | Buffers, Accumulators, Full | Filters, Formatters,        |
-|                 | Context Models              | Independent Transformations |
+| **State**       | Can maintain state across the stream | Stateless per-part |
+| **Concurrency** | Sequential (unless manually managed) | Automatic (Parallelized DFS map over a chain of PartProcessors) |
+| **Use Case**    | Buffers, Accumulators, Full Context Models | Filters, Formatters, Independent Transformations |
 
 ## Composition
 

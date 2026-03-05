@@ -192,8 +192,8 @@ these responses. When the generator finishes, a final response with
 
 ## Managing Long-Running Tools
 
-For bidirectional models (`is_bidi_model=True`), `FunctionCalling`
-exposes two additional tools you can add to your model's tool list:
+For bidirectional models (`is_bidi_model=True`), `FunctionCalling` exposes two
+additional tools you can add to your model's tool list:
 
 -   **`list_fc()`**: Returns a list of currently running async tools and their
     `function_call_id`s.
