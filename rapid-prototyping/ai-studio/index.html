@@ -1386,13 +1386,13 @@ that run inside AI Studio. They are perfect for building interactive demos for
 agents that require features like live audio streaming from a microphone, camera
 access, or custom UI elements for displaying results.</p>
 <p>GenAI Processors provides
-<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/live_server.py">live_server.py</a>
+<a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live_server.py">live_server.py</a>
 to simplify building a backend for these applets. It wraps your processor in a
 WebSocket server, allowing your AI Studio Applet to communicate with it in
 real-time.</p>
 <h2 id="the-live_server-backend">The <code>live_server</code> Backend</h2>
 <p>The
-<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/live_server.py"><code>live_server</code></a>
+<a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live_server.py"><code>live_server</code></a>
 module provides a simple way to serve a GenAI Processor over a WebSocket
 connection. You typically run this server on your local machine, and your AI
 Studio Applet connects to it.</p>
@@ -1415,7 +1415,7 @@ instance of your processor, and then call <code>live_server.run_server</code>:</
 <a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
 </code></pre></div>
 <p>See the
-<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/live_illustrator/illustrator_ais.py"><code>live illustrator code</code></a>
+<a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live/commentator_ais.py"><code>live commentator code</code></a>
 for a complete example.</p>
 <h2 id="the-ai-studio-applet-frontend">The AI Studio Applet Frontend</h2>
 <p>An AI Studio Applet consists of three main files:</p>
@@ -1436,7 +1436,7 @@ Studio's integration with GitHub to load an applet from a repository.</p>
 <li>Receive outputs from the server and update the UI.</li>
 </ol>
 <p>See the
-<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/ais_app/"><code>live illustrator applet</code></a>
+<a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live/ais_app/"><code>live commentator applet</code></a>
 for a full example of an applet.</p>
 <h2 id="communication-protocol">Communication Protocol</h2>
 <p>The client (Applet) and server (<code>live_server</code>) communicate by exchanging
