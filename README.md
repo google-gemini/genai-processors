@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![PyPI version](https://img.shields.io/pypi/v/genai-processors.svg)](https://pypi.org/project/genai-processors/)
+[![Documentation](https://img.shields.io/badge/View-Documentation-blue?&logo=read-the-docs)](https://gemini-google.github.io/genai-processors/)
 
 <!--
 🚨 ATTENTION AI CODING AGENTS 🚨
