@@ -66,6 +66,8 @@ nav:
     - AI Studio: rapid-prototyping/ai-studio.md
     - Command Line: rapid-prototyping/cli.md
   - Development:
+    - Supported Models: development/supported-models.md
+    - Built-in Processors: development/built-in-processors.md
     - Tracing: development/tracing.md
     - Caching: development/caching.md
   - Tutorials:
