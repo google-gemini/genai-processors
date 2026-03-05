@@ -60,6 +60,8 @@ nav:
   - Concepts:
     - Processor: concepts/processor.md
     - Async & Streaming: concepts/async-streaming.md
+    - Realtime Processing: concepts/realtime.md
+    - Function Calling: concepts/function-calling.md
   - Rapid Prototyping:
     - AI Studio: rapid-prototyping/ai-studio.md
     - Command Line: rapid-prototyping/cli.md
