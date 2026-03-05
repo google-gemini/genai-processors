@@ -60,6 +60,9 @@ nav:
   - Concepts:
     - Processor: concepts/processor.md
     - Async & Streaming: concepts/async-streaming.md
+  - Rapid Prototyping:
+    - AI Studio: rapid-prototyping/ai-studio.md
+    - Command Line: rapid-prototyping/cli.md
   - Tutorials:
     - Content API: https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb
     - Processor Basics: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/processor_intro.ipynb
