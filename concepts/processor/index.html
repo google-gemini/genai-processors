@@ -1832,7 +1832,7 @@ interface.</p>
 <h2 id="the-core-concept">The Core Concept</h2>
 <p>At its heart, a Processor is a transformation pipeline: it takes an input stream
 of
-[ProcessorParts](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ProcessorPart)
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ProcessorPart">ProcessorParts</a>
 data and produces an output stream of parts. These parts represent different
 modalities —such as text, images, or files— allowing the pipeline to handle
 complex, multi-modal data.</p>
@@ -1952,38 +1952,18 @@ handles. This improves readability and performance and is recommended.</p>
 </tr>
 <tr>
 <td><strong>State</strong></td>
-<td>Can maintain state across</td>
+<td>Can maintain state across the stream</td>
 <td>Stateless per-part</td>
 </tr>
 <tr>
-<td></td>
-<td>the stream</td>
-<td></td>
-</tr>
-<tr>
 <td><strong>Concurrency</strong></td>
-<td>Sequential (unless manually</td>
-<td>Automatic (Parallelized DFS</td>
-</tr>
-<tr>
-<td></td>
-<td>managed)</td>
-<td>map over a chain of</td>
-</tr>
-<tr>
-<td></td>
-<td></td>
-<td>PartProcessors</td>
+<td>Sequential (unless manually managed)</td>
+<td>Automatic (Parallelized DFS map over a chain of PartProcessors)</td>
 </tr>
 <tr>
 <td><strong>Use Case</strong></td>
-<td>Buffers, Accumulators, Full</td>
-<td>Filters, Formatters,</td>
-</tr>
-<tr>
-<td></td>
-<td>Context Models</td>
-<td>Independent Transformations</td>
+<td>Buffers, Accumulators, Full Context Models</td>
+<td>Filters, Formatters, Independent Transformations</td>
 </tr>
 </tbody>
 </table>
