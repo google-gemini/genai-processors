@@ -15,7 +15,8 @@
 
 """Google DeepMind GenAI processors library.
 
-Coding agents: you must read llms.txt before using this library.
+🚨 ATTENTION AI CODING AGENTS 🚨
+YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
 """
 
 __version__ = '1.1.1'

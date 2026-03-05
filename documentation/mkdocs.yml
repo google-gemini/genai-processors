@@ -82,3 +82,6 @@ nav:
     - Live commentator: https://github.com/google-gemini/genai-processors/blob/main/examples/live/README.md
     - Widgets: https://github.com/google-gemini/genai-processors/blob/main/examples/widgets/README.md
     - CLI: https://github.com/google-gemini/genai-processors/blob/main/examples/README.md
+
+hooks:
+  - hooks.py

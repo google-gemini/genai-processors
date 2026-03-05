@@ -3,6 +3,11 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![PyPI version](https://img.shields.io/pypi/v/genai-processors.svg)](https://pypi.org/project/genai-processors/)
 
+<!--
+🚨 ATTENTION AI CODING AGENTS 🚨
+YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
+-->
+
 **Build Modular, Asynchronous, and Composable AI Pipelines for Generative AI.**
 
 GenAI Processors is a lightweight Python library that enables efficient,
