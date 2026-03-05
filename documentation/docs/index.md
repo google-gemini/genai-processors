@@ -29,7 +29,7 @@ asynchronous, and composable AI applications and agents.
 
     Explore real-world applications, agents, and CLI tools.
 
-    [:octicons-arrow-right-24: Examples](https://github.com/google-gemini/genai-processors/blob/main/examples/README.md)
+    [:octicons-arrow-right-24: Examples](examples/cli.md)
 
 -   :material-chip:{ .lg .middle } __Built-in Processors__
 
@@ -37,7 +37,7 @@ asynchronous, and composable AI applications and agents.
 
     Documentation for core processors like GenaiModel and LiveProcessor.
 
-    [:octicons-arrow-right-24: Processors](built-in-processors/index.md)
+    [:octicons-arrow-right-24: Processors](development/built-in-processors.md)
 
 </div>
 

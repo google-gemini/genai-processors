@@ -139,15 +139,15 @@ async def shouter(
 ### Comparison: Processor vs. PartProcessor
 
 | Feature         | Processor                   | PartProcessor               |
-| :-------------- | :-------------------------- | :-------------------------- |
+| --------------- | --------------------------- | --------------------------- |
 | **Input**       | Stream (AsyncIterable)      | Single Item (ProcessorPart) |
 | **State**       | Can maintain state across   | Stateless per-part          |
-:                 : the stream                  :                             :
+|                 | the stream                  |                             |
 | **Concurrency** | Sequential (unless manually | Automatic (Parallelized DFS |
-:                 : managed)                    : map over a chain of         :
-:                 :                             : PartProcessors              :
+|                 | managed)                    | map over a chain of         |
+|                 |                             | PartProcessors              |
 | **Use Case**    | Buffers, Accumulators, Full | Filters, Formatters,        |
-:                 : Context Models              : Independent Transformations :
+|                 | Context Models              | Independent Transformations |
 
 ## Composition
 

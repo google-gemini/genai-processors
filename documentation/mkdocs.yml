@@ -24,6 +24,7 @@ theme:
     - navigation.indexes
     - navigation.expand
     - navigation.top
+    - navigation.footer
     - search.suggest
     - search.highlight
     - content.code.copy
@@ -31,7 +32,8 @@ theme:
 
 plugins:
   - search
-  - include-markdown
+  - include-markdown:
+      rewrite_relative_urls: true
 
 extra_css:
   - stylesheets/extra.css
@@ -71,17 +73,15 @@ nav:
     - Built-in Processors: development/built-in-processors.md
     - Tracing: development/tracing.md
     - Caching: development/caching.md
-  - Tutorials:
+  - Examples:
+    - CLI: examples/cli.md
+    - Research Agent: examples/research_agent.md
+    - Live commentator: examples/live_commentator.md
+    - Widgets: examples/widgets.md
+  - Tutorials (colabs):
     - Content API: https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb
     - Processor Basics: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/processor_intro.ipynb
     - Create a Processor: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/create_your_own_processor.ipynb
     - Live Processors: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/live_processor_intro.ipynb
     - Function Calling: https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/function_calling.ipynb
-  - Examples:
-    - Research Agent: https://github.com/google-gemini/genai-processors/blob/main/examples/research/README.md
-    - Live commentator: https://github.com/google-gemini/genai-processors/blob/main/examples/live/README.md
-    - Widgets: https://github.com/google-gemini/genai-processors/blob/main/examples/widgets/README.md
-    - CLI: https://github.com/google-gemini/genai-processors/blob/main/examples/README.md
 
-hooks:
-  - hooks.py

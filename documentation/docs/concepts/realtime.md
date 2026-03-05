@@ -1,25 +1,25 @@
-# Realtime Processing
+# Real-time Processing
 
-⭐ Realtime processing enables live audio/video streaming with bidirectional
+⭐ Real-time processing enables live audio/video streaming with bidirectional
 communication.
 
 ## Overview
 
-GenAI Processors supports two approaches for realtime processing:
+GenAI Processors supports two approaches for real-time processing:
 
 1.  **Gemini Live API**
     ([`live_model.LiveProcessor`](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/live_model.py)):
     for native bidirectional streaming with Gemini Live API. It is efficient but
     less flexible and is Gemini-specific as it relies on a server-side
     implementation.
-2.  **Turn-based Realtime**
+2.  **Turn-based Real-time**
     ([`realtime.LiveProcessor`](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/realtime.py)):
     a client-side, hackable alternative to the Gemini Live API that wraps any
     turn-based non-streaming model into a bidirectional streaming API.
 
-This document focuses on Turn-based Realtime with `realtime.LiveProcessor`.
+This document focuses on Turn-based Real-time with `realtime.LiveProcessor`.
 
-## Turn-Based Realtime with `realtime.LiveProcessor`
+## Turn-Based Real-time with `realtime.LiveProcessor`
 
 When you want to build a voice agent using standard models (non-Live API), you
 can use `realtime.LiveProcessor` to convert a turn-based model into a real-time
@@ -254,6 +254,6 @@ async for part in pipeline(streams.endless_stream()):
 ## Complete Example: Live Voice Agent
 
 See the
-[realtime simple cli](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/realtime_simple_cli.py)
+[real-time simple cli](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/realtime_simple_cli.py)
 example to explore how to define a straightforward real-time agent (audio only)
 with a chain of processors, handling interruptions and text entries smoothly.
