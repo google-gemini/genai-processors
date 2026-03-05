@@ -1,4 +1,4 @@
-# Copyright 2025 DeepMind Technologies Limited. All Rights Reserved.
+# Copyright 2026 DeepMind Technologies Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Iterable
 import copy
-from typing import Any, TypeVar
+from typing import Any, TypeVar, Union, overload
 
 from genai_processors import context
 
@@ -110,12 +110,34 @@ async def concat(*contents: AsyncIterable[_T]) -> AsyncIterable[_T]:
       yield part
 
 
-async def merge(
+# 1. Overload for the *args style
+@overload
+def merge(
+    *streams: AsyncIterable[_T],
+    queue_maxsize: int = 0,
+    stop_on_first: bool = False,
+) -> AsyncIterable[_T]:
+  ...
+
+
+# 2. Overload for the single Iterable (list/tuple) style
+# Deprecated and is provided for backward compatibility.
+# Please prefer the merge(stream1, stream2, ...) syntax.
+@overload
+def merge(
     streams: Iterable[AsyncIterable[_T]],
     *,
     queue_maxsize: int = 0,
     stop_on_first: bool = False,
 ) -> AsyncIterable[_T]:
+  ...
+
+
+async def merge(
+    *args: Union[Iterable[AsyncIterable[_T]], AsyncIterable[_T]],
+    queue_maxsize: int = 0,
+    stop_on_first: bool = False,
+) -> AsyncIterator[_T]:
   """Merges multiple streams into one.
 
   The order is defined by the asyncio loop and will likely be determined by the
@@ -125,9 +147,11 @@ async def merge(
   streams will be cancelled as well.
 
   Args:
-    streams: The input streams to merge. These streams cannot be iterated over
-      outside of this call. If you need to consume them outside of this call,
-      use `streams.split()` to copy the stream first.
+    *args: The input streams to merge, either as a single iterable of
+      AsyncIterables or as multiple AsyncIterable positional arguments. These
+      streams cannot be iterated over outside of this call. If you need to
+      consume them outside of this call, use `streams.split()` to copy the
+      stream first.
     queue_maxsize: The maximum number of items to buffer in an internal queue
       for each input stream. Set to 0 to use an unbounded queue.
     stop_on_first: If True, stop merging streams as soon as one of them is
@@ -139,6 +163,16 @@ async def merge(
     the order of the items within one stream is preserved but not across
     streams.
   """
+
+  # Determine if the first arg is the collection or a single stream
+  if len(args) == 1 and not hasattr(args[0], '__aiter__'):
+    streams = list(args[0])
+  else:
+    streams = list(args)
+
+  if not streams:
+    return
+
   out = asyncio.Queue(maxsize=queue_maxsize)
   active_streams = 0
 

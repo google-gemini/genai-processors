@@ -469,10 +469,8 @@ class FunctionCalling(processor.Processor):
     # We use input_queue to feed function responses to consecutive turns.
     input_queue = asyncio.Queue[content_api.ProcessorPart | None]()
     input_stream = streams.merge(
-        streams=[
-            _add_end_of_turn(content),
-            streams.dequeue(input_queue),
-        ],
+        _add_end_of_turn(content),
+        streams.dequeue(input_queue),
         stop_on_first=self._is_bidi_model,
     )
 

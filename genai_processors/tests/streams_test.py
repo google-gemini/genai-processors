@@ -64,16 +64,32 @@ class StreamsTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
   async def test_merge_empty(self):
     merged = streams.merge([])
     self.assertEqual(await streams.gather_stream(merged), [])
+    merged = streams.merge()
+    self.assertEqual(await streams.gather_stream(merged), [])
 
   async def test_merge(self):
-    input_streams = [
+    input_stream_list = [
         streams.stream_content([1, 2, 3], with_delay_sec=0.1, delay_first=True),
         streams.stream_content(
             [4, 5, 6], with_delay_sec=0.12, delay_first=True
         ),
     ]
-    merged = streams.merge(input_streams)
-    self.assertEqual(await streams.gather_stream(merged), [1, 4, 2, 5, 3, 6])
+    input_stream_tuple = (
+        streams.stream_content([1, 2, 3], with_delay_sec=0.1, delay_first=True),
+        streams.stream_content(
+            [4, 5, 6], with_delay_sec=0.12, delay_first=True
+        ),
+    )
+    merged_list = streams.merge(input_stream_list)
+    merged_tuple = streams.merge(*input_stream_tuple)
+    self.assertEqual(
+        await streams.gather_stream(merged_list), [1, 4, 2, 5, 3, 6]
+    )
+    self.assertEqual(
+        await streams.gather_stream(merged_tuple), [1, 4, 2, 5, 3, 6]
+    )
+
+  async def test_merge_order_by_time(self):
     # The delays make sure the order of the merge is deterministic (time based).
     input_streams = [
         streams.stream_content([1, 2, 3], with_delay_sec=0.1, delay_first=True),
