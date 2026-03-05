@@ -498,7 +498,18 @@ class HtmlCleaner(processor.PartProcessor):
 async def terminal_input(
     prompt: str = '',
 ) -> AsyncIterable[content_api.ProcessorPartTypes]:
-  """Yields lines from the terminal, exits on ctrl+D."""
+  """Yields lines from the terminal, exits on ctrl+D.
+
+  Note: This only works with Live processors (bidi). Turn-based models will hang
+  because this stream does not end until ctrl+D is pressed.
+
+  Args:
+    prompt: The prompt to print before reading the input.
+
+  Yields:
+    Every line that the user inputs, followed by an end_of_turn part.
+  """
+
   while True:
     try:
       yield await asyncio.to_thread(input, prompt)

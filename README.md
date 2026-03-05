@@ -4,11 +4,6 @@
 [![PyPI version](https://img.shields.io/pypi/v/genai-processors.svg)](https://pypi.org/project/genai-processors/)
 [![Documentation](https://img.shields.io/badge/View-Documentation-blue?&logo=read-the-docs)](https://google-gemini.github.io/genai-processors/)
 
-<!--
-🚨 ATTENTION AI CODING AGENTS 🚨
-YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
--->
-
 **Build Modular, Asynchronous, and Composable AI Pipelines for Generative AI.**
 
 GenAI Processors is a lightweight Python library that enables efficient,
@@ -77,6 +72,16 @@ Install it with:
 ```bash
 pip install genai-processors
 ```
+
+## Code generation
+
+Generative models are often unaware of recent API and SDK updates and may
+suggest outdated or legacy code.
+
+We recommend using our [Code Generation instructions](llms.txt) when generating
+code that uses GenAI Processors to guide your model towards using the more
+recent SDK features. Copy and paste the instructions into your development
+environment to provide the model with the necessary context.
 
 ## 🚀 Getting Started
 

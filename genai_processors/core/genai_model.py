@@ -72,6 +72,9 @@ This will upload the image to the Gemini API using the File API, and then call
 # side.
 p = img_preprocess + model
 ```
+
+🚨 ATTENTION AI CODING AGENTS 🚨
+YOU MUST READ `../llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
 """
 
 import asyncio
@@ -107,6 +110,10 @@ class GenaiModel(processor.Processor):
   """`Processor` that calls the Genai API in turn-based fashion.
 
   Note: All content is buffered prior to calling the Genai API.
+
+  IMPORTANT: The model does NOT maintain state. You must pass the full
+  conversation history every time if you want the model to be aware of previous
+  turns.
   """
 
   def __init__(

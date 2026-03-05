@@ -74,6 +74,10 @@ class TransformersModel(processor.Processor):
   """`Processor` that calls the Hugging Face Transformers model.
 
   Note: All content is buffered prior to calling the model.
+
+  IMPORTANT: The model does NOT maintain state. You must pass the full
+  conversation history every time if you want the model to be aware of previous
+  turns.
   """
 
   def __init__(
