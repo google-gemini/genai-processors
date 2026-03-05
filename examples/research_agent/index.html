@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://google-gemini.github.io/genai-processors/getting-started/">
+        <link rel="canonical" href="https://google-gemini.github.io/genai-processors/examples/research_agent/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../cli/">
       
       
-        <link rel="next" href="../concepts/processor/">
+        <link rel="next" href="../live_commentator/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
     
     
       
-        <title>Getting Started - GenAI Processors</title>
+        <title>Research Agent - GenAI Processors</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#research-agent-example" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +96,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="GenAI Processors" class="md-header__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+    <a href="../.." title="GenAI Processors" class="md-header__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              Research Agent
             
           </span>
         </div>
@@ -234,7 +234,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="GenAI Processors" class="md-nav__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+    <a href="../.." title="GenAI Processors" class="md-nav__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -264,7 +264,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -288,37 +288,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
         
   
   
@@ -334,92 +307,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#google-api-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Google API Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#your-first-processor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Your First Processor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#composition" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Composition
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next Steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -495,7 +382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/processor/" class="md-nav__link">
+      <a href="../../concepts/processor/" class="md-nav__link">
         
   
   
@@ -523,7 +410,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/async-streaming/" class="md-nav__link">
+      <a href="../../concepts/async-streaming/" class="md-nav__link">
         
   
   
@@ -551,7 +438,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/realtime/" class="md-nav__link">
+      <a href="../../concepts/realtime/" class="md-nav__link">
         
   
   
@@ -579,7 +466,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/function-calling/" class="md-nav__link">
+      <a href="../../concepts/function-calling/" class="md-nav__link">
         
   
   
@@ -674,7 +561,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rapid-prototyping/ai-studio/" class="md-nav__link">
+      <a href="../../rapid-prototyping/ai-studio/" class="md-nav__link">
         
   
   
@@ -702,7 +589,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rapid-prototyping/cli/" class="md-nav__link">
+      <a href="../../rapid-prototyping/cli/" class="md-nav__link">
         
   
   
@@ -801,7 +688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/supported-models/" class="md-nav__link">
+      <a href="../../development/supported-models/" class="md-nav__link">
         
   
   
@@ -829,7 +716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/built-in-processors/" class="md-nav__link">
+      <a href="../../development/built-in-processors/" class="md-nav__link">
         
   
   
@@ -857,7 +744,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/tracing/" class="md-nav__link">
+      <a href="../../development/tracing/" class="md-nav__link">
         
   
   
@@ -885,7 +772,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/caching/" class="md-nav__link">
+      <a href="../../development/caching/" class="md-nav__link">
         
   
   
@@ -917,8 +804,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -939,13 +828,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -966,7 +853,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -984,7 +871,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/cli/" class="md-nav__link">
+      <a href="../cli/" class="md-nav__link">
         
   
   
@@ -1009,10 +896,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../examples/research_agent/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research Agent
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1028,6 +942,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ✨ Key Features
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ⚙️ How it Works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🧩 Key Components
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        🛠️ Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-notebook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📚 Example Notebook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#license" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        📜 License
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1040,7 +1040,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/live_commentator/" class="md-nav__link">
+      <a href="../live_commentator/" class="md-nav__link">
         
   
   
@@ -1068,7 +1068,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/widgets/" class="md-nav__link">
+      <a href="../widgets/" class="md-nav__link">
         
   
   
@@ -1336,10 +1336,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#key-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        ✨ Key Features
       
     </span>
   </a>
@@ -1347,10 +1347,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        ⚙️ How it Works
       
     </span>
   </a>
@@ -1358,10 +1358,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#google-api-configuration" class="md-nav__link">
+  <a href="#key-components" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Google API Configuration
+        🧩 Key Components
       
     </span>
   </a>
@@ -1369,10 +1369,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#your-first-processor" class="md-nav__link">
+  <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Your First Processor
+        🛠️ Configuration
       
     </span>
   </a>
@@ -1380,10 +1380,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#composition" class="md-nav__link">
+  <a href="#example-notebook" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Composition
+        📚 Example Notebook
       
     </span>
   </a>
@@ -1391,10 +1391,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#license" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        📜 License
       
     </span>
   </a>
@@ -1421,98 +1421,121 @@
   
 
 
-<h1 id="getting-started">Getting Started</h1>
-<p>This guide will walk you through setting up GenAI Processors and building your
-first AI pipeline.</p>
-<h2 id="prerequisites">Prerequisites</h2>
+<p>This page is taken from the
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/research/">examples/</a>
+directory and refers to the code there.</p>
+<h1 id="research-agent-example">Research Agent Example 🧠</h1>
+<p><strong>Automate Information Gathering and Synthesis with GenAI Processors.</strong></p>
+<p>This example demonstrates how to build a multi-step "Research Agent" using the
+<code>genai-processors</code> library. The agent takes a user query, breaks it down into
+researchable topics, gathers information using AI tools, and then synthesizes a
+comprehensive answer.</p>
+<p><a href="../../../LICENSE"><img alt="License" src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" /></a></p>
+<h2 id="key-features">✨ Key Features</h2>
+<p>This example highlights several key capabilities of the <code>genai-processors</code>
+library:</p>
 <ul>
-<li><strong>Python 3.11+</strong></li>
-<li><strong>Google AI Studio API Key</strong> as the tutorials and the demos use Gemini. You
-    can get the key for free
-    <a href="https://ai.google.dev/gemini-api/docs/api-key">here</a>. Once you know more
-    about the library, you will be able to use Gemma and other models available
-    via Ollama or Transformers.</li>
+<li><strong>Modular Agent Design</strong>: Decomposes a complex research task into distinct,
+    reusable processors (<code>TopicGenerator</code>, <code>TopicResearcher</code>,
+    <code>TopicVerbalizer</code>).</li>
+<li><strong>Structured Data Flow</strong>: Utilizes custom dataclasses (<code>interfaces.Topic</code>)
+    embedded within <code>ProcessorPart</code>s to pass structured information through the
+    pipeline.</li>
+<li><strong>Search Tool Integration</strong>: Leverages the GenAI API's Google Search tool
+    use capabilities within the <code>TopicResearcher</code> for dynamic information
+    retrieval.</li>
+<li><strong>Dynamic Content Generation</strong>: Generates research topics and synthesized
+    reports based on runtime user input and intermediate findings.</li>
+<li><strong>Pipeline Composition</strong>: Chains custom-built processors with core library
+    processors (like <code>GenaiModel</code> and <code>Preamble</code>) to create a complete,
+    end-to-end workflow.</li>
+<li><strong>Configuration Management</strong>: Uses a dedicated <code>Config</code> object
+    (<code>interfaces.Config</code>) to manage model names, prompt parameters, and tool
+    configurations.</li>
+<li><strong>Asynchronous Processing</strong>: Inherits the asynchronous and concurrent nature
+    of the <code>genai-processors</code> framework for efficient operation.</li>
 </ul>
-<h2 id="installation">Installation</h2>
-<p>Install the core library:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>genai-processors
-</code></pre></div>
-<h2 id="google-api-configuration">Google API Configuration</h2>
-<p>We will use Gemini API extensively in our examples. Set your API key as an
-environment variable for ease of use:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_API_KEY</span><span class="o">=</span><span class="s2">&quot;your_api_key_here&quot;</span>
-</code></pre></div>
-<h2 id="your-first-processor">Your First Processor</h2>
-<p>Let's build a simple processor that accepts text input and generates a response
-using Gemini. For this example, we use a Gemini API model.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">content_api</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">genai_model</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="c1"># Get your key from the environment variable</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">api_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GOOGLE_API_KEY&quot;</span><span class="p">)</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="c1"># Initialize the model.</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">genai_model</span><span class="o">.</span><span class="n">GenaiModel</span><span class="p">(</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>        <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;gemini-3.0-flash&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>        <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="p">)</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="c1"># Process a single prompt.</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="n">response</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorContent</span><span class="p">(</span><span class="s2">&quot;Hello, GenAI!&quot;</span><span class="p">))</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="c1"># Convenient method to collect all textual parts.</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="nb">print</span><span class="p">(</span><span class="k">await</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
-</code></pre></div>
-<h2 id="composition">Composition</h2>
-<p>The true power of GenAI Processors lies in composition. You can chain processors
-using the <code>+</code> operator. More generally, you can combine processors in different
-ways knowing they always follow the same simple signature: streams of parts
-coming in and out. We recommend to use the <code>+</code> operator whenever possible to
-benefit from the framework optimizations done under the hood: the processing of
-parts is indeed implemented to minimize TTFT and concurrency is used extensively
-whenever possible.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">content_api</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">preamble</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Create a processor that adds a prefix to any input.</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">system_prompt</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Preamble</span><span class="p">(</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="s2">&quot;You are a pirate styling assistant. Answer everything in pirate speak.&quot;</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">)</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Chain it with the model</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">pirate_bot</span> <span class="o">=</span> <span class="n">system_prompt</span> <span class="o">+</span> <span class="n">model</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Now the model will always act like a pirate</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">response</span> <span class="o">=</span> <span class="n">pirate_bot</span><span class="p">(</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="n">content_api</span><span class="o">.</span><span class="n">ContentStream</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;What color matches blue?&quot;</span><span class="p">])</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="p">)</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="nb">print</span><span class="p">(</span><span class="k">await</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
-</code></pre></div>
-<p>We used textual response but could work with multi-model response as well using
-a direct iteration over the output of the processor.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="c1"># Print all objects returned by the processor.</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Response part: </span><span class="si">{</span><span class="n">part</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="next-steps">Next Steps</h2>
-<p>Now that you have the basics, dive deeper into the core concepts:</p>
+<h2 id="how-it-works">⚙️ How it Works</h2>
+<p>The Research Agent follows a structured pipeline:</p>
+<ol>
+<li><strong>Input</strong>: Receives a user's research query as a stream of <code>ProcessorPart</code>s.</li>
+<li><strong>Topic Generation (<code>TopicGenerator</code>)</strong>:<ul>
+<li>A <code>GenaiModel</code> is prompted (using <code>prompts.TOPIC_GENERATION_PREAMBLE</code>)
+    to analyze the user's query and generate a list of distinct research
+    topics.</li>
+<li>Outputs these topics as <code>ProcessorPart</code>s, each containing a <code>Topic</code>
+    dataclass (initially without research text).</li>
+</ul>
+</li>
+<li><strong>Topic Research (<code>TopicResearcher</code>)</strong>:<ul>
+<li>For each <code>Topic</code> part, another <code>GenaiModel</code> (configured with tools like
+    Google Search) is prompted (using <code>prompts.TOPIC_RESEARCH_PREAMBLE</code>) to
+    find relevant information. Using PartProcessors, the calls are all made
+    concurrently, minimizing Time to First Token (TTFT).</li>
+<li>The research findings are added to the <code>research_text</code> field of the
+    <code>Topic</code> dataclass.</li>
+</ul>
+</li>
+<li><strong>Verbalization (<code>TopicVerbalizer</code>)</strong>:<ul>
+<li>Each researched <code>Topic</code> part is transformed into a human-readable
+    Markdown string, summarizing the topic, its relation to the original
+    query, and the research findings. The verbalization done with a
+    <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/jinja_template.py">Jinja2 template processor</a>.</li>
+</ul>
+</li>
+<li><strong>Synthesis (within <code>ResearchAgent</code>)</strong>:<ul>
+<li>All verbalized research texts are collected.</li>
+<li>A final <code>GenaiModel</code> is prompted (using <code>prompts.SYNTHESIS_PREAMBLE</code>) to
+    synthesize these individual research pieces into a single, coherent
+    response that addresses the user's original query.</li>
+</ul>
+</li>
+<li><strong>Output</strong>: Streams the final synthesized research report.</li>
+</ol>
+<h2 id="key-components">🧩 Key Components</h2>
 <ul>
-<li>
-<p><strong><a href="https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb">Tutorials</a></strong>:
-    Learn about the different components of the library step-by-step with
-    examples [external colabs].</p>
+<li><strong><code>agent.py</code></strong>:<ul>
+<li><code>ResearchAgent</code>: The main processor that orchestrates the entire
+    pipeline by chaining the sub-processors.</li>
+</ul>
 </li>
-<li>
-<p><strong><a href="../concepts/processor/">Core Concepts</a></strong>: get an overview of the core
-    concepts of the library from processor to content stream and more.</p>
+<li><strong><code>interfaces.py</code></strong>:<ul>
+<li><code>Topic</code>: Dataclass defining the structure for a research topic (topic
+    string, relationship, research text).</li>
+<li><code>Config</code>: Dataclass for configuring the agent (model names, number of
+    topics, enabled tools).</li>
+</ul>
+</li>
+<li><strong><code>prompts.py</code></strong>:<ul>
+<li>Contains the string preambles used to instruct the GenAI models at each
+    stage (topic generation, research, synthesis).</li>
+</ul>
+</li>
+<li><strong><code>processors/</code></strong>:<ul>
+<li><code>topic_generator.py</code>: Implements <code>TopicGenerator</code> for identifying
+    research sub-topics.</li>
+<li><code>topic_researcher.py</code>: Implements <code>TopicResearcher</code> for gathering
+    information on each topic using tools.</li>
+</ul>
 </li>
 </ul>
+<h2 id="configuration">🛠️ Configuration</h2>
+<p>The behavior of the <code>ResearchAgent</code> can be customized through the
+<code>interfaces.Config</code> object, allowing you to specify:</p>
+<ul>
+<li><code>topic_generator_model_name</code></li>
+<li><code>topic_researcher_model_name</code></li>
+<li><code>research_synthesizer_model_name</code></li>
+<li><code>num_topics</code> (number of topics to generate)</li>
+<li><code>excluded_topics</code> (list of topics to avoid)</li>
+<li><code>enabled_research_tools</code> (list of GenAI tools for the researcher, e.g.,
+    Google Search)</li>
+</ul>
+<h2 id="example-notebook">📚 Example Notebook</h2>
+<p>An example notebook can be found
+<a href="https://colab.research.google.com/github/google-gemini/genai-processors/blob/main/notebooks/research_example.ipynb">here</a>.</p>
+<h2 id="license">📜 License</h2>
+<p>This example is licensed under the Apache License, Version 2.0.</p>
 
 
 
@@ -1548,7 +1571,7 @@ a direct iteration over the output of the processor.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
+          <a href="../cli/" class="md-footer__link md-footer__link--prev" aria-label="Previous: CLI">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1558,20 +1581,20 @@ a direct iteration over the output of the processor.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Home
+                CLI
               </div>
             </div>
           </a>
         
         
           
-          <a href="../concepts/processor/" class="md-footer__link md-footer__link--next" aria-label="Next: Processor">
+          <a href="../live_commentator/" class="md-footer__link md-footer__link--next" aria-label="Next: Live commentator">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Processor
+                Live commentator
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1608,10 +1631,10 @@ a direct iteration over the output of the processor.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.expand", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.expand", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

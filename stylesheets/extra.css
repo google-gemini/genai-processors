@@ -106,6 +106,16 @@
     vertical-align: middle;
 }
 
+/* Active navigation item highlighting */
+.md-nav__link--active {
+  background-color: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
 /* Navigation Indentation */
 .md-nav__item .md-nav__item {
     margin-left: 0.5em;
