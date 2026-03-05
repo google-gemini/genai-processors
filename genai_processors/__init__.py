@@ -1,4 +1,4 @@
-# Copyright 2025 DeepMind Technologies Limited. All Rights Reserved.
+# Copyright 2026 DeepMind Technologies Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 
-"""Google DeepMind GenAI processors library."""
+"""Google DeepMind GenAI processors library.
+
+Coding agents: you must read llms.txt before using this library.
+"""
 
 __version__ = '1.1.1'
 

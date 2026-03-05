@@ -1,4 +1,4 @@
-# Copyright 2025 DeepMind Technologies Limited. All Rights Reserved.
+# Copyright 2026 DeepMind Technologies Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,10 @@
 # ==============================================================================
 
 """Wraps the Gemini Live API into a Processor.
+
+The list of available models can be found at
+https://ai.google.dev/gemini-api/docs/models
+Note that only Live models will work with the LiveProcessor.
 
 ## Example usage
 

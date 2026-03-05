@@ -1,4 +1,4 @@
-# Copyright 2025 DeepMind Technologies Limited. All Rights Reserved.
+# Copyright 2026 DeepMind Technologies Limited. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,9 @@
 # ==============================================================================
 
 """Wraps the Gemini API into a Processor.
+
+The list of available models can be found at
+https://ai.google.dev/gemini-api/docs/models
 
 ## Example usage
 
@@ -68,9 +71,9 @@ This will upload the image to the Gemini API using the File API, and then call
 # side and any file handle part will be replaced by its tokenization on the API
 # side.
 p = img_preprocess + model
-
 ```
 """
+
 import asyncio
 from collections.abc import AsyncIterable
 import io
