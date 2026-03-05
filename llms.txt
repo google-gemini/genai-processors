@@ -3,8 +3,8 @@
 The GenAI Processors library provides composable, async building blocks for generative AI pipelines.
 
 ## 🚀 Best Practices & Gotchas
-* **Pass inputs directly**: `ProcessorContentTypes` and `ProcessorPartTypes` are wide Unions that accept many existing content types, including plain strings. `ContentStream` automatically coerces them into `ProcessorPart`s, so you do not need to explicitly wrap strings. Reference `content_api.py` for full details on what types are accepted.
-* **Safe `.text` access**: Non-text parts throw `ValueError` when accessing `.text`. You can use `content_api.is_text(part.mimetype)` to check if the part is text. But if the code can't handle non text parts properly anyways, just let the exception be risen.
+* **Pass inputs directly**: `ProcessorContentTypes` and `ProcessorPartTypes` are wide Unions that accept many existing content types, including plain strings. `ContentStream` automatically coerces them into `ProcessorPart`s, so you do not need to explicitly wrap strings. Processors can injest `ProcessorContentTypes`, `stream_content` is not required. Reference `content_api.py` for full details on what types are accepted.
+* **Safe `.text` access**: Non-text parts throw `ValueError` when accessing `.text`. You can use `content_api.is_text(part.mimetype)` to check if the part is text. But if the code can't handle non text parts properly anyways, just let the exception be risen. The `part.text` is always present and not None, don't use `hasattr` or `is not None` to validate that.
 * **CLI Input**: Use `genai_processors.core.text.terminal_input("User: ")` rather than manual `input()` loops; it handles async yielding, `end_of_turn`, and exits implicitly.
 * **Conversation Context**: Turn based models require your code to maintain a conversation history. Live models to it for you.
 

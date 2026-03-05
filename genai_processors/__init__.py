@@ -20,6 +20,9 @@ YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
 """
 
 __version__ = '1.1.1'
+__ai_instructions__ = (
+    'YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.'
+)
 
 from . import content_api as content_api_
 from . import processor as processor_
