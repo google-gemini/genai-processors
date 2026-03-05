@@ -5,7 +5,7 @@ It encapsulates logic, AI models, and tools into a composable, asynchronous
 interface.
 
 For a runnable introduction to the concepts described here, check out the
-[Processor Introduction Notebook](../notebooks/processor_intro.ipynb).
+[Processor Introduction Notebook](https://github.com/google-gemini/genai-processors/blob/main/notebooks/processor_intro.ipynb).
 
 ## The Core Concept
 

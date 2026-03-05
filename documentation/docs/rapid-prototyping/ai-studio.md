@@ -10,7 +10,7 @@ agents that require features like live audio streaming from a microphone, camera
 access, or custom UI elements for displaying results.
 
 GenAI Processors provides
-[live_server.py](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/live_server.py)
+[live_server.py](https://github.com/google-gemini/genai-processors/blob/main/examples/live_server.py)
 to simplify building a backend for these applets. It wraps your processor in a
 WebSocket server, allowing your AI Studio Applet to communicate with it in
 real-time.
@@ -18,7 +18,7 @@ real-time.
 ## The `live_server` Backend
 
 The
-[`live_server`](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/live_server.py)
+[`live_server`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_server.py)
 module provides a simple way to serve a GenAI Processor over a WebSocket
 connection. You typically run this server on your local machine, and your AI
 Studio Applet connects to it.
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 ```
 
 See the
-[`live illustrator code`](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/live_illustrator/illustrator_ais.py)
+[`live commentator code`](https://github.com/google-gemini/genai-processors/blob/main/examples/live/commentator_ais.py)
 for a complete example.
 
 ## The AI Studio Applet Frontend
@@ -69,7 +69,7 @@ The client-side JavaScript typically performs these tasks:
 3.  Receive outputs from the server and update the UI.
 
 See the
-[`live illustrator applet`](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/ais_app/)
+[`live commentator applet`](https://github.com/google-gemini/genai-processors/blob/main/examples/live/ais_app/)
 for a full example of an applet.
 
 ## Communication Protocol

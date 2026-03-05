@@ -76,5 +76,5 @@ if __name__ == '__main__':
 ```
 
 See the
-[`examples/`](https://github.com/google-gemini/genai-processors/tree/main/genai_processors/examples)
+[`examples/`](https://github.com/google-gemini/genai-processors/tree/main/examples)
 directory for full implementations of these patterns.

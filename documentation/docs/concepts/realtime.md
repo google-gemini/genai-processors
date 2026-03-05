@@ -254,6 +254,6 @@ async for part in pipeline(streams.endless_stream()):
 ## Complete Example: Live Voice Agent
 
 See the
-[real-time simple cli](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/examples/realtime_simple_cli.py)
+[real-time simple cli](https://github.com/google-gemini/genai-processors/blob/main/examples/realtime_simple_cli.py)
 example to explore how to define a straightforward real-time agent (audio only)
 with a chain of processors, handling interruptions and text entries smoothly.

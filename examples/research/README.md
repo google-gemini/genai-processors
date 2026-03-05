@@ -7,7 +7,7 @@ This example demonstrates how to build a multi-step "Research Agent" using the
 researchable topics, gathers information using AI tools, and then synthesizes a
 comprehensive answer.
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](../../LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/google-gemini/genai-processors/blob/main/LICENSE)
 
 ## ✨ Key Features
 
