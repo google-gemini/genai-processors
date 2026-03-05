@@ -1,0 +1,2171 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Build Modular, Asynchronous, and Composable AI Pipelines">
+      
+      
+      
+        <link rel="canonical" href="https://google-gemini.github.io/genai-processors/development/built-in-processors/">
+      
+      
+        <link rel="prev" href="../supported-models/">
+      
+      
+        <link rel="next" href="../tracing/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+    
+    
+      
+        <title>Built-in Processors - GenAI Processors</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#built-in-processors" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="GenAI Processors" class="md-header__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            GenAI Processors
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Built-in Processors
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/google-gemini/genai-processors" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    genai-processors
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="GenAI Processors" class="md-nav__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    GenAI Processors
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/google-gemini/genai-processors" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    genai-processors
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/processor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/async-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async & Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Realtime Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/function-calling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Calling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rapid Prototyping
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Rapid Prototyping
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rapid-prototyping/ai-studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rapid-prototyping/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../supported-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Processors
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Processors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#speech-and-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speech and Audio
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Speech and Audio">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#speechtotext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpeechToText
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#texttospeech" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextToSpeech
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audio-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio I/O
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ratelimitaudio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RateLimitAudio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#video-and-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Video and Document
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Video and Document">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#videoin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VideoIn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pdfextract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDFExtract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eventdetection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EventDetection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-templating-and-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text, Templating, and Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Text, Templating, and Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preamble-suffix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preamble / Suffix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jinjatemplate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JinjaTemplate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structuredoutputparser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StructuredOutputParser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#urlextractor-htmlcleaner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UrlExtractor &amp; HtmlCleaner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matchprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MatchProcessor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-fetching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Fetching
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Fetching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#urlfetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UrlFetch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filesystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filesystem
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#function-calling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function Calling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stream-manipulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stream Manipulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stream Manipulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestamp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestamp
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/processor_intro.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor Basics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/create_your_own_processor.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Create a Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/live_processor_intro.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live Processors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/function_calling.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Calling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/research/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live commentator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/widgets/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Widgets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#speech-and-audio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Speech and Audio
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Speech and Audio">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#speechtotext" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpeechToText
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#texttospeech" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TextToSpeech
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audio-io" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audio I/O
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ratelimitaudio" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        RateLimitAudio
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#video-and-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Video and Document
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Video and Document">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#videoin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VideoIn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pdfextract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PDFExtract
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eventdetection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EventDetection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-templating-and-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text, Templating, and Output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Text, Templating, and Output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#preamble-suffix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Preamble / Suffix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jinjatemplate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        JinjaTemplate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#structuredoutputparser" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        StructuredOutputParser
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#urlextractor-htmlcleaner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UrlExtractor &amp; HtmlCleaner
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#matchprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MatchProcessor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-fetching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data Fetching
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Data Fetching">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#urlfetch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        UrlFetch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#drive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Drive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#github" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GitHub
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filesystem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filesystem
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#function-calling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Function Calling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stream-manipulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stream Manipulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Stream Manipulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Window
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#timestamp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Timestamp
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="built-in-processors">Built-in Processors</h1>
+<p>The <code>genai_processors.core</code> package contains a rich set of processors for
+building AI agents and pipelines. Beyond model interactions, it provides tools
+for handling I/O, data fetching, text manipulation, function calling, and more.</p>
+<p>For model-specific processors like <code>GenaiModel</code>, see
+<a href="../supported-models/">Supported Models</a>.</p>
+<h2 id="speech-and-audio">Speech and Audio</h2>
+<p>Processors for handling voice input and output.</p>
+<h3 id="speechtotext">SpeechToText</h3>
+<p>Transcribes audio streams into text using Google Cloud Speech-to-Text, and
+generates speech events like <code>StartOfSpeech</code> and <code>EndOfSpeech</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">speech_to_text</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">stt</span> <span class="o">=</span> <span class="n">speech_to_text</span><span class="o">.</span><span class="n">SpeechToText</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="s1">&#39;your-gcp-project-id&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/speech_to_text.py"><code>speech_to_text.py</code></a></em></p>
+<h3 id="texttospeech">TextToSpeech</h3>
+<p>Converts text streams into audible speech using Google Cloud Text-to-Speech.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text_to_speech</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">tts</span> <span class="o">=</span> <span class="n">text_to_speech</span><span class="o">.</span><span class="n">TextToSpeech</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="s1">&#39;your-gcp-project-id&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/text_to_speech.py"><code>text_to_speech.py</code></a></em></p>
+<h3 id="audio-io">Audio I/O</h3>
+<p>Use <code>PyAudioIn</code> to capture microphone input and <code>PyAudioOut</code> to play audio to
+speakers.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pyaudio</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">audio_io</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">pya</span> <span class="o">=</span> <span class="n">pyaudio</span><span class="o">.</span><span class="n">PyAudio</span><span class="p">()</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">mic_input</span> <span class="o">=</span> <span class="n">audio_io</span><span class="o">.</span><span class="n">PyAudioIn</span><span class="p">(</span><span class="n">pya</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">speaker_output</span> <span class="o">=</span> <span class="n">audio_io</span><span class="o">.</span><span class="n">PyAudioOut</span><span class="p">(</span><span class="n">pya</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">mic_input</span> <span class="o">+</span> <span class="n">stt</span> <span class="o">+</span> <span class="n">model</span> <span class="o">+</span> <span class="n">tts</span> <span class="o">+</span> <span class="n">speaker_output</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/audio_io.py"><code>audio_io.py</code></a></em></p>
+<h3 id="ratelimitaudio">RateLimitAudio</h3>
+<p>For streaming TTS, <code>RateLimitAudio</code> splits audio into small chunks and yields
+them at their natural playback speed, allowing for smoother playback and
+interruption.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">rate_limit_audio</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">rate_limiter</span> <span class="o">=</span> <span class="n">rate_limit_audio</span><span class="o">.</span><span class="n">RateLimitAudio</span><span class="p">(</span><span class="n">sample_rate</span><span class="o">=</span><span class="mi">24000</span><span class="p">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">model</span> <span class="o">+</span> <span class="n">tts</span> <span class="o">+</span> <span class="n">rate_limiter</span> <span class="o">+</span> <span class="n">speaker_output</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/rate_limit_audio.py"><code>rate_limit_audio.py</code></a></em></p>
+<h2 id="video-and-document">Video and Document</h2>
+<p>Processors for handling video streams and document formats like PDF.</p>
+<h3 id="videoin">VideoIn</h3>
+<p>Captures video frames from a camera or screen recording as a stream of images.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">video</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">camera</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">VideoIn</span><span class="p">(</span><span class="n">video_mode</span><span class="o">=</span><span class="n">video</span><span class="o">.</span><span class="n">VideoMode</span><span class="o">.</span><span class="n">CAMERA</span><span class="p">,</span> <span class="n">substream_name</span><span class="o">=</span><span class="s1">&#39;realtime&#39;</span><span class="p">)</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">screen</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">VideoIn</span><span class="p">(</span><span class="n">video_mode</span><span class="o">=</span><span class="n">video</span><span class="o">.</span><span class="n">VideoMode</span><span class="o">.</span><span class="n">SCREEN</span><span class="p">,</span> <span class="n">substream_name</span><span class="o">=</span><span class="s1">&#39;realtime&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/video.py"><code>video.py</code></a></em></p>
+<h3 id="pdfextract">PDFExtract</h3>
+<p>Extracts text and images from PDF files. For pages containing images, it renders
+the page as an image; otherwise, it extracts text.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">pdf</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">pdf_extractor</span> <span class="o">=</span> <span class="n">pdf</span><span class="o">.</span><span class="n">PDFExtract</span><span class="p">()</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/pdf.py"><code>pdf.py</code></a></em></p>
+<h3 id="eventdetection">EventDetection</h3>
+<p>An advanced processor that uses a GenAI model to detect events in a stream of
+images (e.g., from a live video feed). It identifies state transitions (e.g.,
+from "no object" to "object detected") and injects corresponding event
+notifications into the stream. This is useful for building agents that need to
+react to visual changes in real-time. For more details on realtime, see
+<a href="../../concepts/realtime/">Realtime Processing</a>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">event_detection</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">detector</span> <span class="o">=</span> <span class="n">event_detection</span><span class="o">.</span><span class="n">EventDetection</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/event_detection.py"><code>event_detection.py</code></a></em></p>
+<h2 id="text-templating-and-output">Text, Templating, and Output</h2>
+<p>Processors for manipulating text, extracting information, and parsing model
+outputs.</p>
+<h3 id="preamble-suffix">Preamble / Suffix</h3>
+<p>Adds fixed content to the beginning (<code>Preamble</code>) or end (<code>Suffix</code>) of a stream.
+Useful for adding system prompts or instructions.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">preamble</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">add_prompt</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Preamble</span><span class="p">(</span><span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">add_suffix</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Suffix</span><span class="p">(</span><span class="s2">&quot;Answer in one sentence.&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/preamble.py"><code>preamble.py</code></a></em></p>
+<h3 id="jinjatemplate">JinjaTemplate</h3>
+<p>Renders Jinja templates, allowing dynamic prompt generation with multimodal
+content.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">jinja_template</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">template</span> <span class="o">=</span> <span class="n">jinja_template</span><span class="o">.</span><span class="n">JinjaTemplate</span><span class="p">(</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">template_str</span><span class="o">=</span><span class="s1">&#39;Summary of {{ doc_name }}: {{ content }}&#39;</span><span class="p">,</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">doc_name</span><span class="o">=</span><span class="s1">&#39;Annual Report&#39;</span><span class="p">,</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">content_varname</span><span class="o">=</span><span class="s1">&#39;content&#39;</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/jinja_template.py"><code>jinja_template.py</code></a></em></p>
+<h3 id="structuredoutputparser">StructuredOutputParser</h3>
+<p>If a model is prompted to return JSON, this processor parses the streamed JSON
+text and converts it into <code>ProcessorsParts</code> holding Python <code>dataclass</code> or <code>Enum</code>
+instances based on a provided schema.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">constrained_decoding</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># and schema is a dataclass or enum</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">parser</span> <span class="o">=</span> <span class="n">constrained_decoding</span><span class="o">.</span><span class="n">StructuredOutputParser</span><span class="p">(</span><span class="n">schema</span><span class="o">=</span><span class="n">MyDataClass</span><span class="p">)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">model</span> <span class="o">+</span> <span class="n">parser</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/constrained_decoding.py"><code>constrained_decoding.py</code></a></em></p>
+<h3 id="urlextractor-htmlcleaner">UrlExtractor &amp; HtmlCleaner</h3>
+<p><code>UrlExtractor</code> finds URLs in text and replaces them with <code>FetchRequest</code> parts.
+<code>HtmlCleaner</code> strips HTML tags to produce clean HTML or plain text.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">url_extractor</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">UrlExtractor</span><span class="p">()</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">html_cleaner</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">HtmlCleaner</span><span class="p">(</span><span class="n">cleaning_mode</span><span class="o">=</span><span class="s1">&#39;plain&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/text.py"><code>text.py</code></a></em></p>
+<h3 id="matchprocessor">MatchProcessor</h3>
+<p>Finds and extracts text matching a regex pattern from the stream. This is useful
+for intercepting and handling specific text patterns in model output, such as
+commands or structured data embedded in text before it is returned to the user.
+It can also be used to detect unsafe keywords.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">matcher</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">MatchProcessor</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;\[command:.*\]&#39;</span><span class="p">,</span> <span class="n">substream_output</span><span class="o">=</span><span class="s1">&#39;commands&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/text.py"><code>text.py</code></a></em></p>
+<h2 id="data-fetching">Data Fetching</h2>
+<p>Processors to fetch content from various sources like Google Drive, GitHub, or
+web URLs.</p>
+<h3 id="urlfetch">UrlFetch</h3>
+<p>Fetches content from URLs contained in <code>FetchRequest</code> parts.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">web</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">url_fetcher</span> <span class="o">=</span> <span class="n">web</span><span class="o">.</span><span class="n">UrlFetch</span><span class="p">()</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">UrlExtractor</span><span class="p">()</span> <span class="o">+</span> <span class="n">url_fetcher</span> <span class="o">+</span> <span class="n">text</span><span class="o">.</span><span class="n">HtmlCleaner</span><span class="p">()</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/web.py"><code>web.py</code></a></em></p>
+<h3 id="drive">Drive</h3>
+<p>Fetches content from Google Docs, Sheets, or Slides as PDF or CSV.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">drive</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">docs</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">Docs</span><span class="p">()</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">sheets</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">Sheets</span><span class="p">()</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">slides</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">Slides</span><span class="p">()</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/drive.py"><code>drive.py</code></a></em></p>
+<h3 id="github">GitHub</h3>
+<p>Fetches file content from GitHub URLs.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">github</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">github_fetcher</span> <span class="o">=</span> <span class="n">github</span><span class="o">.</span><span class="n">GithubProcessor</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="s1">&#39;your-github-api-key&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/github.py"><code>github.py</code></a></em></p>
+<h3 id="filesystem">Filesystem</h3>
+<p>Reads local files matching a glob pattern.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">file_loader</span> <span class="o">=</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">GlobSource</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;**/*.txt&#39;</span><span class="p">,</span> <span class="n">base_dir</span><span class="o">=</span><span class="s1">&#39;./docs&#39;</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/filesystem.py"><code>filesystem.py</code></a></em></p>
+<h2 id="function-calling">Function Calling</h2>
+<p>The <code>FunctionCalling</code> processor automates tool use by intercepting function
+calls from a model, executing the corresponding Python functions, and feeding
+results back to the model.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">function_calling</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">google.genai</span><span class="w"> </span><span class="kn">import</span> <span class="n">types</span> <span class="k">as</span> <span class="n">genai_types</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_weather</span><span class="p">(</span><span class="n">city</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="c1"># ... implementation ...</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Weather in </span><span class="si">{</span><span class="n">city</span><span class="si">}</span><span class="s2"> is sunny.&quot;</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="n">tools</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_weather</span><span class="p">]</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="n">model_with_tools</span> <span class="o">=</span> <span class="n">genai_model</span><span class="o">.</span><span class="n">GenaiModel</span><span class="p">(</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    <span class="o">...</span><span class="p">,</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="n">generate_content_config</span><span class="o">=</span><span class="n">genai_types</span><span class="o">.</span><span class="n">GenerateContentConfig</span><span class="p">(</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>        <span class="n">tools</span><span class="o">=</span><span class="n">tools</span><span class="p">,</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>        <span class="n">automatic_function_calling</span><span class="o">=</span><span class="n">genai_types</span><span class="o">.</span><span class="n">AutomaticFunctionCallingConfig</span><span class="p">(</span>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a>            <span class="n">disable</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>        <span class="p">),</span>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>    <span class="p">),</span>
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a><span class="p">)</span>
+<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a>
+<a id="__codelineno-16-19" name="__codelineno-16-19" href="#__codelineno-16-19"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">function_calling</span><span class="o">.</span><span class="n">FunctionCalling</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model_with_tools</span><span class="p">,</span> <span class="n">fns</span><span class="o">=</span><span class="n">tools</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See: <a href="../../concepts/function-calling/">Function Calling Concept</a> and
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/function_calling.py"><code>function_calling.py</code></a></em></p>
+<h2 id="stream-manipulation">Stream Manipulation</h2>
+<h3 id="window">Window</h3>
+<p>Invokes a processor on a sliding window of content, useful for processing long
+streams or video.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">window</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="c1"># Apply model to windows of 3 turns</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">windowed_processor</span> <span class="o">=</span> <span class="n">window</span><span class="o">.</span><span class="n">Window</span><span class="p">(</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">model</span><span class="p">,</span>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>    <span class="n">compress_history</span><span class="o">=</span><span class="n">window</span><span class="o">.</span><span class="n">keep_last_n_turns</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/window.py"><code>window.py</code></a></em></p>
+<h3 id="timestamp">Timestamp</h3>
+<p>Adds timestamp parts to a stream, typically after image frames in a video.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">timestamp</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">ts</span> <span class="o">=</span> <span class="n">timestamp</span><span class="o">.</span><span class="n">add_timestamps</span><span class="p">(</span><span class="n">with_ms</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div>
+<p><em>See:
+<a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/timestamp.py"><code>timestamp.py</code></a></em></p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

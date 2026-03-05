@@ -1,0 +1,2228 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Build Modular, Asynchronous, and Composable AI Pipelines">
+      
+      
+      
+        <link rel="canonical" href="https://google-gemini.github.io/genai-processors/concepts/processor/">
+      
+      
+        <link rel="prev" href="../../getting-started/">
+      
+      
+        <link rel="next" href="../async-streaming/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.4">
+    
+    
+      
+        <title>Processor - GenAI Processors</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#processor" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="GenAI Processors" class="md-header__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            GenAI Processors
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Processor
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="black" data-md-color-accent="deep-purple"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/google-gemini/genai-processors" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    genai-processors
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="GenAI Processors" class="md-nav__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    GenAI Processors
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/google-gemini/genai-processors" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    genai-processors
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-core-concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Core Concept
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-processor-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Processor Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Processor Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#functional-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functional Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-based-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class-Based Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-partprocessor-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The PartProcessor Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The PartProcessor Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-use-partprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why use PartProcessor?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtering-with-match_fn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filtering with match_fn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-processor-vs-partprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison: Processor vs. PartProcessor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Composition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequential-chaining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequential Chaining (+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Execution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parallel Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parallel-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Parts (//)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-streams-parallel_concat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Streams (parallel_concat)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orchestration-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestration (Routing)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Orchestration (Routing)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#switch-stream-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switch (Stream Routing)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partswitch-part-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PartSwitch (Part Routing)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-error-propagation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context &amp; Error Propagation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Context &amp; Error Propagation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#yielding-exceptions-as-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Yielding exceptions as parts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#background-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background Tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-the-lifecycle-is-managed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Lifecycle is Managed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../async-streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async & Streaming
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../realtime/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Realtime Processing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../function-calling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Calling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rapid Prototyping
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Rapid Prototyping
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rapid-prototyping/ai-studio/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Studio
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../rapid-prototyping/cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Command Line
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Development
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/supported-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Supported Models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/built-in-processors/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Built-in Processors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/tracing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tracing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../development/caching/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Caching
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tutorials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Content API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/processor_intro.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor Basics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/create_your_own_processor.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Create a Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/live_processor_intro.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live Processors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://colab.sandbox.google.com/github.com/google-gemini/genai-processors/blob/main/notebooks/function_calling.ipynb" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Function Calling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/research/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Research Agent
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Live commentator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/widgets/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Widgets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="https://github.com/google-gemini/genai-processors/blob/main/examples/README.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-core-concept" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Core Concept
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-processor-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Processor Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The Processor Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#functional-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Functional Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#class-based-definition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Class-Based Definition
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-partprocessor-interface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The PartProcessor Interface
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The PartProcessor Interface">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-use-partprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why use PartProcessor?
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtering-with-match_fn" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filtering with match_fn
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#comparison-processor-vs-partprocessor" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison: Processor vs. PartProcessor
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#composition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composition
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Composition">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#sequential-chaining" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sequential Chaining (+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Execution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Parallel Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#parallel-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Parts (//)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#parallel-streams-parallel_concat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parallel Streams (parallel_concat)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#orchestration-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Orchestration (Routing)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Orchestration (Routing)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#switch-stream-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Switch (Stream Routing)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#partswitch-part-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PartSwitch (Part Routing)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sources" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sources
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-error-propagation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context &amp; Error Propagation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Context &amp; Error Propagation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#yielding-exceptions-as-parts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Yielding exceptions as parts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#background-tasks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background Tasks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-the-lifecycle-is-managed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the Lifecycle is Managed
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="processor">Processor</h1>
+<p>The Processor is the fundamental unit of work in the GenAI Processors library.
+It encapsulates logic, AI models, and tools into a composable, asynchronous
+interface.</p>
+<p>For a runnable introduction to the concepts described here, check out the
+<a href="../notebooks/processor_intro.ipynb">Processor Introduction Notebook</a>.</p>
+<h2 id="the-core-concept">The Core Concept</h2>
+<p>At its heart, a Processor is a transformation pipeline: it takes an input stream
+of
+[ProcessorParts](https://github.com/google-gemini/genai-processors/blob/main/genai_processors/content_api.py#:~:text=class%20ProcessorPart)
+data and produces an output stream of parts. These parts represent different
+modalities —such as text, images, or files— allowing the pipeline to handle
+complex, multi-modal data.</p>
+<p>To make development easier, the library handles the heavy lifting of unifying
+data types for you. When receiving a stream, you'll work with a
+<code>ProcessorStream</code> class (inheriting from <code>ContentStream</code>); this acts as an
+<code>AsyncIterable</code>, but also provides convenient accessors like <code>.text()</code> for quick
+extraction. When it’s time to send data back, you can simply yield whatever you
+have —whether that’s a raw string or a part— and the library will automatically
+normalize it into processor parts, filling in default values for any arguments
+you didn't provide. This reliance on a standard <code>AsyncIterable</code> interface is
+what makes it so simple to chain multiple Processors into a single, continuous
+pipeline.</p>
+<h2 id="the-processor-interface">The Processor Interface</h2>
+<p>Processors provide the following interface:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>  <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>      <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">ProcessorPartTypes</span><span class="p">]</span> <span class="o">|</span> <span class="n">ProcessorContentTypes</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProcessorStream</span><span class="p">:</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="o">...</span>
+</code></pre></div>
+<p>and there are two ways to define them:</p>
+<h3 id="functional-definition">Functional Definition</h3>
+<p>For simple logic that does not maintain a state between processor calls, you can
+use the <code>@processor.processor_function</code> decorator.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">processor</span><span class="p">,</span> <span class="n">content_api</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncIterable</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">processor_function</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">simple_filter</span><span class="p">(</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span><span class="p">,</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Passes through only text parts buffering them first.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">text_buffer</span> <span class="o">=</span> <span class="p">[]</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="k">if</span> <span class="n">content_api</span><span class="o">.</span><span class="n">is_text</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">mimetype</span><span class="p">):</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>            <span class="n">text_buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="k">yield</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text_buffer</span><span class="p">)</span>
+</code></pre></div>
+<p>You’ll notice that a Processor’s implementation signature differs slightly from
+its usage signature. This is intentional. When implementing a processor, you get
+the full power of the <code>ProcessorStream</code> input and the flexibility to return any
+valid <code>ProcessorPartTypes</code>. When calling a processor, the library allows you to
+pass in various data types as input while ensuring you always receive a
+<code>ProcessorStream</code> back, giving you a consistent, feature-rich output to work
+with.</p>
+<h3 id="class-based-definition">Class-Based Definition</h3>
+<p>For logic requiring internal state (like API clients), you need to subclass
+<code>processor.Processor</code> to keep the state as a class field.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyStatefulProcessor</span><span class="p">(</span><span class="n">processor</span><span class="o">.</span><span class="n">Processor</span><span class="p">):</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">api_client</span><span class="p">:</span> <span class="n">Any</span><span class="p">):</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_api_client</span> <span class="o">=</span> <span class="n">api_client</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_api_client</span><span class="o">.</span><span class="n">init</span><span class="p">()</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>        <span class="n">request_str</span> <span class="o">=</span> <span class="k">await</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ContentStream</span><span class="p">(</span><span class="n">parts</span><span class="o">=</span><span class="n">content</span><span class="p">)</span><span class="o">.</span><span class="n">text</span><span class="p">()</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>        <span class="n">response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_api_client</span><span class="o">.</span><span class="n">request</span><span class="p">(</span><span class="n">request_str</span><span class="p">)</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>        <span class="k">yield</span> <span class="n">response</span>
+</code></pre></div>
+<h2 id="the-partprocessor-interface">The <code>PartProcessor</code> Interface</h2>
+<p>Parts in a stream can often be processed independently —for example, image
+preprocessing or "verbalizing" PDFs into text and images. In these cases, we can
+apply a critical optimization: not only can these parts be processed in
+parallel, but we can also avoid head-of-line blocking when multiple processors
+are chained into a pipeline.</p>
+<p>To simplify this, we provide a specialized <code>PartProcessor</code> class designed to
+handle a single part. The library automatically parallelizes the incoming stream
+across a stack of these processors and ensures the results are reassembled in
+the correct order for the next stage of the pipeline.</p>
+<h3 id="why-use-partprocessor">Why use PartProcessor?</h3>
+<ul>
+<li>
+<p><strong>Simplicity:</strong> You write logic for one part, not a loop over a stream.</p>
+</li>
+<li>
+<p><strong>Performance:</strong> The library automatically runs <code>PartProcessor</code> logic
+    concurrently on incoming parts.</p>
+</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">part_processor_function</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">shouter</span><span class="p">(</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">part</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="k">if</span> <span class="n">content_api</span><span class="o">.</span><span class="n">is_text</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">mimetype</span><span class="p">):</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>        <span class="k">yield</span> <span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        <span class="k">yield</span> <span class="n">part</span>
+</code></pre></div>
+<h3 id="filtering-with-match_fn">Filtering with <code>match_fn</code></h3>
+<p>You can attach a match function to explicitly define which parts this processor
+handles. This improves readability and performance and is recommended.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">is_text_part</span><span class="p">(</span><span class="n">part</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="k">return</span> <span class="n">content_api</span><span class="o">.</span><span class="n">is_text</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">mimetype</span><span class="p">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">part_processor_function</span><span class="p">(</span><span class="n">match_fn</span><span class="o">=</span><span class="n">is_text_part</span><span class="p">)</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">shouter</span><span class="p">(</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">part</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="c1"># We are guaranteed that &#39;part&#39; is text because of match_fn</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">yield</span> <span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="comparison-processor-vs-partprocessor">Comparison: Processor vs. PartProcessor</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;">Processor</th>
+<th style="text-align: left;">PartProcessor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Input</strong></td>
+<td style="text-align: left;">Stream (AsyncIterable)</td>
+<td style="text-align: left;">Single Item (ProcessorPart)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>State</strong></td>
+<td style="text-align: left;">Can maintain state across</td>
+<td style="text-align: left;">Stateless per-part</td>
+</tr>
+<tr>
+<td style="text-align: left;">:                 : the stream                  :                             :</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Concurrency</strong></td>
+<td style="text-align: left;">Sequential (unless manually</td>
+<td style="text-align: left;">Automatic (Parallelized DFS</td>
+</tr>
+<tr>
+<td style="text-align: left;">:                 : managed)                    : map over a chain of         :</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr>
+<td style="text-align: left;">:                 :                             : PartProcessors              :</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Use Case</strong></td>
+<td style="text-align: left;">Buffers, Accumulators, Full</td>
+<td style="text-align: left;">Filters, Formatters,</td>
+</tr>
+<tr>
+<td style="text-align: left;">:                 : Context Models              : Independent Transformations :</td>
+<td style="text-align: left;"></td>
+<td style="text-align: left;"></td>
+</tr>
+</tbody>
+</table>
+<h2 id="composition">Composition</h2>
+<p>The power of this library lies in composing simple processors into complex
+pipelines.</p>
+<h3 id="sequential-chaining">Sequential Chaining (<code>+</code>)</h3>
+<p>The <code>+</code> operator pipes the output of one processor into the input of the next.
+It takes care of concurrency under the hood and is the recommended way of
+chaining Processors or <code>PartProcessors</code> together.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Pipeline: Input -&gt; Filter -&gt; Model -&gt; Output</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">pipeline</span> <span class="o">=</span> <span class="n">simple_filter</span> <span class="o">+</span> <span class="n">model_processor</span>
+</code></pre></div>
+<h3 id="parallel-execution">Parallel Execution</h3>
+<p>You can branch execution to run multiple processors simultaneously.</p>
+<h4 id="parallel-parts">Parallel Parts (<code>//</code>)</h4>
+<p>Use // to run multiple <code>PartProcessors</code> on the same input part concurrently. The
+results are concatenated (preserving input order).</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># For each input part, run a classifier AND a logger for that part.</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">classifier_and_logger</span> <span class="o">=</span> <span class="n">classifier_part_processor</span> <span class="o">//</span> <span class="n">logger_part_processor</span>
+</code></pre></div>
+<h4 id="parallel-streams-parallel_concat">Parallel Streams (<code>parallel_concat</code>)</h4>
+<p>For full <code>Processors</code> operating on streams, use <code>parallel_concat</code>. This
+broadcasts the stream to multiple agents and merges their outputs.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Both agents receive the full stream context</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">mixture</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">parallel_concat</span><span class="p">([</span><span class="n">agent_a</span><span class="p">,</span> <span class="n">agent_b</span><span class="p">])</span>
+</code></pre></div>
+<p>When iterating on <code>mixture</code>, both agents are processed in parallel but the
+iterator will progress first on the result of <code>agent_a</code>. If <code>agent_b</code> comes
+first, you will not be able to iterate on it before <code>agent_a</code> is done.</p>
+<p>To merge the output of processors as they come, use the <code>merge</code> method from the
+<code>streams</code> module on the output of each processor. See
+<a href="../async-streaming/">Async &amp; Streaming</a> section for more details.</p>
+<h2 id="orchestration-routing">Orchestration (Routing)</h2>
+<p>For advanced flows, you may need to route data dynamically based on its content.</p>
+<h3 id="switch-stream-routing">Switch (Stream Routing)</h3>
+<p><code>Switch</code> dispatches parts of the input stream to different processors based on
+conditions. The condition in each case statement defines the Parts that will be
+sent to the attached processor. The order of the parts in the output and input
+streams is only kept for parts returned by the same processor, i.e. two parts
+matching two different cases are not guaranteed to be in the same order in the
+input and output stream.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">switch</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c1"># Route audio to audio_model, everything else to text_model</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="n">router</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">switch</span><span class="o">.</span><span class="n">Switch</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">get_mimetype</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="o">.</span><span class="n">case</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">is_audio</span><span class="p">,</span> <span class="n">audio_model</span><span class="p">)</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">text_model</span><span class="p">)</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="p">)</span>
+</code></pre></div>
+<h3 id="partswitch-part-routing">PartSwitch (Part Routing)</h3>
+<p><code>PartSwitch</code> provides the same part-level dispatching logic as a standard
+<code>Switch</code>, but it is implemented as a <code>PartProcessor</code>. It directs individual
+parts to different handlers and executes them concurrently. This is particularly
+useful in a <code>PartProcessor</code> stack, ensuring that different modalities —like a
+mix of heavy images and light text— are processed simultaneously so that one
+slow part doesn't bottleneck the rest of the stream.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Process text tokens with one logic, images with another</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">part_router</span> <span class="o">=</span> <span class="p">(</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    <span class="n">switch</span><span class="o">.</span><span class="n">PartSwitch</span><span class="p">()</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    <span class="o">.</span><span class="n">case</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">is_text</span><span class="p">,</span> <span class="n">text_handler</span><span class="p">)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    <span class="o">.</span><span class="n">case</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">is_image</span><span class="p">,</span> <span class="n">image_handler</span><span class="p">)</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="o">.</span><span class="n">default</span><span class="p">(</span><span class="n">processor</span><span class="o">.</span><span class="n">passthrough</span><span class="p">())</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="p">)</span>
+</code></pre></div>
+<h2 id="sources">Sources</h2>
+<p>Processors can ingest data from any AsyncIterator, but for convenience, we
+provide built-in sources for common inputs like microphones, cameras, screen
+captures, and terminals.</p>
+<p>Because mixing these inputs is a frequent requirement, we’ve designed Sources to
+implement the Processor interface. This allows you to combine them using the <code>+</code>
+operator —for example: <code>TerminalInput('&gt;') + audio_io.AudioIn(...) +
+live_model.LiveModel(...)</code>. Most sources, especially those tailored for
+real-time use, will stay active as long as their input stream is open. If you
+need a pipeline to run indefinitely, you can use <code>streams.endless_stream()</code> to
+keep the sources alive until they are explicitly cancelled or ended.</p>
+<p>If you do not find what you need with built-in Source, you can define your own
+source (e.g., from a microphone, a queue, or a file) using the
+<code>@processor.source</code> decorator:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">source</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_source</span><span class="p">(</span><span class="n">filepath</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span><span class="p">]:</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>    <span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">read_file</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="k">yield</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># Usage:</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># p = file_source(&quot;data.txt&quot;) + simple_filter + model</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="c1"># async for part in p(streams.endless_stream()):</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1">#   ...</span>
+</code></pre></div>
+<h2 id="context-error-propagation">Context &amp; Error Propagation</h2>
+<p>When a processor in a chain fails, it is vital to terminate all concurrently
+running tasks and notify the source that data processing has stopped. To achieve
+this, pipelines should always be executed within an <code>async with
+processor.context():</code> block. This context defines a TaskGroup, ensuring that if
+one part of the pipeline fails, the entire chain is cleaned up and no background
+tasks are left "hanging" as zombies.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">async</span> <span class="k">with</span> <span class="n">processor</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>    <span class="c1"># Run the pipeline</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">my_processor_pipeline</span><span class="p">(</span><span class="n">input_stream</span><span class="p">):</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>        <span class="n">process_result</span><span class="p">(</span><span class="n">part</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="yielding-exceptions-as-parts">Yielding exceptions as parts</h3>
+<p>For complex pipelines, terminating them when something goes wrong might not be
+an option: there are too many cogs to expect all of them working flawlessly.
+Instead, we may want to let an LLM deal with the problem, autocorrect, or try a
+different approach. In this case, wrap a processor with the
+<code>@processor.yield_exceptions_as_parts</code> decorator. This will catch any exception
+inside the processor and yield it as a <code>ProcessorPart</code> to the output stream.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">random</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">AsyncIterable</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">content_api</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">mime_types</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">processor</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">processor_function</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">yield_exceptions_as_parts</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">faulty_processor</span><span class="p">(</span>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>    <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span><span class="p">,</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;This processor will sometimes fail.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Something went wrong&quot;</span><span class="p">)</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>    <span class="k">yield</span> <span class="s2">&quot;Hello&quot;</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">processor_function</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">recover_from_error</span><span class="p">(</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>    <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span><span class="p">,</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;This processor will recover from an error.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>        <span class="k">if</span> <span class="n">part</span><span class="o">.</span><span class="n">mimetype</span> <span class="o">==</span> <span class="n">mime_types</span><span class="o">.</span><span class="n">TEXT_EXCEPTION</span><span class="p">:</span>
+<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>            <span class="k">yield</span> <span class="sa">f</span><span class="s2">&quot;Processor failed with: </span><span class="si">{</span><span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">, trying something else.&quot;</span>
+<a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>        <span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a>            <span class="k">yield</span> <span class="n">part</span>
+</code></pre></div>
+<p>With <code>@yield_exceptions_as_parts</code>, <code>faulty_processor</code> will not terminate the
+pipeline when it fails. Instead, it will output a <code>ProcessorPart</code> with mimetype
+<code>text/x-exception</code> that <code>recover_from_error</code> processor can use to react to the
+failure.</p>
+<h3 id="background-tasks">Background Tasks</h3>
+<p>If you need to perform a "fire-and-forget" operation (like saving to a DB)
+without blocking the main generation flow, use <code>processor.create_task()</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">process_with_background</span><span class="p">():</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">processor</span><span class="o">.</span><span class="n">context</span><span class="p">():</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>        <span class="c1"># Schedule the background task (fire and forget)</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>        <span class="c1"># This is tracked by the context and cleaned up automatically</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>        <span class="n">processor</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">save_to_db</span><span class="p">(</span><span class="n">results</span><span class="p">))</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>        <span class="c1"># Yield generation results immediately</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>        <span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">model</span><span class="p">(</span><span class="n">input_stream</span><span class="p">):</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>            <span class="k">yield</span> <span class="n">part</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>        <span class="c1"># When exiting the context, the task is awaited by the context.</span>
+</code></pre></div>
+<h3 id="how-the-lifecycle-is-managed">How the Lifecycle is Managed</h3>
+<p>To keep your pipelines robust and memory-safe, the <code>processor.context()</code> follows
+a few key principles:</p>
+<ul>
+<li>
+<p><strong>Automatic Cleanup:</strong> You don't have to worry about manual teardown. When
+    the context exits, all background tasks—including buffers and parallel
+    branches —are gracefully cleaned up for you.</p>
+</li>
+<li>
+<p><strong>Smart Error Handling:</strong> If a processor encounters an exception, the
+    context acts as a safety net. It immediately cancels any remaining tasks in
+    the chain and propagates the error, preventing "zombie" processes from
+    lingering in the background.</p>
+</li>
+<li>
+<p><strong>Integrated Task Management:</strong> To ensure your background work stays synced
+    with the pipeline’s lifecycle, we recommend using <code>processor.create_task()</code>.
+    Unlike a standard <code>asyncio.create_task()</code>, this keeps your work attached to
+    the processor’s context so it can be managed and cleaned up automatically.</p>
+</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
