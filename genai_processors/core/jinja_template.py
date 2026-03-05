@@ -47,10 +47,7 @@ class JinjaTemplate(processor.Processor):
   output = processor.apply_sync(
       p,
       [
-          content_api.ProcessorPart(
-              'What is this landmark?',
-              mimetype='text/plain',
-          ),
+          'What is this landmark?',
           content_api.ProcessorPart(
               <image_bytes>,
               mimetype='image/png',

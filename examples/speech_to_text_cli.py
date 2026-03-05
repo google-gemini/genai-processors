@@ -38,7 +38,7 @@ Example of outputs:
 # By default, endpointing is enabled.
 ProcessorPart(
     {'text': 'SPEECH_ACTIVITY_BEGIN'},
-    mimetype='text/plain'),
+    mimetype='text/plain',
     substream_name='input_endpointing'
 )
 # These are the first interim result. They are not final and are only for info.
@@ -50,7 +50,7 @@ ProcessorPart(
 )
 ProcessorPart(
     {'text': 'hi there'},
-    `mimetype='text/plain',
+    mimetype='text/plain',
     substream_name='input_transcription',
     metadata={'is_final': False},
     role='user'
@@ -67,7 +67,7 @@ ProcessorPart(
 # transcript.
 ProcessorPart(
     {'text': 'SPEECH_ACTIVITY_END'},
-    mimetype='text/plain'
+    mimetype='text/plain',
     substream_name='input_endpointing'
 )
 # Final transcript. It is normal to happen after the SPEECH_ACTIVITY_END here.

@@ -23,34 +23,24 @@ https://ai.google.dev/gemini-api/docs/models
 ```py
 p = GenaiModel(
     api_key=API_KEY,
-    model_name="gemini-2.0-flash-exp-image-generation",
+    model_name="gemini-2.5-flash",
     generate_content_config=genai.types.GenerateContentConfig(
       response_modalities=['Text', 'Image']
     )
 )
-```
 
-### Sync Execution
+# If we want output as a single string:
+print(await p(INPUT_PROMPT).text())
 
-```py
-INPUT_PROMPT = 'Create an image of two dalmatians & a cute poem'
+# If we want to stream the output:
+async for part in p(INPUT_PROMPT):
+  print(part.text, end='')
 
-genai_content = processors.apply_sync(p, [ProcessorPart(INPUT_PROMPT)])
-for part in genai_content:
-  if part.text:
-    print(part.text)
-  elif part.pil_image:
-    display(part.pil_image)
-```
-
-### Async Execution
-
-```py
-input_stream = processor.stream_content([ProcessorPart(INPUT_PROMPT)])
-async for part in p(input_stream):
-  if part.text:
-    print(part.text)
-  elif part.pil_image:
+# If the output can be multimodal:
+async for part in p(INPUT_PROMPT):
+  if mime_types.is_text(part.mimetype):
+    print(part.text, end='')
+  elif mime_types.is_image(part.mimetype):
     display(part.pil_image)
 ```
 
@@ -66,7 +56,7 @@ model = GenaiModel(
     api_key=API_KEY,
     model_name="gemini-2.5-flash",
 )
-This will upload the image to the Gemini API using the File API, and then call
+# This will upload the image to the Gemini API using the File API, and then call
 # the model on the file handle, the image tokenization will be done on the API
 # side and any file handle part will be replaced by its tokenization on the API
 # side.

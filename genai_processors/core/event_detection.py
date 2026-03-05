@@ -83,12 +83,12 @@ output_dict = {
     # The '*' wild card can be used to define all states, i.e. transitions from
     # any state (including the start state) to the event state.
     ('*', EventState.EVENT_1): ProcessorPart(
-        text='event_1 is detected',
+        'event_1 is detected',
         role='USER',
         metadata={'turn_complete': True},
     ),
-    (EventState.EVENT_1, EventSate.EVENT_2): ProcessorPart(
-        text='event_2 is detected',
+    (EventState.EVENT_1, EventState.EVENT_2): ProcessorPart(
+        'event_2 is detected',
         role='USER',
         metadata={'turn_complete': True},
     ),

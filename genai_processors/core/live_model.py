@@ -28,17 +28,11 @@ p = LiveProcessor(
 )
 ```
 
-Given a stream of content `input_stream`, you can use the processor to generate
+Given a stream of content, you can use the processor to generate
 a stream of content as follows:
 
 ```py
-input_stream = processor.stream_content(
-    [
-      processor.ProcessorPart('hello'),
-      processor.ProcessorPart('world')
-    ]
-  )
-async for part in p(input_stream):
+async for part in p(['hello', 'world']):
   # Do something with part
 ```
 
