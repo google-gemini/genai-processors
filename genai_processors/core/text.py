@@ -18,6 +18,7 @@ import asyncio
 from collections.abc import AsyncIterable, Callable
 import dataclasses
 import re
+import threading
 from typing import Literal, Mapping, Type
 
 import bs4
@@ -512,7 +513,24 @@ async def terminal_input(
 
   while True:
     try:
-      yield await asyncio.to_thread(input, prompt)
+      loop = asyncio.get_running_loop()
+      future = loop.create_future()
+
+      # We do this hard way instead of a usual asyncio.to_thread() to properly
+      # handle cancellations.
+      def _read_input():
+        try:
+          result = input(prompt)
+          if not future.cancelled():
+            loop.call_soon_threadsafe(future.set_result, result)
+        except BaseException as e:
+          if not future.cancelled():
+            loop.call_soon_threadsafe(future.set_exception, e)
+
+      thread = threading.Thread(target=_read_input, daemon=True)
+      thread.start()
+
+      yield await future
       yield content_api.ProcessorPart.end_of_turn()
     except EOFError:
       # Exit on ctrl+D.
