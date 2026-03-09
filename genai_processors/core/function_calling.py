@@ -520,9 +520,12 @@ class FunctionCalling(processor.Processor):
             # reached.
             await input_queue.put(None)
             await output_queue.put(None)
-        elif state.schedule_model_call and not state.model_outputting:
-          input_queue.put_nowait(content_api.END_OF_TURN)
-          state.schedule_model_call = False
+        else:
+          if state.schedule_model_call and not state.model_outputting:
+            input_queue.put_nowait(content_api.END_OF_TURN)
+            state.schedule_model_call = False
+          elif state.running_fc_count == 0:
+            yield part
       else:
         if context_lib.is_reserved_substream(part.substream_name):
           yield part

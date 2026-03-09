@@ -176,9 +176,9 @@ async def run_chat() -> None:
     print(' - Summarize https://arxiv.org/pdf/2312.11805')
     print('Press Ctrl + D to exit.')
 
-    print(USER_PROMPT, end='')
+    print(USER_PROMPT, end='', flush=True)
     await text.terminal_output(
-        chat_agent(text.terminal_input(prompt=USER_PROMPT)), prompt=USER_PROMPT
+        chat_agent(text.terminal_input()), prompt=USER_PROMPT
     )
 
 

@@ -593,5 +593,5 @@ async def terminal_output(
           flush=True,
       )
     # Reprint the prompt when the model is done.
-    if content_api.is_end_of_turn(part):
+    if prompt and content_api.is_end_of_turn(part) and part_role == 'model':
       print('\n' + prompt, end='', flush=True)
