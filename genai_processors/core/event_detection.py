@@ -52,21 +52,22 @@ class EventState(enum.StrEnum):
   RAINING_WITH_MEATBALLS = enum.auto()
 ```
 
-The config passed to the constructor should contain the response schema for
-the event detection model.
+The config passed to the backend model constructor should contain the response
+chema for the event detection model.
 
 ```python
-config = {
+config = genai_types.GenerateContentConfig(
     system_instruction=(
         'Determine the weather conditions under which these images have been'
         f' taken. Respond with "{EventName.SUNNY}" if the sun is shining, '
         f'"{EventName.RAINING}" if it is raining and'
         f'"{EventName.RAINING_WITH_MEATBALLS}" if the rain contains meatballs.'
-        ' You can classify any edible objects as meatballs.',
-    'response_mime_type': 'text/x.enum',
-    'response_schema': EventName
-    ...
-}
+        ' You can classify any edible objects as meatballs.'),
+    response_mime_type='text/x.enum',
+    response_schema=EventName,
+)
+backend = genai_model.GenaiModel(
+    api_key=..., model_name=..., generate_content_config=config)
 ```
 
 Each event state transition is associated to an output that the processor will
@@ -120,9 +121,8 @@ from typing import AsyncIterable, Optional, TypeAlias
 from absl import logging
 from genai_processors import content_api
 from genai_processors import processor
+from genai_processors import streams
 from genai_processors.core import timestamp
-from google import genai
-from google.genai import types as genai_types
 
 ProcessorPart = content_api.ProcessorPart
 
@@ -138,9 +138,7 @@ class EventDetection(processor.Processor):
 
   def __init__(
       self,
-      api_key: str,
-      model: str,
-      config: genai_types.GenerateContentConfig,
+      backend: processor.Processor,
       output_dict: dict[
           EventTransition, content_api.ProcessorContentTypes | None
       ],
@@ -150,11 +148,7 @@ class EventDetection(processor.Processor):
     """Initializes the event detection processor.
 
     Args:
-      api_key: The API key to use for the event detection model.
-      model: The model to use for the event detection.
-      config: The configuration to use for the event detection model. This
-        configuration should contain the response schema for the event detection
-        model.
+      backend: The processor to use for the event detection.
       output_dict: A dictionary of transitions between events to the output to
         return when the transition is detected. A transition is a pair of event
         names `(from_event_state, to_event_state)`, where `from_event_state` can
@@ -167,13 +161,7 @@ class EventDetection(processor.Processor):
         detection output. By default, the sensitivity is 1 for a transition.
       max_images: The maximum number of images to keep in the input stream.
     """
-    self._client = genai.Client(api_key=api_key)
-    self._model = model
-    self._config = config
-
-    if not config.response_schema:
-      raise ValueError('Response schema is required for event detection.')
-
+    self._backend = backend
     self._sensitivity = sensitivity
     self._output_dict = {}
     self._init_output_dict(output_dict)
@@ -220,27 +208,24 @@ class EventDetection(processor.Processor):
       images_with_timestamp.append(
           content_api.ProcessorPart(timestamp.to_timestamp(t - start_time))
       )
-    response = await self._client.aio.models.generate_content(
-        model=self._model,
-        config=self._config,
-        contents=images_with_timestamp,
-    )
+    response_text = await self._backend(images_with_timestamp).text()
+
     logging.debug(
         '%s - Event detection response: %s / last transition: %s / transition'
         ' counter: %s',
         time.perf_counter(),
-        response.text,
+        response_text,
         self._last_transition,
         self._transition_counter,
     )
-    if not response.text:
+    if not response_text:
       logging.debug(
           '%s - No text response from the event detection model',
           time.perf_counter(),
       )
       return
 
-    event_name = response.text.lower()
+    event_name = response_text.strip().lower()
     current_transition = (self._last_transition[1], event_name)
     if current_transition == self._transition_counter[0]:
       self._transition_counter = (

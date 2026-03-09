@@ -101,6 +101,7 @@ from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import streams
 from genai_processors.core import event_detection
+from genai_processors.core import genai_model
 from genai_processors.core import live_model
 from genai_processors.core import rate_limit_audio
 from genai_processors.core import text
@@ -916,16 +917,19 @@ def create_live_commentator(
   Returns:
     A live commentator processor.
   """
-  event_detection_processor = event_detection.EventDetection(
+  detection_model = genai_model.GenaiModel(
       api_key=api_key,
-      model=MODEL_DETECTION,
-      config=genai_types.GenerateContentConfig(
+      model_name=MODEL_DETECTION,
+      generate_content_config=genai_types.GenerateContentConfig(
           system_instruction=EVENT_DETECTION_PROMPT,
           max_output_tokens=10,
           response_mime_type='text/x.enum',
           response_schema=EventTypes,
           media_resolution=MEDIA_RESOLUTION,
       ),
+  )
+  event_detection_processor = event_detection.EventDetection(
+      backend=detection_model,
       output_dict={
           ('*', EventTypes.DETECTION): [
               content_api.ProcessorPart(

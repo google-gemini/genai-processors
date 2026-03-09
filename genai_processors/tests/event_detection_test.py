@@ -2,15 +2,14 @@
 
 import enum
 import io
+from typing import AsyncIterable
 import unittest
-from unittest import mock
 
 from absl.testing import absltest
 from genai_processors import content_api
+from genai_processors import processor
 from genai_processors import streams
 from genai_processors.core import event_detection
-from google.genai import models
-from google.genai import types as genai_types
 import PIL.Image
 
 
@@ -20,20 +19,20 @@ class EventName(enum.StrEnum):
   RAINING = enum.auto()
 
 
-def generate_response(text: str) -> genai_types.GenerateContentResponse:
-  return genai_types.GenerateContentResponse(
-      candidates=[
-          genai_types.Candidate(
-              content=genai_types.Content(
-                  parts=[
-                      genai_types.Part(
-                          text=text,
-                      )
-                  ]
-              )
-          )
-      ],
-  )
+class MockBackend(processor.Processor):
+
+  def __init__(self) -> None:
+    super().__init__()
+    self.side_effect: list[str | Exception] = []
+
+  async def call(
+      self, content: content_api.ContentStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    await content
+    output = self.side_effect.pop(0)
+    if isinstance(output, Exception):
+      raise output
+    yield content_api.ProcessorPart(output)
 
 
 def get_image() -> bytes:
@@ -56,19 +55,9 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
         (EventName.RAINING, EventName.CLOUDY): None,
     }
+    self.mock_backend = MockBackend()
     self.event_detection_processor = event_detection.EventDetection(
-        api_key='test_api_key',
-        model='test_model',
-        config=genai_types.GenerateContentConfig(
-            system_instruction=(
-                'Determine the weather conditions under which these images'
-                f' have been taken. Respond with "{EventName.SUNNY}" if the sun'
-                f' is shining, "{EventName.RAINING}" if it is raining,'
-                f' {EventName.CLOUDY} if it is cloudy.'
-            ),
-            response_mime_type='text/x.enum',
-            response_schema=EventName,
-        ),
+        backend=self.mock_backend,
         output_dict=self.output_dict,
         sensitivity={(EventName.CLOUDY, EventName.SUNNY): 3},
     )
@@ -77,16 +66,12 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         mimetype='image/jpeg',
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.CLOUDY),
-          generate_response(EventName.SUNNY),
-      ],
-  )
-  async def test_detections_sensitivity_lower_than_threshold(self, _):
+  async def test_detections_sensitivity_lower_than_threshold(self):
+    self.mock_backend.side_effect = [
+        EventName.SUNNY,
+        EventName.CLOUDY,
+        EventName.SUNNY,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 3, with_delay_sec=0.1
     )
@@ -106,17 +91,13 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.CLOUDY),
-          generate_response(EventName.RAINING),
-          generate_response(EventName.CLOUDY),
-      ],
-  )
-  async def test_detections_transition_not_in_output_dict(self, _):
+  async def test_detections_transition_not_in_output_dict(self):
+    self.mock_backend.side_effect = [
+        EventName.SUNNY,
+        EventName.CLOUDY,
+        EventName.RAINING,
+        EventName.CLOUDY,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 4, with_delay_sec=0.1
     )
@@ -138,19 +119,15 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.CLOUDY),
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.SUNNY),
-      ],
-  )
-  async def test_detection_with_sensitivity_above_threshold(self, _):
+  async def test_detection_with_sensitivity_above_threshold(self):
+    self.mock_backend.side_effect = [
+        EventName.SUNNY,
+        EventName.CLOUDY,
+        EventName.SUNNY,
+        EventName.SUNNY,
+        EventName.SUNNY,
+        EventName.SUNNY,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 6, with_delay_sec=0.1
     )
@@ -175,17 +152,13 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          generate_response(EventName.CLOUDY),
-          generate_response(EventName.RAINING),
-          generate_response(EventName.CLOUDY),
-          generate_response(EventName.RAINING),
-      ],
-  )
-  async def test_detection_no_output(self, _):
+  async def test_detection_no_output(self):
+    self.mock_backend.side_effect = [
+        EventName.CLOUDY,
+        EventName.RAINING,
+        EventName.CLOUDY,
+        EventName.RAINING,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 4, with_delay_sec=0.1
     )
@@ -208,20 +181,13 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          generate_response(EventName.SUNNY),
-          # This should not be detected because RAINING can only transition
-          # from CLOUDY.
-          generate_response(EventName.RAINING),
-          # This is detected
-          generate_response(EventName.CLOUDY),
-          generate_response(EventName.RAINING),
-      ],
-  )
-  async def test_detection_transition_from_not_allowed(self, _):
+  async def test_detection_transition_from_not_allowed(self):
+    self.mock_backend.side_effect = [
+        EventName.SUNNY,
+        EventName.RAINING,
+        EventName.CLOUDY,
+        EventName.RAINING,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 4, with_delay_sec=0.1
     )
@@ -243,17 +209,13 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.SUNNY),
-          generate_response(EventName.SUNNY),
-      ],
-  )
-  async def test_detection_when_repeated(self, _):
+  async def test_detection_when_repeated(self):
+    self.mock_backend.side_effect = [
+        EventName.SUNNY,
+        EventName.SUNNY,
+        EventName.SUNNY,
+        EventName.SUNNY,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 4, with_delay_sec=0.1
     )
@@ -272,15 +234,11 @@ class EventDetectionTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
-  @mock.patch.object(
-      models.AsyncModels,
-      'generate_content',
-      side_effect=[
-          IOError('test exception'),
-          generate_response(EventName.RAINING),
-      ],
-  )
-  async def test_detection_with_exception(self, _):
+  async def test_detection_with_exception(self):
+    self.mock_backend.side_effect = [
+        IOError('test exception'),
+        EventName.RAINING,
+    ]
     input_stream = streams.stream_content(
         [self.img_part] * 2, with_delay_sec=0.1
     )
