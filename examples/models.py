@@ -59,6 +59,11 @@ _MODEL_NAME = flags.DEFINE_string(
     None,
     'Name of the generative model to use.',
 )
+_API_SERVICE_ADDRESS = flags.DEFINE_string(
+    'api_service_address',
+    'blade:beyond-api-gateway-prod-common-global',
+    'Address of the Gemini API service for stubby model type.',
+)
 
 # You need to define the Google API key in the environment variables to use
 # Gemini models.

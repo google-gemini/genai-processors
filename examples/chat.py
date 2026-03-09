@@ -35,11 +35,12 @@ from genai_processors.core import text
 from genai_processors.dev import trace_file
 from genai_processors.examples import mcp as mcp_examples
 from genai_processors.examples import models
+from google.genai import types as genai_types
 import httpx
 
 _MCP_SERVER = flags.DEFINE_string(
     'mcp_server',
-    'demo',
+    None,
     'Address of the MCP server to use. Use "demo" to use a demo server. Use an'
     ' https address starting with "https://" to use a remote server. Use'
     ' "local:<command>" to use a local server, e.g. local:npx -y'
@@ -77,9 +78,12 @@ USER_PROMPT = '\n> '
 
 def _get_mcp_session():
   """Returns a context manager for an MCP session."""
-  if _MCP_SERVER.value == 'demo':
+  server_val = _MCP_SERVER.value
+  if not server_val:
+    raise ValueError('MCP server address must be provided')
+  if server_val == 'demo':
     return mcp_examples.get_demo_mcp_session()
-  elif _MCP_SERVER.value.startswith('https://'):
+  elif server_val.startswith('https://'):
     if _API_KEY_ENV.value:
       api_key = os.environ.get(_API_KEY_ENV.value)
       if not api_key:
@@ -90,14 +94,12 @@ def _get_mcp_session():
     else:
       api_key_header = None
 
-    return mcp_examples.get_remote_mcp_session(
-        _MCP_SERVER.value, api_key_header
-    )
-  elif _MCP_SERVER.value.startswith('local:'):
-    return mcp_examples.get_local_mcp_session(_MCP_SERVER.value[6:])
+    return mcp_examples.get_remote_mcp_session(server_val, api_key_header)
+  elif server_val.startswith('local:'):
+    return mcp_examples.get_local_mcp_session(server_val[6:])
   else:
     raise ValueError(
-        f'Unsupported MCP server: {_MCP_SERVER.value}. Use one of the'
+        f'Unsupported MCP server: {server_val}. Use one of the'
         ' following:\n- demo\n- https://<address>\n- local:<command>'
     )
 
@@ -145,7 +147,14 @@ async def run_chat() -> None:
 
   # See models.py for the list of supported models and flags used to select one.
   async with contextlib.AsyncExitStack() as stack:
-    mcp_session = await stack.enter_async_context(_get_mcp_session())
+    if _MCP_SERVER.value is not None:
+      mcp_session = await stack.enter_async_context(_get_mcp_session())
+      tools = [mcp_session]
+      fns = [mcp_session]
+    else:
+      tools = [genai_types.Tool(google_search=genai_types.GoogleSearch())]
+      fns = []
+
     if _TRACE_DIR.value:
       await stack.enter_async_context(
           trace_file.SyncFileTrace(trace_dir=_TRACE_DIR.value, name='chat')
@@ -154,11 +163,11 @@ async def run_chat() -> None:
     model = models.turn_based_model(
         system_instruction=SYSTEM_INSTRUCTIONS,
         disable_automatic_function_calling=True,
-        tools=[mcp_session],
+        tools=tools,
     )
     model = function_calling.FunctionCalling(
         model=realtime.LiveModelProcessor(model),
-        fns=[mcp_session],
+        fns=fns,
         is_bidi_model=True,
     )
 
