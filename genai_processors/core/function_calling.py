@@ -301,6 +301,17 @@ FUNCTION_CALL_SUBSTREAM_NAME = 'function_call'
 _SCHEDULING_METADATA_KEY = '__scheduling__'
 
 
+def _get_scheduling(
+    part: content_api.ProcessorPart,
+) -> genai_types.FunctionResponseScheduling:
+  if part.function_response and part.function_response.scheduling:
+    return part.function_response.scheduling
+  return part.get_metadata(
+      _SCHEDULING_METADATA_KEY,
+      genai_types.FunctionResponseScheduling.WHEN_IDLE,
+  )
+
+
 @dataclasses.dataclass
 class _FunctionCallState:
   """State of the function calling processor."""
@@ -505,16 +516,60 @@ class FunctionCalling(processor.Processor):
 
     pipeline_task = processor.create_task(processor_pipeline())
 
+    deferred_function_responses = []
+
+    async def _yield_part(part):
+      if not self._is_bidi_model or part.function_response:
+        await input_queue.put(part)
+      yield part
+
+      if part.function_call:
+        state.running_fc_count += 1
+
+      if part.function_response:
+        if not part.function_response.will_continue:
+          state.running_fc_count -= 1
+
+        match _get_scheduling(part):
+          case genai_types.FunctionResponseScheduling.SILENT:
+            pass
+          case genai_types.FunctionResponseScheduling.WHEN_IDLE:
+            if state.model_outputting:
+              state.schedule_model_call = True
+            else:
+              await input_queue.put(content_api.END_OF_TURN)
+          case _:
+            await input_queue.put(content_api.END_OF_TURN)
+            # If we reached max count, we should allow the model to react to
+            # this response, so we make one extra iteration and stop after it.
+        if state.fn_call_count >= state.fn_call_count_limit + 1:
+          await input_queue.put(None)
+          await output_queue.put(None)
+          pipeline_task.cancel()
+
     async for part in streams.dequeue(output_queue):
       if content_api.is_end_of_turn(part) and part.role == 'model':
         state.model_outputting = False
+
+        had_non_silent_deferred = False
+        for deferred in deferred_function_responses:
+          if deferred.function_response:
+            if (
+                _get_scheduling(deferred)
+                != genai_types.FunctionResponseScheduling.SILENT
+            ):
+              had_non_silent_deferred = True
+          async for yielded in _yield_part(deferred):
+            yield yielded
+        deferred_function_responses.clear()
+
         # EoT issued by the model. We need to check if we stop or if there is
         # a function call to schedule.
         if not self._is_bidi_model:
           if state.schedule_model_call:
             await input_queue.put(content_api.END_OF_TURN)
             state.schedule_model_call = False
-          elif state.running_fc_count == 0:
+          elif not had_non_silent_deferred and state.running_fc_count == 0:
             # Stop when there are no more function calls to execute and no more
             # async function calls running, or when the max function calls is
             # reached.
@@ -530,41 +585,17 @@ class FunctionCalling(processor.Processor):
         if context_lib.is_reserved_substream(part.substream_name):
           yield part
         else:
-          # Reinject output parts into the model when it's not bidi.
-          if not self._is_bidi_model or part.function_response:
-            await input_queue.put(part)
-          yield part
-
-          if part.function_call:
-            state.running_fc_count += 1
-
+          should_defer = False
           if part.function_response:
-            if not part.function_response.will_continue:
-              state.running_fc_count -= 1
-
-            if part.function_response.scheduling:
-              scheduling = part.function_response.scheduling
-            else:
-              scheduling = part.get_metadata(
-                  _SCHEDULING_METADATA_KEY,
-                  genai_types.FunctionResponseScheduling.WHEN_IDLE,
-              )
-            match scheduling:
-              case genai_types.FunctionResponseScheduling.SILENT:
-                pass
-              case genai_types.FunctionResponseScheduling.WHEN_IDLE:
-                if state.model_outputting:
-                  state.schedule_model_call = True
-                else:
-                  await input_queue.put(content_api.END_OF_TURN)
-              case _:
-                await input_queue.put(content_api.END_OF_TURN)
-            # If we reached max count, we should allow the model to react to
-            # this response, so we make one extra iteration and stop after it.
-            if state.fn_call_count >= state.fn_call_count_limit + 1:
-              await input_queue.put(None)
-              await output_queue.put(None)
-              pipeline_task.cancel()
+            should_defer = _get_scheduling(part) in (
+                genai_types.FunctionResponseScheduling.SILENT,
+                genai_types.FunctionResponseScheduling.WHEN_IDLE,
+            )
+          if should_defer and state.model_outputting:
+            deferred_function_responses.append(part)
+          else:
+            async for yielded in _yield_part(part):
+              yield yielded
 
 
 async def cancel_fc(function_ids: list[str]) -> content_api.ProcessorPart:

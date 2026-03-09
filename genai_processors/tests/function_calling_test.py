@@ -123,7 +123,6 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             name='get_weather',
             args={'location': 'London'},
             role='model',
-            substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
         )
     ]
     model_output_1 = [content_api.ProcessorPart('Sun will shine', role='model')]
@@ -221,18 +220,98 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
         ],
     )
 
+  async def test_batched_function_calls(self):
+    fc1 = content_api.ProcessorPart(
+        genai_types.Part(
+            function_call=genai_types.FunctionCall(
+                name='sleep_async',
+                id='sleep_async-1',
+                args={'sleep_seconds': 0.1},
+            )
+        ),
+        role='model',
+    )
+    fc2 = content_api.ProcessorPart(
+        genai_types.Part(
+            function_call=genai_types.FunctionCall(
+                name='sleep_async',
+                id='sleep_async-2',
+                args={'sleep_seconds': 0.1},
+            )
+        ),
+        role='model',
+    )
+    model_output_0 = [fc1, fc2]
+    model_output_1 = [content_api.ProcessorPart('done', role='model')]
+    model_output_2 = [content_api.ProcessorPart('all done', role='model')]
+
+    generate_processor = MockGenerateProcessor([
+        model_output_0,
+        model_output_1,
+        model_output_2,
+    ])
+    fc_processor = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[sleep_async],
+    )
+
+    input_content = [content_api.ProcessorPart('Sleep twice')]
+    output = await fc_processor(streams.stream_content(input_content)).gather()
+
+    self.assertSequenceEqual(
+        output,
+        [
+            fc1,
+            fc2,
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                function_call_id='sleep_async-1',
+                response='Running in background.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                scheduling='SILENT',
+                will_continue=True,
+            ),
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                function_call_id='sleep_async-2',
+                response='Running in background.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                scheduling='SILENT',
+                will_continue=True,
+            ),
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                function_call_id='sleep_async-1',
+                response='Slept for 0.1 seconds',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+            ),
+            content_api.ProcessorPart.from_function_response(
+                name='sleep_async',
+                function_call_id='sleep_async-2',
+                response='Slept for 0.1 seconds',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+            ),
+        ]
+        + model_output_1
+        + model_output_2,
+    )
+
   async def test_max_function_calls(self):
     max_function_calls = 1
-    generate_processor = MockGenerateProcessor(
-        [[
+    generate_processor = MockGenerateProcessor([
+        [
             content_api.ProcessorPart.from_function_call(
                 name='get_time',
                 args={},
                 role='model',
             )
-        ]]
-        * (max_function_calls + 1)
-    )
+        ]
+        for _ in range(max_function_calls + 1)
+    ])
     fc_processor = function_calling.FunctionCalling(
         generate_processor,
         fns=[get_weather, get_time],
