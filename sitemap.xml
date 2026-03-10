@@ -2,66 +2,66 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://google-gemini.github.io/genai-processors/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/getting-started/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/concepts/async-streaming/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/concepts/function-calling/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/concepts/processor/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/concepts/realtime/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/development/built-in-processors/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/development/caching/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/development/supported-models/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/development/tracing/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/examples/cli/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/examples/live_commentator/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/examples/research_agent/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/examples/widgets/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/rapid-prototyping/ai-studio/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
     <url>
          <loc>https://google-gemini.github.io/genai-processors/rapid-prototyping/cli/</loc>
-         <lastmod>2026-03-09</lastmod>
+         <lastmod>2026-03-10</lastmod>
     </url>
 </urlset>
