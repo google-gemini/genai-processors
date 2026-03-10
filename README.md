@@ -7,36 +7,54 @@
 **Build Modular, Asynchronous, and Composable AI Pipelines for Generative AI.**
 
 GenAI Processors is a lightweight Python library that enables efficient,
-parallel content processing.
+parallel content processing. It addresses the fragmentation of LLM APIs through
+three core pillars:
 
-At the core of the GenAI Processors library lies the concept of a `Processor`. A
-`Processor` encapsulates a unit of work with a simple API: it takes a stream of
-`ProcessorPart`s (i.e. a data part representing a text, image, etc.) as input
-and returns a stream of `ProcessorPart`s (or compatible types) as output.
+1.  **Unified Content Model**: A single, consistent representation for inputs
+    and outputs across models, agents, and tools.
+2.  **Processors**: Simple, composable Python classes that transform content
+    streams using native `asyncio`.
+3.  **Streaming**: Asynchronous streaming capabilities built-in by default,
+    without added plumbing complexity.
+
+At the ecosystem's core lies the `Processor`, which encapsulates a unit of work.
+Through a "dual-interface" pattern, it handles the complexity of asynchronous,
+multimodal data streaming while exposing a simple API to developers:
 
 ```python
-# Any class inheriting from processor.Processor and
-# implementing this function is a processor.
-async def call(
-  content: AsyncIterable[ProcessorPart]
-) -> AsyncIterable[ProcessorPartTypes]
+from typing import AsyncIterable
+from genai_processors import content_api
+from genai_processors import processor
+
+class EchoProcessor(processor.Processor):
+  # The PRODUCER interface (for the processor author):
+  # Takes a robust ContentStream as input, and yields part types.
+  async def call(
+      self, content: content_api.ContentStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+      # Process content as it streams in!
+      async for part in content:
+          yield part
 ```
 
-You can apply a `Processor` to any input stream and easily iterate through its
-output stream:
+Applying a `Processor` is just as straightforward. The CONSUMER interface
+accepts wide, forgiving input types and returns a powerful stream that can be
+awaited entirely or streamed chunk-by-chunk:
 
 ```python
-from genai_processors import content_api
-from genai_processors import streams
+# The CONSUMER interface (for the caller):
+# Provide input effortlessly. Strings are automatically cast into Parts.
+input_content = ["Hello ", content_api.ProcessorPart("World")]
 
-# Create an input stream (strings are automatically cast into Parts).
-input_parts = ["Hello", content_api.ProcessorPart("World")]
-input_stream = streams.stream_content(input_parts)
+# 1. Gather all outputs easily into one object:
+result: content_api.ProcessorContent = await simple_text_processor(input_content).gather()
 
-# Apply a processor to a stream of parts and iterate over the result
-async for part in simple_text_processor(input_stream):
-  print(part.text)
-...
+# 2. Or for text-only agents, get the text directly:
+print(await simple_text_processor(input_content).text())
+
+# 3. And for streaming use cases, iterate over the parts as they arrive:
+async for part in simple_text_processor(input_content):
+  print(part.text, end="")
 ```
 
 The concept of `Processor` provides a common abstraction for Gemini model calls
@@ -85,8 +103,12 @@ environment to provide the model with the necessary context.
 
 ## 🚀 Getting Started
 
-Check the following colabs to get familiar with GenAI processors (we recommend
-following them in order):
+We recommend to start with the
+[documentation microsite](https://google-gemini.github.io/genai-processors/)
+which covers the core concepts, development guides, and architecture.
+
+You can also check the following colabs to get familiar with GenAI processors
+(we recommend following them in order):
 
 *   [Content API Colab](https://colab.research.google.com/github/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb) -
     explains the basics of `ProcessorPart`, `ProcessorContent`, and how to
