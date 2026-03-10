@@ -236,7 +236,7 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
             function_call=genai_types.FunctionCall(
                 name='sleep_async',
                 id='sleep_async-2',
-                args={'sleep_seconds': 0.1},
+                args={'sleep_seconds': 0.2},
             )
         ),
         role='model',
@@ -288,15 +288,17 @@ class FunctionCallingSyncTest(unittest.IsolatedAsyncioTestCase):
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
+        ]
+        + model_output_1
+        + [
             content_api.ProcessorPart.from_function_response(
                 name='sleep_async',
                 function_call_id='sleep_async-2',
-                response='Slept for 0.1 seconds',
+                response='Slept for 0.2 seconds',
                 role='user',
                 substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
             ),
         ]
-        + model_output_1
         + model_output_2,
     )
 
