@@ -42,6 +42,7 @@ dependencies = [
     "pypdfium2>=4.30.0",
     "shortuuid>=1.0.0",
     "xxhash>=3.0.0",
+    "mcp>=1.26.0",
 ]
 
 # `version` is automatically set by flit to use `genai_processors.__version__`
