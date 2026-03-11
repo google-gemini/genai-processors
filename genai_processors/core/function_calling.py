@@ -523,7 +523,10 @@ class FunctionCalling(processor.Processor):
           # explicitly set to role='user'.
           if not part.role or content_api.is_end_of_turn(part):
             part.role = 'model'
-          if part.function_call:
+          # FunctionCalling processors might be nested. If the part has
+          # substream name set it means that it has already been handled and
+          # has been emitted as a notification. So we ignore it here.
+          if part.function_call and not part.substream_name:
             await execute_function_call(part)
           else:
             await output_queue.put(part)

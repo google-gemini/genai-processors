@@ -1318,5 +1318,53 @@ class FunctionCallingAsyncTest(
     )
 
 
+  # While this combination is rarely practical, it is still valid and sometimes
+  # easier to organize code this way.
+  async def test_nested_function_calling(self):
+    model_output_0 = [
+        content_api.ProcessorPart.from_function_call(
+            name='get_weather',
+            args={'location': 'London'},
+            role='model',
+        )
+    ]
+    model_output_1 = [
+        content_api.ProcessorPart('Sun will shine', role='model')
+    ]
+
+    generate_processor = MockGenerateProcessor([
+        model_output_0,
+        model_output_1,
+    ])
+    inner_fc = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[get_weather],
+    )
+    outer_fc = function_calling.FunctionCalling(
+        inner_fc,
+        fns=[get_weather],
+    )
+    input_content = content_api.ProcessorContent(
+        'What is the weather in London?'
+    )
+    output = await outer_fc(input_content).gather()
+    function_call_parts = [
+        p for p in output if p.function_call
+    ]
+    function_response_parts = [
+        p for p in output if p.function_response
+    ]
+    self.assertLen(function_call_parts, 1)
+    self.assertEqual(function_call_parts[0].function_call.name, 'get_weather')
+    self.assertLen(function_response_parts, 1)
+    self.assertEqual(
+        function_response_parts[0].function_response.name, 'get_weather'
+    )
+    self.assertIn(
+        'Weather in London is sunny',
+        str(function_response_parts[0].function_response.response),
+    )
+
+
 if __name__ == '__main__':
   absltest.main()
