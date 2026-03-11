@@ -301,6 +301,22 @@ FUNCTION_CALL_SUBSTREAM_NAME = 'function_call'
 _SCHEDULING_METADATA_KEY = '__scheduling__'
 
 
+def _is_coroutine_function(fn: Any) -> bool:
+  return inspect.iscoroutinefunction(fn) or (
+      callable(fn) and inspect.iscoroutinefunction(fn.__call__)
+  )
+
+
+def _is_async_gen_function(fn: Any) -> bool:
+  return inspect.isasyncgenfunction(fn) or (
+      callable(fn) and inspect.isasyncgenfunction(fn.__call__)
+  )
+
+
+def _get_fn_name(fn: Any) -> str:
+  return getattr(fn, '__name__', type(fn).__name__)
+
+
 def _get_scheduling(
     part: content_api.ProcessorPart,
 ) -> genai_types.FunctionResponseScheduling:
@@ -645,7 +661,7 @@ class _ExecuteFunctionCall:
       is_bidi_model: bool,
       substream_name: str,
   ):
-    self._fns = {fn.__name__: fn for fn in fns}
+    self._fns = {_get_fn_name(fn): fn for fn in fns}
     if is_bidi_model:
       # Cancel and list functions make only sense for bidi models.
       self._fns['cancel_fc'] = self.cancel_fc
@@ -827,7 +843,7 @@ class _ExecuteFunctionCall:
         )
     )
     try:
-      if inspect.isasyncgenfunction(fn):
+      if _is_async_gen_function(fn):
         # When the generator exits we automatically add a will_continue=False
         # Part. We send one to the downstream processor and also a separate
         # one for each of the reserved substreams as they have distinct
@@ -859,7 +875,7 @@ class _ExecuteFunctionCall:
               substream_name=substream,
               role='user',
           )
-      elif inspect.iscoroutinefunction(fn):
+      elif _is_coroutine_function(fn):
         yield self._to_function_response(
             await fn(**converted_args), call, will_continue=None
         )
@@ -874,7 +890,7 @@ class _ExecuteFunctionCall:
           name=call.name,
           function_call_id=call.id,
           response=(
-              f'Failed to invoke function {fn.__name__}({converted_args}): {e}'
+              f'Failed to invoke function {call.name}({converted_args}): {e}'
           ),
           role='user',
           substream_name=self._substream_name,
@@ -914,8 +930,8 @@ class _ExecuteFunctionCall:
       return
 
     if (
-        inspect.iscoroutinefunction(fn)
-        or inspect.isasyncgenfunction(fn)
+        _is_coroutine_function(fn)
+        or _is_async_gen_function(fn)
         or self._is_bidi_model
     ):
       if call.id is None:

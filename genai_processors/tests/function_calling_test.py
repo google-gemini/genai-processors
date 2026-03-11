@@ -455,6 +455,14 @@ async def async_gen_with_status() -> content_api.ProcessorPart:
   yield 'Final result'
 
 
+class AsyncCallableSleep:
+
+  async def __call__(self, sleep_seconds: float) -> str:
+    """Sleeps for a given number of seconds and returns how long it took."""
+    await asyncio.sleep(sleep_seconds)
+    return f'Slept for {sleep_seconds} seconds'
+
+
 class FunctionCallingAsyncTest(
     unittest.IsolatedAsyncioTestCase, parameterized.TestCase
 ):
@@ -1260,6 +1268,53 @@ class FunctionCallingAsyncTest(
     self.assertCountEqual(
         closed_substreams,
         ['status', function_calling.FUNCTION_CALL_SUBSTREAM_NAME],
+    )
+
+  async def test_callable_with_async_call(self):
+    model_output_0 = [
+        content_api.ProcessorPart.from_function_call(
+            name='AsyncCallableSleep',
+            args={'sleep_seconds': 0.2},
+            role='model',
+        )
+    ]
+    model_output_1 = [content_api.ProcessorPart('Got the result', role='model')]
+
+    generate_processor = MockGenerateProcessor([
+        model_output_0,
+        model_output_1,
+    ])
+    tool = AsyncCallableSleep()
+    fc_processor = function_calling.FunctionCalling(
+        generate_processor,
+        fns=[tool],
+    )
+
+    output = await fc_processor('Call async callable').gather()
+    self.assertSequenceEqual(
+        output,
+        model_output_0
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='AsyncCallableSleep',
+                function_call_id='AsyncCallableSleep_0',
+                response='Running in background.',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+                scheduling='SILENT',
+                will_continue=True,
+            ),
+        ]
+        + [
+            content_api.ProcessorPart.from_function_response(
+                name='AsyncCallableSleep',
+                response='Slept for 0.2 seconds',
+                function_call_id='AsyncCallableSleep_0',
+                role='user',
+                substream_name=function_calling.FUNCTION_CALL_SUBSTREAM_NAME,
+            ),
+        ]
+        + model_output_1,
     )
 
 
