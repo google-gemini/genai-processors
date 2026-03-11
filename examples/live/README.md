@@ -9,6 +9,8 @@ adapting its commentary to the changing context. It utilizes Gemini's multimodal
 capabilities and asynchronous function calls to provide an engaging and
 responsive experience.
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/google-gemini/genai-processors/blob/main/LICENSE)
+
 ## 🚀 Running the commentator
 
 We recommend the AI Studio version of the agent as it utilizes the echo
@@ -255,8 +257,3 @@ duration of the current audio.
 *   The `RateLimitAudio` processor is typically used *after* the
     `LiveCommentator` to ensure the audio output is played back at the correct
     speed and can be interrupted properly.
-
-## 📜 License
-
-This example is licensed under the Apache License, Version 2.0.
-

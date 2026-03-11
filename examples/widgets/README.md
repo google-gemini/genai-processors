@@ -1,7 +1,11 @@
-# Dynamic Widgets Demo
+# Dynamic Widgets Demo 📊
 
 This demo shows how async tools can be used to enrich model output with UI
-elements. Each UI element (e.g., a plot, map, 3D viewer) is registered as a
+elements.
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/google-gemini/genai-processors/blob/main/LICENSE)
+
+Each UI element (e.g., a plot, map, 3D viewer) is registered as a
 tool. In this case, these are `ImageGenerator` (backed by Imagen 3) and
 `PlotGenerator` (backed by Gemini instructed to output SVG).
 
@@ -33,7 +37,7 @@ Note that this way we create a tiered approach to widget rendering:
 This setup allows streaming content independently of widgets and rendering
 widgets in parallel. We can even stream widgets themselves.
 
-## How to run it
+## 🚀 How to run it
 
 This example comes with a web UI based on AI Studio Applets.
 
@@ -54,7 +58,7 @@ This example comes with a web UI based on AI Studio Applets.
 
     Note how the browser renders plots while they are being generated.
 
-## Limitations
+## ⚠️ Limitations
 
  *  The prompts were not optimized for quality: the agent's output may contain
     errors. The purpose of this demo is to demonstrate how to render widgets,
