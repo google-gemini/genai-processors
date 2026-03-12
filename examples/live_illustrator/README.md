@@ -16,10 +16,14 @@ which have been added to Genai Processors v2.0. This way image generation does
 not block the listener model and the agent can keep up with the narration,
 working on multiple illustrations in parallel, if needed.
 
-**Note:** The agent generates a high volume of images. You might get throttled
-by Nano Banana or consume a considerable amount of tokens. You can control the
-period between two image generation in the UI, we recommend to set it to 30
-seconds to start.
+**Note:** The agent generates a high volume of images, which may lead to
+throttling by Nano Banana or high token consumption. You can control the
+interval between image generations in the UI; we recommend an initial setting of
+30 seconds. Please note that image generation will be slower at this rate. Check
+the logs for the error `HTTP/1.1 429 Too Many Requests`. If you see this while
+on the free tier, your requests are being blocked. While the program will
+continue to retry, illustrations may arrive significantly slower than usual—or
+not at all if the system is saturated.
 
 ## 🚀 How to run it
 
