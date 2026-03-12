@@ -12,7 +12,7 @@ def on_post_build(config, **kwargs):
       (os.path.join(base_dir, 'llms.txt'), os.path.join(site_dir, 'llms.txt')),
       (
           os.path.join(docs_dir, 'producer_consumer.svg'),
-          os.path.join(site_dir, 'producer_consumer.svg'),
+          os.path.join(site_dir, 'principles', 'producer_consumer.svg'),
       ),
   ]
   for src, dest in extra_files:
