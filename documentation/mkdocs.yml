@@ -60,6 +60,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Design Principles: principles.md
   - Concepts:
     - Processor: concepts/processor.md
     - Async & Streaming: concepts/async-streaming.md

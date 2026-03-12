@@ -58,10 +58,7 @@ Here is how that tension manifests in real-world scenarios:
 This fragmentation is not inevitable. It is the result of how systems naturally
 evolved along the path of least resistance. We propose an approach based on
 three core pillars that actually remove these constraints, or at least reduce
-them drastically:"
-
-We believe that by choosing the right abstractions, many of these traditional
-boundaries evaporate. Our approach focuses on three core pillars:
+them drastically:
 
 *   **Unified content model** - We use a single, consistent representation for
     inputs and outputs across models, agents, and tools. This way they can
@@ -88,8 +85,8 @@ the plumbing should be there**.
 
 By delegating the heavy lifting to native Python and `asyncio`, we ensure our
 framework feels like an extension of existing Python logic, not a hurdle. On top
-of this foundation, we’ve added our 'secret sauce': the Hourglass Architecture,
-a universal adapter for flowing data in and out of any model:
+of this foundation, we’ve added an Hourglass-like Architecture, a universal
+adapter for flowing data in and out of any model:
 
 *   Producer yields Content in whatever form is most convenient: just a string,
     list of multimodal Parts, AsyncIterator...
@@ -101,16 +98,14 @@ a universal adapter for flowing data in and out of any model:
     (which are just Python functions), the function signature itself acts as the
     declaration.
 
-<p align="center">
-  <img src="producer_consumer.svg" alt="Illustration: consumer - producer hourglass" width="800pt">
-</p>
+![Illustration: consumer - producer hourglass](./producer_consumer.svg){ width="800" style="display:block; margin:0 auto;" }
 
 This works because LLMs act as a design anchor: content circulating through the
 system will go to or be produced by them, likely multiple times and at different
 levels. Since models naturally process weakly typed, multimodal data, sticking
 to a flexible format ensures we remain compatible with the broader AI ecosystem.
 
-However, this flexibility is a strategic trade-of: working with weakly typed
+However, this flexibility is a strategic trade-off: working with weakly typed
 data is harder. Rather than attempting to eliminate that inherent complexity —
 which usually just causes it to resurface as fragmentation elsewhere — we keep
 it in check by encapsulating it within a robust, shared library covered by
@@ -186,9 +181,8 @@ it's a universal utility for the entire ecosystem.
 ## Processors
 
 At a high level, models, agents, and tools are just transformations of content.
-Instead of inventing a proprietary framework for defining these transformations,
-we rely on time-proven and well-known tools: Python and Asyncio. These provide
-the robust, native runtime your agents need.
+As mentioned before, we rely on time-proven and well-known tools: Python and
+Asyncio. These provide the robust, native runtime your agents need.
 
 We call these functional blocks Processors (to avoid confusion with the
 "Transformer" neural network architecture). In the very first version of the
@@ -277,7 +271,7 @@ class CriticReviser(processor.Processor):
     self._max_iterations = max_iterations
 
   async def call(
-      self, content: content_api.ContentStream
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     # We gather content from the stream as we will need to reuse it multiple times.
     input_content = await content.gather()
@@ -323,12 +317,19 @@ class CriticReviser(processor.Processor):
 >
 > ― Mark Twain
 
-If left unchecked, building AI applications inevitably turns into an exercise in
-wrangling complex, disjointed APIs. You end up writing the "long letter"—bloated
-glue code simply to get agents, models, tools, and UIs to communicate.
+If left unchecked, building AI applications becomes an exercise in wrangling
+disjointed APIs. You end up writing the "long letter"—miles of glue code just to
+keep agents, models, and UIs in sync.
 
-By adopting a unified content model, leaning into Python's native `asyncio`, and
-decoupling the Producer and Consumer interfaces, GenAI Processors handles the
-structural complexity for you. We make writing the "short letters" easier: a
-cohesive framework where you don't pay for the plumbing you don't use, but it's
-always there when you need it. Let's make building agents simple again.
+This trap has only deepened with the rise of coding agents. While these tools
+make it easier than ever to generate "long letters" in seconds, the resulting
+bloat is a liability for maintenance and quality control. Whether you are
+writing the code yourself or directing an AI to do it, volume is rarely a proxy
+for value.
+
+GenAI Processors is built to eliminate this "plumbing tax." By leveraging a
+unified content model and native asyncio patterns, the framework decouples the
+messy parts of orchestration from your actual logic. It provides the
+architectural constraints necessary to write the "short letter". No matter
+who—or what—is hitting the keys, it’s about having the plumbing you need without
+the bloat you don't.
