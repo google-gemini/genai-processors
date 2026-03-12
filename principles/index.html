@@ -13,6 +13,10 @@
         <link rel="canonical" href="https://google-gemini.github.io/genai-processors/principles/">
       
       
+        <link rel="prev" href="../getting-started/">
+      
+      
+        <link rel="next" href="../concepts/processor/">
       
       
         
@@ -23,7 +27,7 @@
     
     
       
-        <title>Principles - GenAI Processors</title>
+        <title>Design Principles - GenAI Processors</title>
       
     
     
@@ -112,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Principles
+              Design Principles
             
           </span>
         </div>
@@ -311,6 +315,181 @@
       
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Principles
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design Principles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#genai-processors-design-principles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GenAI Processors design principles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reduce-fragmentation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reduce fragmentation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#managing-the-complexity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Managing the complexity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unified-content-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unified content model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#streaming-responsiveness-without-complexity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Streaming: responsiveness without complexity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#processors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processors
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Processors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-dual-interface-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The dual-interface pattern
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-it-means-in-practice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What it means in practice
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Conclusion
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
   
   
     
@@ -339,10 +518,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -360,8 +539,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -518,10 +697,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -539,8 +718,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -645,10 +824,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -666,8 +845,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -830,10 +1009,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -851,8 +1030,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1043,10 +1222,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
         
           
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
             
   
   
@@ -1064,8 +1243,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1371,7 +1550,7 @@
   
 
 
-  <h1>Principles</h1>
+  <h1>Design Principles</h1>
 
 <h3 id="genai-processors-design-principles">GenAI Processors design principles</h3>
 <h2 id="reduce-fragmentation">Reduce fragmentation</h2>
@@ -1431,9 +1610,7 @@ between a schema-less model and a strongly-typed tool is quickly disappearing.</
 <p>This fragmentation is not inevitable. It is the result of how systems naturally
 evolved along the path of least resistance. We propose an approach based on
 three core pillars that actually remove these constraints, or at least reduce
-them drastically:"</p>
-<p>We believe that by choosing the right abstractions, many of these traditional
-boundaries evaporate. Our approach focuses on three core pillars:</p>
+them drastically:</p>
 <ul>
 <li><strong>Unified content model</strong> - We use a single, consistent representation for
     inputs and outputs across models, agents, and tools. This way they can
@@ -1458,8 +1635,8 @@ agent's code</strong>. Our goal is to provide an API that encapsulates this comp
 the plumbing should be there</strong>.</p>
 <p>By delegating the heavy lifting to native Python and <code>asyncio</code>, we ensure our
 framework feels like an extension of existing Python logic, not a hurdle. On top
-of this foundation, we’ve added our 'secret sauce': the Hourglass Architecture,
-a universal adapter for flowing data in and out of any model:</p>
+of this foundation, we’ve added an Hourglass-like Architecture, a universal
+adapter for flowing data in and out of any model:</p>
 <ul>
 <li>Producer yields Content in whatever form is most convenient: just a string,
     list of multimodal Parts, AsyncIterator...</li>
@@ -1471,15 +1648,12 @@ a universal adapter for flowing data in and out of any model:</p>
     (which are just Python functions), the function signature itself acts as the
     declaration.</li>
 </ul>
-<p align="center">
-  <img src="producer_consumer.svg" alt="Illustration: consumer - producer hourglass" width="800pt">
-</p>
-
+<p><img alt="Illustration: consumer - producer hourglass" src="../producer_consumer.svg" style="display:block; margin:0 auto;" width="800" /></p>
 <p>This works because LLMs act as a design anchor: content circulating through the
 system will go to or be produced by them, likely multiple times and at different
 levels. Since models naturally process weakly typed, multimodal data, sticking
 to a flexible format ensures we remain compatible with the broader AI ecosystem.</p>
-<p>However, this flexibility is a strategic trade-of: working with weakly typed
+<p>However, this flexibility is a strategic trade-off: working with weakly typed
 data is harder. Rather than attempting to eliminate that inherent complexity —
 which usually just causes it to resurface as fragmentation elsewhere — we keep
 it in check by encapsulating it within a robust, shared library covered by
@@ -1544,9 +1718,8 @@ such. Importantly, this stream doesn't even have to originate from a Processor;
 it's a universal utility for the entire ecosystem.</p>
 <h2 id="processors">Processors</h2>
 <p>At a high level, models, agents, and tools are just transformations of content.
-Instead of inventing a proprietary framework for defining these transformations,
-we rely on time-proven and well-known tools: Python and Asyncio. These provide
-the robust, native runtime your agents need.</p>
+As mentioned before, we rely on time-proven and well-known tools: Python and
+Asyncio. These provide the robust, native runtime your agents need.</p>
 <p>We call these functional blocks Processors (to avoid confusion with the
 "Transformer" neural network architecture). In the very first version of the
 library they were regular async Python functions. But then we realized that by
@@ -1615,7 +1788,7 @@ pattern:</p>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span> <span class="o">=</span> <span class="n">max_iterations</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
 <a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>      <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ContentStream</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>      <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">processor</span><span class="o">.</span><span class="n">ProcessorStream</span>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
 <a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="c1"># We gather content from the stream as we will need to reuse it multiple times.</span>
 <a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="n">input_content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">content</span><span class="o">.</span><span class="n">gather</span><span class="p">()</span>
@@ -1659,14 +1832,20 @@ pattern:</p>
 <p>I didn't have time to write a short letter, so I wrote a long one instead.</p>
 <p>― Mark Twain</p>
 </blockquote>
-<p>If left unchecked, building AI applications inevitably turns into an exercise in
-wrangling complex, disjointed APIs. You end up writing the "long letter"—bloated
-glue code simply to get agents, models, tools, and UIs to communicate.</p>
-<p>By adopting a unified content model, leaning into Python's native <code>asyncio</code>, and
-decoupling the Producer and Consumer interfaces, GenAI Processors handles the
-structural complexity for you. We make writing the "short letters" easier: a
-cohesive framework where you don't pay for the plumbing you don't use, but it's
-always there when you need it. Let's make building agents simple again.</p>
+<p>If left unchecked, building AI applications becomes an exercise in wrangling
+disjointed APIs. You end up writing the "long letter"—miles of glue code just to
+keep agents, models, and UIs in sync.</p>
+<p>This trap has only deepened with the rise of coding agents. While these tools
+make it easier than ever to generate "long letters" in seconds, the resulting
+bloat is a liability for maintenance and quality control. Whether you are
+writing the code yourself or directing an AI to do it, volume is rarely a proxy
+for value.</p>
+<p>GenAI Processors is built to eliminate this "plumbing tax." By leveraging a
+unified content model and native asyncio patterns, the framework decouples the
+messy parts of orchestration from your actual logic. It provides the
+architectural constraints necessary to write the "short letter". No matter
+who—or what—is hitting the keys, it’s about having the plumbing you need without
+the bloat you don't.</p>
 
 
 
@@ -1697,6 +1876,44 @@ always there when you need it. Let's make building agents simple again.</p>
       
         <footer class="md-footer">
   
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../getting-started/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Getting Started">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Getting Started
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../concepts/processor/" class="md-footer__link md-footer__link--next" aria-label="Next: Processor">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Processor
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
     
   
   <div class="md-footer-meta md-typeset">
