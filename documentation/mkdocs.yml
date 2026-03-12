@@ -69,6 +69,7 @@ nav:
   - Rapid Prototyping:
     - AI Studio: rapid-prototyping/ai-studio.md
     - Command Line: rapid-prototyping/cli.md
+    - Coding Agent: rapid-prototyping/coding-agent.md
   - Development:
     - Supported Models: development/supported-models.md
     - Built-in Processors: development/built-in-processors.md
