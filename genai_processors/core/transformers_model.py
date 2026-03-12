@@ -143,7 +143,7 @@ class TransformersModel(processor.Processor):
       transformers.set_seed(seed)
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Internal method to call the Ollama API and stream results."""
     messages = list(self._system_instruction)

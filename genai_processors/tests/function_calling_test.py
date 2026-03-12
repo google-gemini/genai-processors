@@ -42,8 +42,8 @@ class MockGenerateProcessor(processor.Processor):
     self._call_count = 0
 
   async def call(
-      self, content: content_api.ContentStream
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     self._requests.append(list(await content.gather()))
     if self._call_count < len(self._responses):
       response_parts = self._responses[self._call_count]
@@ -51,7 +51,7 @@ class MockGenerateProcessor(processor.Processor):
       for part in response_parts:
         yield part
     else:
-      yield content_api.ProcessorPart('fallback response')
+      yield 'fallback response'
 
 
 class MockBidiGenerateProcessor(processor.Processor):
@@ -63,8 +63,8 @@ class MockBidiGenerateProcessor(processor.Processor):
     self._call_count = 0
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     prompt = []
     async for part in content:
       if content_api.is_end_of_turn(part):
@@ -75,7 +75,7 @@ class MockBidiGenerateProcessor(processor.Processor):
           for part in response_parts:
             yield part
         else:
-          yield content_api.ProcessorPart('fallback response')
+          yield 'fallback response'
         yield content_api.END_OF_TURN
       else:
         prompt.append(part)

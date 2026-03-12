@@ -26,8 +26,8 @@ def get_processor_parts(
 
 @processor.processor_function
 async def _check_is_part(
-    content: AsyncIterable[content_api.ProcessorPart],
-) -> AsyncIterable[content_api.ProcessorPart]:
+    content: processor.ProcessorStream,
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
   async for part in content:
     if not isinstance(part, content_api.ProcessorPart):
       raise ValueError(f'{part!r} is not a content_api.ProcessorPart.')
@@ -49,16 +49,16 @@ class ProcessorPipelineTest(parameterized.TestCase):
   def test_chain_processors(self):
     @processor.processor_function
     async def processor_0(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         yield processor.debug('test')
         yield c
 
     @processor.processor_function
     async def processor_1(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         await asyncio.sleep(1)
         yield c
@@ -74,8 +74,8 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     @processor.processor_function
     async def slow_noop(
-        inputs: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        inputs: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for x in inputs:
         await asyncio.sleep(1)
         yield x
@@ -88,8 +88,8 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     @processor.processor_function
     async def processor_0(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         if c.text == 'bar':
           raise ValueError(err_msg)
@@ -97,8 +97,8 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     @processor.processor_function
     async def processor_1(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         await asyncio.sleep(1)
         yield c
@@ -117,7 +117,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
     @processor.part_processor_function
     async def mock_processor(
         content: processor.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       substreams_seen.add(content.substream_name)
       yield content
 
@@ -138,8 +138,8 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
     @processor.processor_function
     async def processor_0(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         if c.text == 'bar':
           raise ValueError(err_msg)
@@ -168,7 +168,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
     @processor.part_processor_function
     async def processor_0(
         part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       if part.text == 'bar':
         raise ValueError(err_msg)
       yield part
@@ -193,7 +193,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
   def test_normalization_function(self):
     @processor.processor_function
     async def yield_non_normalized_parts(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       """Demonstrates how part normalization works.
 
@@ -232,7 +232,7 @@ class ProcessorPipelineTest(parameterized.TestCase):
 
       async def call(
           self,
-          content: AsyncIterable[content_api.ProcessorPart],
+          content: processor.ProcessorStream,
       ) -> AsyncIterable[content_api.ProcessorPartTypes]:
         # content_api.ProcessorPart can be yielded and no conversion would
         # happen. We don't support AsyncIterable normalization yet, so a loop is
@@ -269,7 +269,7 @@ class PartProcessorTest(unittest.TestCase):
 
       async def call(
           self, part: content_api.ProcessorPart
-      ) -> AsyncIterable[content_api.ProcessorPart]:
+      ) -> AsyncIterable[content_api.ProcessorPartTypes]:
         part_int = int(part.text)
         # Wait for duration inverse to content
         await asyncio.sleep(2 - part_int)
@@ -291,7 +291,7 @@ class PartProcessorTest(unittest.TestCase):
     @processor.part_processor_function
     async def twice(
         part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       yield part
       yield part
 
@@ -313,7 +313,7 @@ class PartProcessorTest(unittest.TestCase):
 
       async def call(
           self, part: content_api.ProcessorPart
-      ) -> AsyncIterable[content_api.ProcessorPart]:
+      ) -> AsyncIterable[content_api.ProcessorPartTypes]:
         yield part
         yield part
 
@@ -335,7 +335,7 @@ class PartProcessorTest(unittest.TestCase):
     @processor.part_processor_function
     async def twice(
         part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       yield part
       yield part
 
@@ -368,8 +368,8 @@ class ProcessorTest(unittest.TestCase):
   def test_processor_fn_decorator(self):
     @processor.processor_function
     async def twotimes(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         yield c
         yield c
@@ -391,8 +391,8 @@ class ProcessorTest(unittest.TestCase):
 
       async def call(
           self,
-          content: AsyncIterable[content_api.ProcessorPart],
-      ) -> AsyncIterable[content_api.ProcessorPart]:
+          content: processor.ProcessorStream,
+      ) -> AsyncIterable[content_api.ProcessorPartTypes]:
         async for part in content:
           yield part
           yield part
@@ -414,8 +414,8 @@ class ProcessorTest(unittest.TestCase):
   def test_chain_processor(self):
     @processor.processor_function
     async def twotimes(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         yield c
         yield c
@@ -430,8 +430,8 @@ class ProcessorTest(unittest.TestCase):
 
     @processor.processor_function
     async def mock_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         substreams_seen.add(part.substream_name)
         yield part
@@ -463,7 +463,7 @@ class ProcessorTest(unittest.TestCase):
     @processor.part_processor_function
     async def mock_processor(
         content: processor.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       substreams_seen.add(content.substream_name)
       yield content
 
@@ -487,30 +487,30 @@ class TestWithProcessors(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def twice(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for c in content:
         yield c
         yield c
 
     @processor.processor_function
     async def tozero(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for _ in content:
         yield content_api.ProcessorPart('0')
 
     @processor.part_processor_function
     async def insert_1(
         part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       yield content_api.ProcessorPart('1')
       yield part
 
     @processor.part_processor_function
     async def insert_2(
         part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       yield content_api.ProcessorPart('2')
       yield part
 
@@ -550,8 +550,8 @@ class ProcessorChainMixTest(TestWithProcessors):
   @staticmethod
   @processor.processor_function
   async def _noop(
-      content: AsyncIterable[content_api.ProcessorPart],
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      content: processor.ProcessorStream,
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     async for part in content:
       yield part
 
@@ -562,7 +562,7 @@ class ProcessorChainMixTest(TestWithProcessors):
 
     async def call(
         self, part: content_api.ProcessorPart
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       if part.text == self._slow_part:
         await asyncio.sleep(0.1)
       yield part
@@ -573,8 +573,8 @@ class ProcessorChainMixTest(TestWithProcessors):
 
       async def call(
           self,
-          content: AsyncIterable[content_api.ProcessorPart],
-      ) -> AsyncIterable[content_api.ProcessorPart]:
+          content: processor.ProcessorStream,
+      ) -> AsyncIterable[content_api.ProcessorPartTypes]:
         async for part in content:
           yield part
           yield part
@@ -838,22 +838,22 @@ class ProcessorChainMixTest(TestWithProcessors):
 
     @processor.processor_function
     async def ones(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for _ in content:
         yield content_api.ProcessorPart('1')
 
     @processor.processor_function
     async def twos(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for _ in content:
         yield content_api.ProcessorPart('2')
 
     @processor.processor_function
     async def threes(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for _ in content:
         yield content_api.ProcessorPart('3')
 
@@ -881,7 +881,7 @@ class ProcessorChainMixTest(TestWithProcessors):
     @processor.part_processor_function
     async def mock_processor(
         content: processor.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       substreams_seen.add(content.substream_name)
       yield content
 
@@ -914,7 +914,7 @@ class ProcessorChainMixTest(TestWithProcessors):
     )
     async def add_one(
         part: content_api.ProcessorPart,
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       nonlocal task_count
       task_count += 1
       if part.text.startswith('0'):
@@ -1667,7 +1667,7 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def trackable_processor(
-        content: content_api.ContentStream,
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       call_tracker()
       yield f'processed:{await content.text()}'
@@ -1701,8 +1701,8 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def failing_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       del content  # Unused.
       call_tracker()
       raise ValueError('Something went wrong')
@@ -1732,14 +1732,14 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def processor1(
-        content: content_api.ContentStream,
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       tracker1()
       yield f'p1:{await content.text()}'
 
     @processor.processor_function
     async def processor2(
-        content: content_api.ContentStream,
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       tracker2()
       yield f'p2:{await content.text()}'
@@ -1771,8 +1771,8 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def empty_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
-    ) -> AsyncIterable[content_api.ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       del content  # Unused.
       call_tracker()
       return
@@ -1799,7 +1799,7 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def trackable_processor(
-        content: content_api.ContentStream,
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       call_tracker()
       yield f'processed:{await content.text()}'
@@ -1836,7 +1836,7 @@ class CachedProcessorTest(
 
     @processor.processor_function
     async def exception_processor(
-        content: content_api.ContentStream,
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       call_tracker()
       text = await content.text()
@@ -1882,21 +1882,21 @@ class SourceTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
   async def test_source_as_stream_usage(self):
     @processor.source()
-    async def MySource():
+    async def my_source():
       yield content_api.ProcessorPart('Hello')
       yield content_api.ProcessorPart(' ')
       yield content_api.ProcessorPart('World')
 
-    source_instance = MySource()
+    source_instance = my_source()
     self.assertEqual(await source_instance.text(), 'Hello World')
 
   async def test_source_gather(self):
     @processor.source()
-    async def MySource():
+    async def my_source():
       yield content_api.ProcessorPart('A')
       yield content_api.ProcessorPart('B')
 
-    source_instance = MySource()
+    source_instance = my_source()
     parts = await source_instance.gather()
     self.assertSequenceEqual(
         parts,

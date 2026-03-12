@@ -54,8 +54,8 @@ class Preamble(processor.Processor):
     self._content_factory = content_factory
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     if self._content is not None:
       for content_part in self._content:
         yield content_part

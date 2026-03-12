@@ -42,6 +42,7 @@ from genai_processors.core import window
 
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 PartProcessor = processor.PartProcessor
 Processor = processor.Processor
 
@@ -191,8 +192,8 @@ class LiveProcessor(Processor):
     output_queue.put_nowait(None)
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """Generates a conversation with a model."""
     output_queue = asyncio.Queue[ProcessorPart | None]()
     rolling_prompt = window.RollingPrompt(

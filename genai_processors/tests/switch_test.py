@@ -20,7 +20,7 @@ class SwitchProcessorTest(
 
     @processor.processor_function
     async def p(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         await asyncio.sleep(0.01)
@@ -28,7 +28,7 @@ class SwitchProcessorTest(
 
     @processor.processor_function
     async def q(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         yield f'q({content_api.as_text(part)})'

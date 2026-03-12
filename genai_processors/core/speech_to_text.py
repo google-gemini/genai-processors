@@ -61,6 +61,7 @@ STREAMING_LIMIT_SEC = (
 )
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 TRANSCRIPTION_SUBSTREAM_NAME = 'input_transcription'
 ENDPOINTING_SUBSTREAM_NAME = 'input_endpointing'
@@ -99,8 +100,8 @@ class AddSilentPartMaybe(processor.Processor):
     self._sample_rate = sample_rate
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
 
     logging.info('Transcriber: _process_audio started.')
     last_streamed_audio_time_sec = time.perf_counter()
@@ -195,8 +196,8 @@ class _Transcriber(processor.Processor):
 
   async def call(
       self,
-      content: AsyncIterable[ProcessorPart],
-  ) -> AsyncIterable[ProcessorPart]:
+      content: processor.ProcessorStream,
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """Transcribes streaming audio using the Cloud Speech API."""
 
     # The output queue is used to yield the audio parts unchanged in the output
@@ -429,7 +430,7 @@ class SpeechToText(processor.Processor):
 
   async def call(
       self,
-      content: AsyncIterable[ProcessorPart],
-  ) -> AsyncIterable[ProcessorPart]:
+      content: processor.ProcessorStream,
+  ) -> AsyncIterable[ProcessorPartTypes]:
     async for part in self._processor(content):
       yield part

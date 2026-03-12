@@ -327,8 +327,8 @@ class OpenRouterModel(processor.Processor):
       return error_body.decode('utf-8', errors='replace')
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Process content through OpenRouter API."""
     messages = []
     async for part in content:

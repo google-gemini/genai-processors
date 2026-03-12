@@ -37,10 +37,10 @@ def to_timestamp(seconds: float | int, with_ms: bool = False) -> str:
 
 
 async def _add_timestamps(
-    content: AsyncIterable[content_api.ProcessorPart],
+    content: processor.ProcessorStream,
     with_ms: bool = False,
     substream_name: str | None = None,
-) -> AsyncIterable[content_api.ProcessorPart]:
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
   """Adds timestamps to image chunks (to be used by default when streaming)."""
   start = time.perf_counter()
   async for part in content:

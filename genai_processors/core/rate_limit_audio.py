@@ -25,6 +25,7 @@ from genai_processors import context as context_lib
 from genai_processors import processor
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 # Maximum audio chunk/part duration in seconds.
 MAX_AUDIO_PART_SEC = 0.05
@@ -90,8 +91,8 @@ class RateLimitAudio(processor.Processor):
     self._delay_other_parts = delay_other_parts
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """Rate limits audio output."""
     # Most inputs queue here. When full, the fast-tracking of status/debug
     # chunks starts to block, so let's be generous with the queue size.

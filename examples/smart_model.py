@@ -43,7 +43,7 @@ class CriticReviser(processor.Processor):
     self._max_iterations = max_iterations
 
   async def call(
-      self, content: content_api.ContentStream
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     # We gather content from the stream as we will need to reuse it multiple
     # times.

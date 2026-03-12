@@ -105,7 +105,7 @@ class JinjaTemplate(processor.Processor):
 
   async def call(
       self,
-      content: AsyncIterable[content_api.ProcessorPart],
+      content: processor.ProcessorStream,
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     # If the template was split into a single part, then the template did not
     # contain a variable to render the processor's content and should be

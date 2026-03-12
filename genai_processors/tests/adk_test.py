@@ -29,8 +29,8 @@ from google.genai import types as genai_types
 
 @processor.processor_function
 async def _echo_processor(
-    content: AsyncIterable[content_api.ProcessorPart],
-) -> AsyncIterable[content_api.ProcessorPart]:
+    content: processor.ProcessorStream,
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
   async for part in content:
     yield f' {part.role}:'
     yield part

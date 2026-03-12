@@ -74,13 +74,9 @@ class LangChainModel(processor.Processor):
     self._prompt_template = prompt_template
 
   async def call(
-      self, content_stream: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
-    parts: list[content_api.ProcessorPart] = []
-    async for part in content_stream:
-      parts.append(part)
-    content = self._system_instruction + parts
-
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    content = self._system_instruction + await content.gather()
     msgs = self._convert_to_langchain_messages(content.all_parts)
 
     payload = (

@@ -115,7 +115,7 @@ class StructuredOutputParser(processor.Processor):
 
   @processor.yield_exceptions_as_parts
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     buffer = ''
     async for part in content:

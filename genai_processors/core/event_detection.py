@@ -125,6 +125,7 @@ from genai_processors import streams
 from genai_processors.core import timestamp
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 # Name of the default start state, i.e. no event detected.
 START_STATE = ''
@@ -262,8 +263,8 @@ class EventDetection(processor.Processor):
       self._transition_counter = (current_transition, 1)
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """Run the event detection processor."""
     output_queue = asyncio.Queue()
 

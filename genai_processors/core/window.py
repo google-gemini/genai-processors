@@ -35,6 +35,7 @@ from genai_processors import streams
 
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 Processor = processor.Processor
 
 
@@ -329,8 +330,8 @@ class Window(Processor):
     await window_results_queue.put(None)  # Signal end of all windows.
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """The main entry point for the processor."""
     rolling_prompt = RollingPrompt(compress_history=self._compress_history)
     window_results_queue = asyncio.Queue[

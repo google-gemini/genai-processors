@@ -207,7 +207,7 @@ class GenaiModel(processor.Processor):
             )
 
   async def call(
-      self, content: content_api.ContentStream
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     api_stream = self._generate_from_api(content)
 

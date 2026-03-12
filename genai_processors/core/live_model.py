@@ -55,6 +55,7 @@ from google.genai import types as genai_types
 
 PartTypes = content_api.ProcessorPartTypes
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 
 def to_parts(
@@ -178,8 +179,8 @@ class LiveProcessor(processor.Processor):
     self._realtime_config = realtime_config
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
 
     output_queue = asyncio.Queue[Optional[ProcessorPart]](maxsize=1_000)
 

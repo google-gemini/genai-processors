@@ -45,6 +45,7 @@ from .processors import topic_generator
 from .processors import topic_researcher
 
 ProcessorPart = processor.ProcessorPart
+ProcessorPartTypes = processor.ProcessorPartTypes
 
 
 class ResearchAgent(processor.Processor):
@@ -125,8 +126,8 @@ class ResearchAgent(processor.Processor):
     )
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     async for content_part in self._pipeline(content):
       yield content_part
     yield processor.status('Produced research synthesis!')

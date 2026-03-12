@@ -23,6 +23,7 @@ from genai_processors import content_api
 from genai_processors import processor
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 
 class TTFTSingleStream(processor.Processor):
@@ -78,8 +79,8 @@ class TTFTSingleStream(processor.Processor):
 
     @processor.processor_function
     async def log_on_close(
-        content: AsyncIterable[ProcessorPart],
-    ) -> AsyncIterable[ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[ProcessorPartTypes]:
       self._model_call_event.clear()
       async for part in content:
         yield part
@@ -88,8 +89,8 @@ class TTFTSingleStream(processor.Processor):
 
     @processor.processor_function
     async def log_on_first(
-        content: AsyncIterable[ProcessorPart],
-    ) -> AsyncIterable[ProcessorPart]:
+        content: processor.ProcessorStream,
+    ) -> AsyncIterable[ProcessorPartTypes]:
       first_part = True
       async for part in content:
         if first_part:
@@ -119,8 +120,8 @@ class TTFTSingleStream(processor.Processor):
     return self._ttft
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     async for chunk in self._ttft_processor()(content):
       yield chunk
 
@@ -134,8 +135,8 @@ def log_stream(message: str) -> processor.Processor:
 
   @processor.processor_function
   async def p(
-      content: AsyncIterable[ProcessorPart],
-  ) -> AsyncIterable[ProcessorPart]:
+      content: processor.ProcessorStream,
+  ) -> AsyncIterable[ProcessorPartTypes]:
     async for part in content:
       logging.info('%s: %s', message, debug_string(part))
       yield part
@@ -149,8 +150,8 @@ def print_stream(message: str) -> processor.Processor:
 
   @processor.processor_function
   async def p(
-      content: AsyncIterable[ProcessorPart],
-  ) -> AsyncIterable[ProcessorPart]:
+      content: processor.ProcessorStream,
+  ) -> AsyncIterable[ProcessorPartTypes]:
     async for part in content:
       print(f'{message}: {debug_string(part)}')
       yield part

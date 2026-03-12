@@ -365,8 +365,8 @@ def _to_bidi(p: processor.Processor) -> processor.Processor:
 
   @processor.processor_function
   async def call(
-      content: AsyncIterable[content_api.ProcessorPart],
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      content: processor.ProcessorStream,
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     prompt = []
     dirty_prompt = False
     async for part in content:
@@ -487,8 +487,8 @@ class FunctionCalling(processor.Processor):
     self._fns = fns
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     await self._initialize_mcp_tools()
     state = _FunctionCallState(fn_call_count_limit=self._max_function_calls)
     # To support both bidi and unary models we reduce both cases to bidi.

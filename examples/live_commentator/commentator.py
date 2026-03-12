@@ -690,8 +690,8 @@ class LiveCommentator(processor.Processor):
         await asyncio.sleep(NO_COMMENT_DELAY_SEC)
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Run the main conversation loop."""
     schedule_task = None
 

@@ -22,6 +22,7 @@ from genai_processors import processor
 import pyaudio
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 # Audio output chunk size in bytes.
 AUDIO_OUT_CHUNK_SIZE = 1024
@@ -114,8 +115,8 @@ class PyAudioOut(processor.Processor):
     self._passthrough_audio = passthrough_audio
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """Receives audio output from a live session."""
     audio_output = asyncio.Queue[Optional[ProcessorPart]]()
 

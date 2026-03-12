@@ -26,7 +26,7 @@ class MockBackend(processor.Processor):
     self.side_effect: list[str | Exception] = []
 
   async def call(
-      self, content: content_api.ContentStream
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     await content
     output = self.side_effect.pop(0)

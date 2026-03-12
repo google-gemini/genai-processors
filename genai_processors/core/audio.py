@@ -83,7 +83,7 @@ class AudioToWav(processor.Processor):
 
   async def call(
       self,
-      content: AsyncIterable[content_api.ProcessorPartTypes],
+      content: processor.ProcessorStream,
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Concatenates consecutive audio parts."""
     async for part in content:

@@ -84,7 +84,7 @@ class Switch(Processor, Generic[_T]):
     self._default_set = False
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     input_queues = [asyncio.Queue() for _ in range(len(self._cases))]
 

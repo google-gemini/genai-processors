@@ -35,6 +35,7 @@ from genai_processors import streams
 from google.cloud import texttospeech_v1 as texttospeech
 
 ProcessorPart = content_api.ProcessorPart
+ProcessorPartTypes = content_api.ProcessorPartTypes
 
 
 class TextToSpeech(processor.Processor):
@@ -79,8 +80,8 @@ class TextToSpeech(processor.Processor):
     self._with_text_passthrough = with_text_passthrough
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     """Streams audio content parts from text parts.
 
     The order between TTS-processed parts and pass-through parts is not

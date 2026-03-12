@@ -25,7 +25,7 @@ from PIL import Image
 
 @processor.processor_function
 async def to_upper_fn(
-    content: AsyncIterable[content_api.ProcessorPart],
+    content: processor.ProcessorStream,
 ) -> AsyncIterable[content_api.ProcessorPartTypes]:
   async for part in content:
     await asyncio.sleep(0.01)  # to ensure timestamps are different
@@ -101,7 +101,7 @@ class SubTraceProcessor(processor.Processor):
     )
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     async for part in self.sub_processor(content):
       if (
@@ -507,7 +507,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def fake_turn_model(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       nonlocal call_counter
       call_counter += 1
@@ -564,7 +564,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def processor_a(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         if mime_types.is_text(part.mimetype):
@@ -574,7 +574,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def processor_b(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         if mime_types.is_text(part.mimetype):
@@ -697,7 +697,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def mock_model(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       """Mock model that issues a generate_image function call."""
       nonlocal call_count
@@ -821,7 +821,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def failing_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         yield part.text + '_before_error'
@@ -868,7 +868,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def slow_processor(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         yield part.text + '_output'
@@ -916,7 +916,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def failing_turn_model(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       async for part in content:
         if 'trigger_error' in part.text:
@@ -960,7 +960,7 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
 
     @processor.processor_function
     async def slow_turn_model(
-        content: AsyncIterable[content_api.ProcessorPart],
+        content: processor.ProcessorStream,
     ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       buffer = content_api.ProcessorContent()
       async for part in content:

@@ -237,7 +237,7 @@ class MatchProcessor(processor.Processor):
     return to_yield, to_process
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     part_buffer = []
     async for part in content:

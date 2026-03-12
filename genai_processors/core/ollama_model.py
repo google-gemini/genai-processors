@@ -207,7 +207,7 @@ class OllamaModel(processor.Processor):
       self._options['stop'] = generate_content_config['stop_sequences']
 
   async def _generate_from_api(
-      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Internal method to call the Ollama API and stream results."""
     messages = []
@@ -258,7 +258,7 @@ class OllamaModel(processor.Processor):
           )
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPartTypes]
+      self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     api_stream = self._generate_from_api(content)
     if self._parser:

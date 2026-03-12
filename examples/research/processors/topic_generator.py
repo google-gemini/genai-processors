@@ -25,6 +25,7 @@ from .. import interfaces
 from .. import prompts
 
 ProcessorPart = processor.ProcessorPart
+ProcessorPartTypes = processor.ProcessorPartTypes
 
 
 class TopicGenerator(processor.Processor):
@@ -108,8 +109,8 @@ Your JSON:
     self._pipeline = p_preamble + p_suffix + self._p_genai_model
 
   async def call(
-      self, content: AsyncIterable[ProcessorPart]
-  ) -> AsyncIterable[ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[ProcessorPartTypes]:
     topics = []
     async for content_part in self._pipeline(content):
       topics.append(content_part.get_dataclass(interfaces.Topic))
