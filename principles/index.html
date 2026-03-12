@@ -1407,20 +1407,27 @@ strictly structured, type-safe outputs. In this new landscape, the distinction
 between a schema-less model and a strongly-typed tool is quickly disappearing.</p>
 <details>
 <summary>The Shift in Practice: Where Rigid APIs Fall Short</summary>
-Here is how that tension manifests in real-world scenarios:
-
-*   **Models acting as tools:** Can a lightweight model like gemini-flash-lite
+<p>Here is how that tension manifests in real-world scenarios:</p>
+<ul>
+<li>
+<p><strong>Models acting as tools:</strong> Can a lightweight model like gemini-flash-lite
     use gemini-pro as a tool to solve complex reasoning? If so, can that "tool"
     recursively make its own tool calls or pause to ask the user for
-    clarification?
-
-*   **Multi-modal tool interfaces:** Can a multimodal model like
-    [Nano Banana be plugged as a tool](https://github.com/google-gemini/genai-processors/tree/main/examples/widgets)?
-    Can its instructions include images?
-
-*   **Balanced Infrastructure:** Since most users only need a simple "string-in, string-out" API, how do we build a foundation that supports basic users without limiting advanced developers? Can one architecture effectively cater to both?
-    </details>
-
+    clarification?</p>
+</li>
+<li>
+<p><strong>Multi-modal tool interfaces:</strong> Can a multimodal model like
+    <a href="https://github.com/google-gemini/genai-processors/tree/main/examples/widgets">Nano Banana be plugged as a tool</a>?
+    Can its instructions include images?</p>
+</li>
+<li>
+<p><strong>Balanced Infrastructure:</strong> Since most users only need a simple "string-in,
+    string-out" API, how do we build a foundation that supports basic users
+    without limiting advanced developers? Can one architecture effectively cater
+    to both?</p>
+</li>
+</ul>
+</details>
 <p>This fragmentation is not inevitable. It is the result of how systems naturally
 evolved along the path of least resistance. We propose an approach based on
 three core pillars that actually remove these constraints, or at least reduce
@@ -1549,24 +1556,24 @@ unlock advanced optimizations and introspection.</p>
 <p>A Processor needs to balance two different needs: it must be easy to call (for
 the user) and easy to implement (for the developer). We achieve this by
 splitting the interface:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>class MyProcessor(Processor):
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  # The CONSUMER Interface:
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  # Designed for the caller. It is permissive with inputs and
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  # provides a rich, &quot;sugared&quot; stream as the output.
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  @typing.final
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  def __call__(
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>      self, content: AsyncIterable[ProcessorPartTypes]
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  ) -&gt; ProcessorStream:
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    ...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessor</span><span class="p">(</span><span class="n">Processor</span><span class="p">):</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="c1"># The CONSUMER Interface:</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="c1"># Designed for the caller. It is permissive with inputs and</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="c1"># provides a rich, &quot;sugared&quot; stream as the output.</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="nd">@typing</span><span class="o">.</span><span class="n">final</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>      <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">ProcessorPartTypes</span><span class="p">]</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProcessorStream</span><span class="p">:</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="o">...</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  # The PRODUCER Interface:
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  # Designed for the author. It provides a concrete, structured
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  # input while allowing the author to yield content in whatever
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  # raw format is most convenient.
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  @abc.abstractmethod
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  async def call(
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>      self, content: ProcessorStream
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  ) -&gt; AsyncIterable[ProcessorPartTypes]:
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  <span class="c1"># The PRODUCER Interface:</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  <span class="c1"># Designed for the author. It provides a concrete, structured</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  <span class="c1"># input while allowing the author to yield content in whatever</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  <span class="c1"># raw format is most convenient.</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>  <span class="nd">@abc</span><span class="o">.</span><span class="n">abstractmethod</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>      <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">ProcessorStream</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
 </code></pre></div>
 <p>This "Asymmetric Interface" acknowledges that producers and consumers have
 different priorities: the Consumer wants ease of use, the Producer wants ease of
@@ -1586,66 +1593,66 @@ quick answer from a model, it’s a one-liner:</p>
 </code></pre></div>
 <p>If we were to expect the answer to actually be a bit longer and were anxious to
 learn the wisdom, we probably would have written</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>async for part in model(&#39;Answer to...&#39;):
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  print(part.text, end=&#39;&#39;)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">model</span><span class="p">(</span><span class="s1">&#39;Answer to...&#39;</span><span class="p">):</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  <span class="nb">print</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">)</span>
 </code></pre></div>
 <p>To add more functionality while keeping the code structured, processors can be
 chained using <code>+</code>. For instance, if the model doesn't have native audio support,
 we can prepend a speech-to-text stage and a microphone input:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>from genai_processors.core import audio_io
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>from genai_processors.core import speech_to_text
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">audio_io</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">speech_to_text</span>
 <a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>agent = audio_io.PyAudioIn(pyaudio.PyAudio()) + speech_to_text.SpeechToText(...) + model
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">agent</span> <span class="o">=</span> <span class="n">audio_io</span><span class="o">.</span><span class="n">PyAudioIn</span><span class="p">(</span><span class="n">pyaudio</span><span class="o">.</span><span class="n">PyAudio</span><span class="p">())</span> <span class="o">+</span> <span class="n">speech_to_text</span><span class="o">.</span><span class="n">SpeechToText</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">+</span> <span class="n">model</span>
 </code></pre></div>
 <p>And if we need to move beyond linear chains, we can use good old Python control
 flow. For instance, let's squeeze some extra quality by using a critic-reviser
 pattern:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>class CriticReviser(processor.Processor):
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  &quot;&quot;&quot;Agent that uses a critic-reviser loop to improve responses.&quot;&quot;&quot;
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">CriticReviser</span><span class="p">(</span><span class="n">processor</span><span class="o">.</span><span class="n">Processor</span><span class="p">):</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="sd">&quot;&quot;&quot;Agent that uses a critic-reviser loop to improve responses.&quot;&quot;&quot;</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  def __init__(self, model: processor.Processor, max_iterations: int = 5):
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    self._model = model
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    self._max_iterations = max_iterations
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">processor</span><span class="o">.</span><span class="n">Processor</span><span class="p">,</span> <span class="n">max_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span> <span class="o">=</span> <span class="n">max_iterations</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  async def call(
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>      self, content: content_api.ContentStream
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  ) -&gt; AsyncIterable[content_api.ProcessorPartTypes]:
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    # We gather content from the stream as we will need to reuse it multiple times.
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    input_content = await content.gather()
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  <span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>      <span class="bp">self</span><span class="p">,</span> <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ContentStream</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>  <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="c1"># We gather content from the stream as we will need to reuse it multiple times.</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="n">input_content</span> <span class="o">=</span> <span class="k">await</span> <span class="n">content</span><span class="o">.</span><span class="n">gather</span><span class="p">()</span>
 <a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    current_response = await self._model(input_content).gather()
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>    <span class="n">current_response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">(</span><span class="n">input_content</span><span class="p">)</span><span class="o">.</span><span class="n">gather</span><span class="p">()</span>
 <a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>
-<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    for _ in range(self._max_iterations):
-<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>      critic_response = await self._model([
-<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>          input_content,
-<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>          &#39;\n\nDraft response:\n\n&#39;,
-<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>          current_response,
-<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>          (
-<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>              &#39;\n\nYou are a harsh critic. Review the draft response to the&#39;
-<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>              &quot; user&#39;s prompt. If the draft fully answers the prompt and has no&quot;
-<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>              &quot; obvious flaws, simply output &#39;OK&#39;. Otherwise, concisely list&quot;
-<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>              &#39; the flaws or missing information. Do not rewrite the response.&#39;
-<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>          ),
-<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>      ]).gather()
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a>    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_max_iterations</span><span class="p">):</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a>      <span class="n">critic_response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">([</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a>          <span class="n">input_content</span><span class="p">,</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a>          <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">Draft response:</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">,</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a>          <span class="n">current_response</span><span class="p">,</span>
+<a id="__codelineno-4-21" name="__codelineno-4-21" href="#__codelineno-4-21"></a>          <span class="p">(</span>
+<a id="__codelineno-4-22" name="__codelineno-4-22" href="#__codelineno-4-22"></a>              <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">You are a harsh critic. Review the draft response to the&#39;</span>
+<a id="__codelineno-4-23" name="__codelineno-4-23" href="#__codelineno-4-23"></a>              <span class="s2">&quot; user&#39;s prompt. If the draft fully answers the prompt and has no&quot;</span>
+<a id="__codelineno-4-24" name="__codelineno-4-24" href="#__codelineno-4-24"></a>              <span class="s2">&quot; obvious flaws, simply output &#39;OK&#39;. Otherwise, concisely list&quot;</span>
+<a id="__codelineno-4-25" name="__codelineno-4-25" href="#__codelineno-4-25"></a>              <span class="s1">&#39; the flaws or missing information. Do not rewrite the response.&#39;</span>
+<a id="__codelineno-4-26" name="__codelineno-4-26" href="#__codelineno-4-26"></a>          <span class="p">),</span>
+<a id="__codelineno-4-27" name="__codelineno-4-27" href="#__codelineno-4-27"></a>      <span class="p">])</span><span class="o">.</span><span class="n">gather</span><span class="p">()</span>
 <a id="__codelineno-4-28" name="__codelineno-4-28" href="#__codelineno-4-28"></a>
-<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a>      critic_text = await critic_response.text(strict=False)
-<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>      if critic_text.strip().upper() == &#39;OK&#39;:
-<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a>        break
+<a id="__codelineno-4-29" name="__codelineno-4-29" href="#__codelineno-4-29"></a>      <span class="n">critic_text</span> <span class="o">=</span> <span class="k">await</span> <span class="n">critic_response</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<a id="__codelineno-4-30" name="__codelineno-4-30" href="#__codelineno-4-30"></a>      <span class="k">if</span> <span class="n">critic_text</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span> <span class="o">==</span> <span class="s1">&#39;OK&#39;</span><span class="p">:</span>
+<a id="__codelineno-4-31" name="__codelineno-4-31" href="#__codelineno-4-31"></a>        <span class="k">break</span>
 <a id="__codelineno-4-32" name="__codelineno-4-32" href="#__codelineno-4-32"></a>
-<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a>      current_response = await self._model([
-<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a>          input_content,
-<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a>          &#39;\n\nDraft response:\n\n&#39;,
-<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a>          current_response,
-<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>          &#39;\n\nCriticism:\n&#39;,
-<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a>          critic_response,
-<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a>          (
-<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a>              &#39;\n\nUpdate your previous draft response to address the&#39;
-<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a>              &#39; criticism. Keep the parts that are already good.&#39;
-<a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a>          ),
-<a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a>      ]).gather()
+<a id="__codelineno-4-33" name="__codelineno-4-33" href="#__codelineno-4-33"></a>      <span class="n">current_response</span> <span class="o">=</span> <span class="k">await</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">([</span>
+<a id="__codelineno-4-34" name="__codelineno-4-34" href="#__codelineno-4-34"></a>          <span class="n">input_content</span><span class="p">,</span>
+<a id="__codelineno-4-35" name="__codelineno-4-35" href="#__codelineno-4-35"></a>          <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">Draft response:</span><span class="se">\n\n</span><span class="s1">&#39;</span><span class="p">,</span>
+<a id="__codelineno-4-36" name="__codelineno-4-36" href="#__codelineno-4-36"></a>          <span class="n">current_response</span><span class="p">,</span>
+<a id="__codelineno-4-37" name="__codelineno-4-37" href="#__codelineno-4-37"></a>          <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">Criticism:</span><span class="se">\n</span><span class="s1">&#39;</span><span class="p">,</span>
+<a id="__codelineno-4-38" name="__codelineno-4-38" href="#__codelineno-4-38"></a>          <span class="n">critic_response</span><span class="p">,</span>
+<a id="__codelineno-4-39" name="__codelineno-4-39" href="#__codelineno-4-39"></a>          <span class="p">(</span>
+<a id="__codelineno-4-40" name="__codelineno-4-40" href="#__codelineno-4-40"></a>              <span class="s1">&#39;</span><span class="se">\n\n</span><span class="s1">Update your previous draft response to address the&#39;</span>
+<a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a>              <span class="s1">&#39; criticism. Keep the parts that are already good.&#39;</span>
+<a id="__codelineno-4-42" name="__codelineno-4-42" href="#__codelineno-4-42"></a>          <span class="p">),</span>
+<a id="__codelineno-4-43" name="__codelineno-4-43" href="#__codelineno-4-43"></a>      <span class="p">])</span><span class="o">.</span><span class="n">gather</span><span class="p">()</span>
 <a id="__codelineno-4-44" name="__codelineno-4-44" href="#__codelineno-4-44"></a>
-<a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a>    for part in current_response:
-<a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a>      yield part
+<a id="__codelineno-4-45" name="__codelineno-4-45" href="#__codelineno-4-45"></a>    <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">current_response</span><span class="p">:</span>
+<a id="__codelineno-4-46" name="__codelineno-4-46" href="#__codelineno-4-46"></a>      <span class="k">yield</span> <span class="n">part</span>
 </code></pre></div>
 <h2 id="conclusion">Conclusion</h2>
 <blockquote>
