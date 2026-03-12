@@ -120,7 +120,7 @@ class PDFExtract(processor.PartProcessor):
 
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
 
     content, stats = await asyncio.to_thread(self._process, part)
 

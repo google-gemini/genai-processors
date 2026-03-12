@@ -14,20 +14,20 @@
 # ==============================================================================
 
 import io
+import unittest
 import wave
 
 from absl.testing import absltest
 from absl.testing import parameterized
 from genai_processors import content_api
-from genai_processors import processor
 from genai_processors.core import audio
 
 
-class AudioTest(parameterized.TestCase):
+class AudioTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
-  def test_empty(self):
+  async def test_empty(self):
     p = audio.AudioToWav()
-    output = processor.apply_sync(p, [])
+    output = await p([]).gather()
     self.assertEmpty(output)
 
   @parameterized.named_parameters(
@@ -71,11 +71,11 @@ class AudioTest(parameterized.TestCase):
           expected_readframes=b'\x01\x02\x03\x04',
       ),
   )
-  def test_audio_to_wav(
+  async def test_audio_to_wav(
       self, input_parts, expected_framerate, expected_readframes
   ):
     p = audio.AudioToWav()
-    output = processor.apply_sync(p, input_parts)
+    output = await p(input_parts).gather()
     self.assertLen(output, 1)
     self.assertEqual(output[0].mimetype, 'audio/wav')
 
@@ -85,7 +85,7 @@ class AudioTest(parameterized.TestCase):
       self.assertEqual(wf.getframerate(), expected_framerate)
       self.assertEqual(wf.readframes(10), expected_readframes)
 
-  def test_interspersed_with_non_audio(self):
+  async def test_interspersed_with_non_audio(self):
     p = audio.AudioToWav()
     input_parts = [
         content_api.ProcessorPart(
@@ -94,7 +94,7 @@ class AudioTest(parameterized.TestCase):
         content_api.ProcessorPart('hello', mimetype='text/plain'),
         content_api.ProcessorPart(b'\x03\x04', mimetype='audio/l16; rate=8000'),
     ]
-    output = processor.apply_sync(p, input_parts)
+    output = await p(input_parts).gather()
     self.assertLen(output, 3)
     self.assertEqual(output[0].mimetype, 'audio/wav')
     self.assertEqual(output[1].mimetype, 'text/plain')
@@ -108,16 +108,16 @@ class AudioTest(parameterized.TestCase):
       self.assertEqual(wf.getframerate(), 8000)
       self.assertEqual(wf.readframes(10), b'\x03\x04')
 
-  def test_non_audio_only(self):
+  async def test_non_audio_only(self):
     p = audio.AudioToWav()
     input_parts = [
         content_api.ProcessorPart('hello', mimetype='text/plain'),
         content_api.ProcessorPart('world', mimetype='text/plain'),
     ]
-    output = processor.apply_sync(p, input_parts)
+    output = await p(input_parts).gather()
     self.assertEqual(output, input_parts)
 
-  def test_unsupported_audio_mimetype(self):
+  async def test_unsupported_audio_mimetype(self):
     p = audio.AudioToWav()
     input_parts = [
         content_api.ProcessorPart(b'\x01\x02', mimetype='audio/mpeg'),
@@ -127,7 +127,7 @@ class AudioTest(parameterized.TestCase):
         'Only audio/l16 or audio/pcm is supported. Unsupported audio'
         ' mimetype: audio/mpeg',
     ):
-      processor.apply_sync(p, input_parts)
+      await p(input_parts).gather()
 
 
 if __name__ == '__main__':

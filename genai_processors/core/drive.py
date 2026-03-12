@@ -228,14 +228,14 @@ class Docs(processor.PartProcessor):
 
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     google_docs_request = part.get_dataclass(DocsRequest)
     doc_id = google_docs_request.doc_id
     doc_pdf = get_drive_pdf(
         file_id=doc_id,
         creds=self._creds,
     )
-    yield content_api.ProcessorPart('Document:\n\n')
+    yield 'Document:\n\n'
     yield content_api.ProcessorPart(doc_pdf, mimetype='application/pdf')
 
 
@@ -299,7 +299,7 @@ class Sheets(processor.PartProcessor):
 
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     google_sheets_request = part.get_dataclass(SheetsRequest)
     spreadsheet_data = self._fetch_sheet_data(google_sheets_request)
     sheet_ranges = google_sheets_request.ranges
@@ -332,12 +332,12 @@ class Sheets(processor.PartProcessor):
           writer.writerow(columns)
           writer.writerows(rows)
           range_or_title = sheet_ranges[i] if sheet_ranges else title
-          yield content_api.ProcessorPart(f'Sheet {range_or_title}:\n\n')
+          yield f'Sheet {range_or_title}:\n\n'
           yield content_api.ProcessorPart(
               output.getvalue(), mimetype='text/csv'
           )
         except (ValueError, TypeError, IndexError):
-          yield content_api.ProcessorPart('Failed to parse sheet data.')
+          yield 'Failed to parse sheet data.'
 
 
 # Google Slides
@@ -406,7 +406,7 @@ class Slides(processor.PartProcessor):
 
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     google_slides_request = part.get_dataclass(SlidesRequest)
     presentation_id = google_slides_request.presentation_id
     slide_numbers = google_slides_request.slide_numbers
@@ -415,5 +415,5 @@ class Slides(processor.PartProcessor):
         slide_numbers=slide_numbers,
     )
     for slide_num, pdf_bytes in presentation_pdfs.items():
-      yield content_api.ProcessorPart(f"""Slide {slide_num}:\n\n""")
+      yield f'Slide {slide_num}:\n\n'
       yield content_api.ProcessorPart(pdf_bytes, mimetype='application/pdf')

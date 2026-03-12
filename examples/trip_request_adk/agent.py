@@ -89,7 +89,7 @@ class TripRequest:
 @processor.part_processor_function
 async def process_json_output(
     part: content_api.ProcessorPart,
-) -> AsyncIterable[content_api.ProcessorPart]:
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
   """Process the json output of a GenAI model."""
   trip_request = part.get_dataclass(TripRequest)
   if trip_request.error:
@@ -98,7 +98,7 @@ async def process_json_output(
         substream_name='error',
     )
   else:
-    yield content_api.ProcessorPart(trip_request.info())
+    yield trip_request.info()
 
 
 def create_trip_request_processor() -> processor.Processor:

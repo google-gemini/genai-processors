@@ -199,7 +199,7 @@ class _Render(processor.PartProcessor):
 
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Renders a dataclass part in a Jinja template."""
     yield content_api.ProcessorPart(
         self._template.render(data=self.get_data(part)),

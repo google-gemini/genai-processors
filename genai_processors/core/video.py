@@ -275,7 +275,7 @@ class VideoExtract(processor.PartProcessor):
   async def call(
       self,
       part: ProcessorPart,
-  ) -> AsyncIterable[ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Extracts video and audio frames from a video file.
 
     Args:

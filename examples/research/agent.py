@@ -107,14 +107,12 @@ class ResearchAgent(processor.Processor):
     )
     p_preamble = preamble.Preamble(
         content=[
-            ProcessorPart(prompts.SYNTHESIS_PREAMBLE),
-            ProcessorPart('Research text: '),
+            prompts.SYNTHESIS_PREAMBLE,
+            'Research text: ',
         ]
     )
     p_suffix = preamble.Suffix(
-        content=[
-            ProcessorPart('Your synthesized research: '),
-        ]
+        content='Your synthesized research: '
     )
     self._pipeline = (
         p_topic_generator

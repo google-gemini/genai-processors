@@ -110,7 +110,7 @@ class GithubProcessor(processor.PartProcessor):
   async def call(
       self,
       part: content_api.ProcessorPart,
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Fetches content from a Github URL."""
     url = GithubUrl.from_json(part.text)
     parsed_url = parse_github_url(url.url)

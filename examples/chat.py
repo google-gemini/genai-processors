@@ -121,7 +121,7 @@ class _FetchUrl(processor.PartProcessor):
   @processor.yield_exceptions_as_parts
   async def call(
       self, part: content_api.ProcessorPart
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     """Gets the content for a given URL."""
     webrequest = part.get_dataclass(text.FetchRequest)
     async with httpx.AsyncClient(follow_redirects=True) as client:

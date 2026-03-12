@@ -71,8 +71,8 @@ class Suffix(Preamble):
   """Appends a suffix to the full content."""
 
   async def call(
-      self, content: AsyncIterable[content_api.ProcessorPart]
-  ) -> AsyncIterable[content_api.ProcessorPart]:
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     async for content_part in content:
       yield content_part
 

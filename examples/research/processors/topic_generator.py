@@ -68,8 +68,8 @@ class TopicGenerator(processor.Processor):
     self._num_topics = self._config.num_topics
 
     preamble_content = [
-        ProcessorPart(prompts.TOPIC_GENERATION_PREAMBLE),
-        ProcessorPart(
+        prompts.TOPIC_GENERATION_PREAMBLE,
+        (
             f'Please provide exactly {self._config.num_topics} research'
             ' topics, along with each topic\'s "relationship" to the user'
             ' prompt.'
@@ -77,19 +77,13 @@ class TopicGenerator(processor.Processor):
     ]
     if self._config.excluded_topics:
       preamble_content.append(
-          ProcessorPart(
-              'Here is a list of topics that should be excluded:'
-              f' {self._config.excluded_topics}'
-          )
+          'Here is a list of topics that should be excluded:'
+          f' {self._config.excluded_topics}'
       )
-    preamble_content.append(
-        ProcessorPart('You will now be provided with the user content.')
-    )
+    preamble_content.append('You will now be provided with the user content.')
     p_preamble = preamble.Preamble(content=preamble_content)
     p_suffix = preamble.Suffix(
-        content=[
-            ProcessorPart(
-                f"""Return your response as Topics JSON in the format below.
+        content=f"""Return your response as Topics JSON in the format below.
 
 You MUST return exactly {self._config.num_topics} topics.
 
@@ -101,10 +95,7 @@ Topics
   list[Topic]
 
 Your JSON:
-"""
-            )
-        ]
-    )
+""")
 
     self._pipeline = p_preamble + p_suffix + self._p_genai_model
 

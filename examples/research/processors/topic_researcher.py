@@ -62,8 +62,8 @@ class TopicResearcher(processor.PartProcessor):
     )
     p_preamble = preamble.Preamble(
         content=[
-            ProcessorPart(prompts.TOPIC_RESEARCH_PREAMBLE),
-            ProcessorPart('Topic to research: '),
+            prompts.TOPIC_RESEARCH_PREAMBLE,
+            'Topic to research: ',
         ]
     )
     p_verbalizer = jinja_template.RenderDataClass(
@@ -76,7 +76,7 @@ class TopicResearcher(processor.PartProcessor):
         ),
         data_class=interfaces.Topic,
     )
-    p_suffix = preamble.Suffix(content=[ProcessorPart('Your research: ')])
+    p_suffix = preamble.Suffix(content='Your research: ')
     self._pipeline = (
         p_verbalizer + p_preamble + p_suffix + self._genai_processor
     )
@@ -87,7 +87,7 @@ class TopicResearcher(processor.PartProcessor):
   async def call(
       self,
       part: ProcessorPart,
-  ) -> AsyncIterable[ProcessorPart]:
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
 
     input_topic = part.get_dataclass(interfaces.Topic)
     response = self._pipeline(part)
