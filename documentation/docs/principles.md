@@ -34,8 +34,9 @@ same time, techniques like constrained decoding allow forcing models to produce
 strictly structured, type-safe outputs. In this new landscape, the distinction
 between a schema-less model and a strongly-typed tool is quickly disappearing.
 
-<details>
+<details markdown>
 <summary>The Shift in Practice: Where Rigid APIs Fall Short</summary>
+
 Here is how that tension manifests in real-world scenarios:
 
 *   **Models acting as tools:** Can a lightweight model like gemini-flash-lite
@@ -47,8 +48,12 @@ Here is how that tension manifests in real-world scenarios:
     [Nano Banana be plugged as a tool](https://github.com/google-gemini/genai-processors/tree/main/examples/widgets)?
     Can its instructions include images?
 
-*   **Balanced Infrastructure:** Since most users only need a simple "string-in, string-out" API, how do we build a foundation that supports basic users without limiting advanced developers? Can one architecture effectively cater to both?
-    </details>
+*   **Balanced Infrastructure:** Since most users only need a simple "string-in,
+    string-out" API, how do we build a foundation that supports basic users
+    without limiting advanced developers? Can one architecture effectively cater
+    to both?
+
+</details>
 
 This fragmentation is not inevitable. It is the result of how systems naturally
 evolved along the path of least resistance. We propose an approach based on
@@ -197,7 +202,7 @@ A Processor needs to balance two different needs: it must be easy to call (for
 the user) and easy to implement (for the developer). We achieve this by
 splitting the interface:
 
-```
+```python
 class MyProcessor(Processor):
   # The CONSUMER Interface:
   # Designed for the caller. It is permissive with inputs and
@@ -243,7 +248,7 @@ print(
 If we were to expect the answer to actually be a bit longer and were anxious to
 learn the wisdom, we probably would have written
 
-```
+```python
 async for part in model('Answer to...'):
   print(part.text, end='')
 ```
@@ -252,7 +257,7 @@ To add more functionality while keeping the code structured, processors can be
 chained using `+`. For instance, if the model doesn't have native audio support,
 we can prepend a speech-to-text stage and a microphone input:
 
-```
+```python
 from genai_processors.core import audio_io
 from genai_processors.core import speech_to_text
 
@@ -263,7 +268,7 @@ And if we need to move beyond linear chains, we can use good old Python control
 flow. For instance, let's squeeze some extra quality by using a critic-reviser
 pattern:
 
-```
+```python
 class CriticReviser(processor.Processor):
   """Agent that uses a critic-reviser loop to improve responses."""
 
