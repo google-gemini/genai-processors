@@ -13,21 +13,31 @@
 # limitations under the License.
 # ==============================================================================
 
-r"""Live Commentator WebSocket server for AI Studio.
+r"""Live Illustrator WebSocket server for AI Studio.
 
-A server to run the live commentator agent on AI Studio. The applet connects
+A server to run the live illustrator agent on AI Studio. The applet connects
 to this server and handles the UI.
 
-See commentator.py for the actual implementation.
+See illustrator.py for the actual implementation.
 
 To run the server locally:
 
  * Install the dependencies with `pip install genai-processors`.
+ * Define a GOOGLE_API_KEY environment variable with your API key.
+ * Launch the illustrator agent: `python3 ./illustrator_ais.py
+ --alsologtostderr` (remove the `alsologtostderr` if you don't want the info
+ logs). You can set the log verbosity flag with `--verbosity=1` (for debug
+ logging) if you want to see more log information.
+
+ To use the applet with the server:
+
  * Access the applet at
- https://aistudio.google.com/app/apps/github/google-gemini/genai-processors/tree/main/examples/live/ais_app.
-* Define a GOOGLE_API_KEY environment variable with your API key.
- * Launch the commentator agent: `python3 ./commentator_ais.py`.
+ https://aistudio.google.com/app/apps/github/google-gemini/genai-processors/tree/main/examples/live_illustrator/ais_app.
  * Allow the applet to use a camera and enable one of the video sources.
+ * Set the period of the image generation (recommended at least 20 seconds).
+ * Set the system instruction for the model (e.g. "create images in a cartoon
+ style")
+ * Open mic and start talking or having a conversation with a friend.
 """
 
 import asyncio
@@ -36,20 +46,14 @@ from typing import Any
 
 from absl import app
 from absl import flags
-from absl import logging
 from genai_processors import processor
 from genai_processors.examples import live_server
-import commentator
+import illustrator
 
 _PORT = flags.DEFINE_integer(
     'port',
     8765,
     'Port to run this WebSocket server on.',
-)
-_DEBUG = flags.DEFINE_bool(
-    'debug',
-    False,
-    'Enable debug logging.',
 )
 _TRACE_DIR = flags.DEFINE_string(
     'trace_dir',
@@ -57,30 +61,37 @@ _TRACE_DIR = flags.DEFINE_string(
     'If set, enable tracing and write traces to this directory.',
 )
 
+_MAX_SIZE_BYTES = flags.DEFINE_integer(
+    'max_size_bytes',
+    None,
+    'If set, limit the size of the trace file to this value.',
+)
 
-def create_live_commentator(
+
+def create_live_illustrator(
     config: dict[str, Any],
 ) -> processor.Processor:
   """Creates a live commentator processor."""
-  chattiness = config.get('chattiness', 0.5)
   api_key = os.environ['GOOGLE_API_KEY']
-  return commentator.create_live_commentator(
+  system_instruction = config.get('image_system_instruction', None)
+  image_period_sec = config.get('image_period_sec', 20)
+  return illustrator.create_live_illustrator(
       api_key=api_key,
-      chattiness=chattiness,
-      unsafe_string_list=None,
+      system_instruction=system_instruction,
+      image_period_sec=image_period_sec,
   )
 
 
 def main(argv):
-  if len(argv) > 2:
-    raise app.UsageError('Too many command-line arguments.')
-  if _DEBUG.value:
-    logging.set_verbosity(logging.DEBUG)
-  asyncio.run(live_server.run_server(
-      create_live_commentator,
-      port=_PORT.value,
-      trace_dir=_TRACE_DIR.value,
-  ))
+  del argv
+  asyncio.run(
+      live_server.run_server(
+          create_live_illustrator,
+          port=_PORT.value,
+          trace_dir=_TRACE_DIR.value,
+          max_size_bytes=_MAX_SIZE_BYTES.value,
+      )
+  )
 
 
 if __name__ == '__main__':

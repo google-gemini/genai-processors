@@ -28,7 +28,8 @@ variable is set to the api-key you obtained from Google AI Studio.
 
 ## Run
 
-Change directory to the parent folder (genai-processors/examples/live) and run
+Change directory to the parent folder
+(genai-processors/examples/live_commentator) and run
 `adk web`. then navigate to http://localhost:8000/ select "commentator_adk"
 agent and click on the "Use camera" button.
 

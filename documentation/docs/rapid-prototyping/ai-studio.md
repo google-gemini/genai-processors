@@ -45,7 +45,7 @@ if __name__ == '__main__':
 ```
 
 See the
-[`live commentator code`](https://github.com/google-gemini/genai-processors/blob/main/examples/live/commentator_ais.py)
+[`live commentator code`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/commentator_ais.py)
 for a complete example.
 
 ## The AI Studio Applet Frontend
@@ -69,7 +69,7 @@ The client-side JavaScript typically performs these tasks:
 3.  Receive outputs from the server and update the UI.
 
 See the
-[`live commentator applet`](https://github.com/google-gemini/genai-processors/blob/main/examples/live/ais_app/)
+[`live commentator applet`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/ais_app/)
 for a full example of an applet.
 
 ## Communication Protocol

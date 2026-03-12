@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Illustrator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              gray: {
+                850: "#1f2937",
+                950: "#030712",
+              },
+              primary: {
+                500: "#6366f1",
+                600: "#4f46e5",
+              },
+            },
+            animation: {
+              "pulse-fast": "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+              "fade-in-up": "fadeInUp 0.3s ease-out forwards",
+            },
+            keyframes: {
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(10px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background-color: #030712;
+        color: #f3f4f6;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #111827;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #374151;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #4b5563;
+      }
+
+      /* Utility for hiding elements via JS */
+      .hidden-force {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body class="min-h-screen py-2 px-4 md:py-4 md:px-8 font-sans">
+    <div class="mx-auto flex flex-col h-[calc(100vh-1rem)] md:h-[calc(100vh-2rem)]">
+      <!-- Header -->
+      <header class="mb-3 text-center md:text-left">
+        <h1
+          class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-purple-500"
+        >
+          Live Illustrator
+        </h1>
+      </header>
+
+      <!-- Connection Panel -->
+      <div class="bg-gray-800 px-6 pt-6 pb-2 rounded-xl shadow-lg border border-gray-700 mb-6">
+        <form id="connection-form">
+          <!-- Collapsible Settings Section -->
+          <div id="settings-panel" class="border-b border-gray-700 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+              <!-- URL Input -->
+              <div class="md:col-span-9">
+                <label class="block text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">
+                  Server URL (Connect to your local WebSocket server to stream audio)
+                </label>
+                <input
+                  id="url-input"
+                  type="text"
+                  value="ws://localhost:8765"
+                  class="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 text-sm font-mono transition-all"
+                  placeholder="ws://localhost:8765"
+                />
+              </div>
+
+              <!-- Image Period -->
+              <div class="md:col-span-3">
+                <label class="block text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">
+                  Image Period (s)
+                </label>
+                <input
+                  id="image-period-input"
+                  type="number"
+                  class="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 text-sm font-mono transition-all"
+                  placeholder="e.g. 20"
+                  step="0.1"
+                />
+              </div>
+
+              <!-- Image Generation Instructions -->
+              <div class="md:col-span-12">
+                <label class="block text-xs text-gray-500 font-bold uppercase tracking-wider mb-2">
+                  Image Generator Instructions
+                </label>
+                <input
+                  id="image-system-instruction-input"
+                  type="text"
+                  class="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 text-sm font-sans transition-all"
+                  placeholder="e.g. Create vivid, colorful illustrations..."
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Controls Footer -->
+          <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+            <!-- Status & Toggle -->
+            <div class="flex items-center gap-4 w-full md:w-auto">
+              <button
+                id="btn-toggle-settings"
+                type="button"
+                class="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all"
+                title="Toggle Settings"
+              >
+                <svg
+                  id="icon-chevron"
+                  class="w-5 h-5 transition-transform duration-300"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M5 15l7-7 7 7"
+                  />
+                </svg>
+              </button>
+              <div
+                class="flex items-center gap-3 bg-gray-900/50 px-4 py-2 rounded-full border border-gray-700/50"
+              >
+                <div
+                  id="status-dot"
+                  class="w-2.5 h-2.5 rounded-full bg-gray-500 transition-all duration-300"
+                ></div>
+                <span
+                  id="status-text"
+                  class="text-gray-300 font-medium uppercase text-xs tracking-wider"
+                >
+                  DISCONNECTED
+                </span>
+              </div>
+              <div class="relative">
+                <button
+                  id="btn-copy-images"
+                  type="button"
+                  class="flex items-center gap-2 px-3 py-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all"
+                  title="Copy Illustrations"
+                >
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <span>Share</span>
+                </button>
+                <div
+                  id="copy-tooltip"
+                  class="hidden absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-max max-w-xs bg-gray-900 text-white text-xs rounded py-1 px-2 z-10"
+                >
+                  Illustrations have been copied to the clipboard. You can paste them to a google
+                  doc to share.
+                  <div
+                    class="absolute left-1/2 -translate-x-1/2 top-full -mt-1 w-2 h-2 bg-gray-900 rotate-45"
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex items-center gap-3 w-full md:w-auto justify-end">
+              <button
+                id="btn-reset"
+                type="button"
+                class="hidden px-6 py-2.5 bg-amber-500/10 text-amber-400 border border-amber-500/50 hover:bg-amber-500/20 rounded-lg transition-colors text-sm font-bold whitespace-nowrap"
+              >
+                Reset
+              </button>
+              <button
+                id="btn-disconnect"
+                type="button"
+                class="hidden px-6 py-2.5 bg-red-500/10 text-red-400 border border-red-500/50 hover:bg-red-500/20 rounded-lg transition-colors text-sm font-bold whitespace-nowrap"
+              >
+                Disconnect
+              </button>
+              <button
+                id="btn-connect"
+                type="submit"
+                class="px-8 py-2.5 bg-primary-600 hover:bg-primary-500 text-white rounded-lg transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] hover:shadow-[0_0_20px_rgba(79,70,229,0.5)] text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none whitespace-nowrap"
+              >
+                Connect
+              </button>
+
+              <div class="w-px bg-gray-700 h-8 mx-2 hidden md:block"></div>
+
+              <button
+                id="btn-mic"
+                type="button"
+                disabled
+                class="flex items-center justify-center px-6 py-2.5 rounded-lg border transition-all duration-200 text-sm font-bold bg-gray-700 border-gray-600 text-gray-500 opacity-50 cursor-not-allowed hover:bg-gray-600"
+              >
+                <svg
+                  id="mic-icon"
+                  class="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
+                  />
+                </svg>
+                <svg
+                  id="mic-icon-active"
+                  class="hidden w-5 h-5 animate-pulse"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+                  />
+                </svg>
+                <span id="mic-text" class="ml-2">MIC</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Main Workspace Grid -->
+      <div class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+        <!-- Left Column: Text Output -->
+        <div
+          class="lg:col-span-1 flex flex-col min-h-0 h-full bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg"
+        >
+          <div
+            class="bg-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center"
+          >
+            <h2 class="text-gray-200 font-semibold flex items-center gap-2">
+              <svg
+                class="w-4 h-4 text-primary-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                />
+              </svg>
+              Server Output
+            </h2>
+            <span id="text-count" class="text-xs text-gray-500">0 messages</span>
+          </div>
+
+          <div id="text-scroll-area" class="flex-1 overflow-y-auto p-4 space-y-3 relative">
+            <div
+              id="text-empty-state"
+              class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 space-y-2 pointer-events-none"
+            >
+              <svg
+                class="w-10 h-10 opacity-50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+              <p class="text-sm">Waiting for text response...</p>
+            </div>
+            <div id="text-container"></div>
+          </div>
+        </div>
+
+        <!-- Right Column: Images -->
+        <div
+          class="lg:col-span-2 min-h-[400px] flex flex-col h-full bg-gray-800 rounded-xl border border-gray-700 overflow-hidden shadow-lg"
+        >
+          <div
+            class="bg-gray-900 px-4 py-3 border-b border-gray-700 flex justify-between items-center"
+          >
+            <div class="flex items-center gap-4">
+              <h2 class="text-gray-200 font-semibold flex items-center gap-2">
+                <svg
+                  class="w-4 h-4 text-purple-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              Generated Images
+              </h2>
+              <!-- Concept Art Toggle Switch -->
+              <label for="concept-art-toggle" class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" value="" id="concept-art-toggle" class="sr-only peer" checked />
+                <div
+                  class="w-9 h-5 bg-gray-600 rounded-full peer peer-focus:outline-none peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary-600"
+                ></div>
+                <span class="ml-2 text-xs font-medium text-gray-400">Concept Art</span>
+              </label>
+            </div>
+            <span id="image-count" class="text-xs text-gray-500">0 images</span>
+          </div>
+          <div id="image-scroll-area" class="flex-1 overflow-y-auto p-4 bg-gray-900/50 relative">
+            <div
+              id="image-empty-state"
+              class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 space-y-2 pointer-events-none"
+            >
+              <svg
+                class="w-10 h-10 opacity-50"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <p class="text-sm">Waiting for images...</p>
+            </div>
+            <div id="image-container" class="space-y-6"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

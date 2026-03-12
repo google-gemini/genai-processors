@@ -77,6 +77,7 @@ nav:
     - CLI: examples/cli.md
     - Research Agent: examples/research_agent.md
     - Live commentator: examples/live_commentator.md
+    - Live Illustrator: examples/live_illustrator.md
     - Widgets: examples/widgets.md
   - Tutorials (colabs):
     - Content API: https://colab.sandbox.google.com/github/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb

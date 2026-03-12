@@ -12,4 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Examples of processors built from the Live API."""
+"""Live commentator example."""

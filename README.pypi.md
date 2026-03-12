@@ -135,7 +135,7 @@ Explore the [examples/](examples/) directory for practical demonstrations:
 *   [Research Agent Example](examples/research/README.md) - a research agent
     built with Processors, comprising 3 sub-processors, chaining, creating
     `ProcessorPart`s, etc.
-*   [Live Commentary Example](examples/live/README.md) - a description of a live
+*   [Live Commentary Example](examples/live_commentator/README.md) - a description of a live
     commentary agent built with the
     [Gemini Live API](https://ai.google.dev/gemini-api/docs/live), composed of
     two agents: one for event detection and one for managing the conversation.

@@ -1,0 +1,5 @@
+{
+  "name": "Live Illustrator",
+  "description": "A real-time illustrator of what the user says that streams audio to a local WebSocket server, displays returned text and generated images.",
+  "requestFramePermissions": ["microphone"]
+}
