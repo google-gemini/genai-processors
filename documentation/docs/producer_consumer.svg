@@ -1,0 +1,408 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 720 241"
+   version="1.1"
+   id="svg17"
+   sodipodi:docname="producer_consumer.svg"
+   inkscape:version="1.4.2 (ebf0e940d0, 2025-05-08)"
+   width="720"
+   height="241"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showguides="true"
+     inkscape:zoom="3.2659494"
+     inkscape:cx="403.558"
+     inkscape:cy="24.34208"
+     inkscape:window-width="3840"
+     inkscape:window-height="2088"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg17">
+    <sodipodi:guide
+       position="600.81191,220.21516"
+       orientation="0,-1"
+       id="guide1"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="70,186.00677"
+       orientation="1,0"
+       id="guide3"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="728.49799,159.59269"
+       orientation="1,0"
+       id="guide4"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="142.6793,162.1908"
+       orientation="1,0"
+       id="guide7"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="499.75643,107.63058"
+       orientation="1,0"
+       id="guide8"
+       inkscape:locked="false" />
+    <sodipodi:guide
+       position="459.11773,169.12491"
+       orientation="1,0"
+       id="guide2"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <defs
+     id="defs3">
+    <marker
+       style="overflow:visible"
+       id="Triangle"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       inkscape:stockid="Triangle arrow"
+       markerWidth="2"
+       markerHeight="1"
+       viewBox="0 0 1 1"
+       inkscape:isstock="true"
+       inkscape:collect="always"
+       preserveAspectRatio="none">
+      <path
+         transform="scale(0.5)"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:1pt"
+         d="M 5.77,0 -2.88,5 V -5 Z"
+         id="path135" />
+    </marker>
+    <marker
+       markerWidth="0.52499998"
+       markerHeight="0.99999994"
+       refX="0"
+       refY="0"
+       orient="auto-start-reverse"
+       id="CapTriangle"
+       viewBox="0 0 0.525 1"
+       inkscape:stockid="Triangle cap"
+       style="overflow:visible"
+       preserveAspectRatio="xMidYMid"
+       inkscape:isstock="true"
+       inkscape:collect="always">
+      <path
+         style="fill:context-stroke;stroke-linecap:butt"
+         d="M 0,-1 1,0 0,1 -0.05,0 Z"
+         sodipodi:nodetypes="sssssscsss"
+         transform="scale(0.5)"
+         id="path61" />
+    </marker>
+    <marker
+       id="arrowhead"
+       markerWidth="10"
+       markerHeight="7"
+       refX="9"
+       refY="3.5"
+       orient="auto"
+       viewBox="0 0 10 7"
+       preserveAspectRatio="xMidYMid">
+      <polygon
+         points="0,7 0,0 10,3.5 "
+         fill="#607d8b"
+         id="polygon3" />
+    </marker>
+  </defs>
+  <!-- Horizontal hourglass shape -->
+  <path
+     id="path3"
+     style="fill:#f1f6ff;fill-opacity:1;stroke:#003380"
+     d="M 104.60742,43.90625 10,44 l 0.09961,192 94.60937,0.0957 c 39.73823,0.0397 69.19498,-6.15079 92.89063,-26.89453 39.51665,-34.59382 73,-44.20117 102.5,-44.20117 30,0 67.98053,12.57962 102.59961,44.20117 34.61908,31.62154 82.54693,25.25489 172.24219,26.81445 2.39144,0.0416 135.1582,-0.0156 135.1582,-0.0156 L 710,44 C 710,44 577.23324,43.94279 574.8418,43.98437 485.14654,45.543946 437.21869,39.179234 402.59961,70.800781 367.98053,102.42233 330,115 300,115 270.5,115 237.01665,105.3946 197.5,70.800781 173.80435,50.057042 144.34565,43.86658 104.60742,43.90625 Z"
+     sodipodi:nodetypes="ccccssssccssssc" />
+  <!-- PRODUCER label -->
+  <text
+     x="71.868347"
+     y="17.889332"
+     font-family="Arial, sans-serif"
+     font-size="18px"
+     font-weight="bold"
+     fill="#37474f"
+     text-anchor="middle"
+     id="text4">PRODUCER</text>
+  <!-- Producer items - vertically centered -->
+  <!-- Image pictogram -->
+  <!-- Audio pictogram -->
+  <!-- Curved arrows from producer to center -->
+  <path
+     d="m 102.6793,84.990969 c 50,0 79.1443,53.448681 122.3207,53.009031"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow1"
+     style="marker-end:url(#CapTriangle)"
+     sodipodi:nodetypes="cc" />
+  <path
+     d="m 102.6793,122.55751 c 46.66667,0 93.63469,16.81933 122.3207,15.44249"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow2"
+     style="marker-end:url(#CapTriangle)"
+     sodipodi:nodetypes="cc" />
+  <path
+     d="M 127.8755,156.69148 C 157.96121,157.90482 152.17636,137.78349 225,138"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow3"
+     sodipodi:nodetypes="cc"
+     style="marker-end:url(#Triangle)" />
+  <path
+     d="M 187.99053,193.61975 C 208.26196,193.50141 190.98305,136.88961 225,138"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow4"
+     sodipodi:nodetypes="cc"
+     style="marker-end:url(#CapTriangle)" />
+  <!-- Center label -->
+  <text
+     x="301.18701"
+     y="136.78058"
+     font-family="Arial, sans-serif"
+     font-size="14px"
+     font-weight="bold"
+     fill="#37474f"
+     text-anchor="middle"
+     id="text11">ContentStream</text>
+  <text
+     x="302"
+     y="155.78059"
+     font-family="monospace"
+     font-size="9px"
+     fill="#607d8b"
+     text-anchor="middle"
+     id="text11b"
+     style="font-size:10.6667px;fill:#374850;fill-opacity:1">AsyncIterable[ProcessorPart]</text>
+  <!-- CONSUMER label -->
+  <text
+     x="602.04059"
+     y="17.889332"
+     font-family="Arial, sans-serif"
+     font-size="18px"
+     font-weight="bold"
+     fill="#37474f"
+     text-anchor="middle"
+     id="text12">CONSUMER</text>
+  <!-- Consumer items - vertically aligned -->
+  <!-- Curved arrows from center to consumer -->
+  <path
+     d="m 396.56698,134.35047 c 12.91836,-27.24853 39.21741,-66.47538 62.55075,-66.47538"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow5"
+     style="marker-end:url(#Triangle)"
+     sodipodi:nodetypes="cc" />
+  <path
+     d="m 398.29905,137.78349 c 26.66667,-15.33333 37.5936,-26.66982 60.92693,-26.66982"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow6"
+     style="marker-end:url(#Triangle)"
+     sodipodi:nodetypes="cc" />
+  <path
+     d="m 398.40731,142 c 26.66667,5.33333 37.23542,10.64442 60.56875,10.64442"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow7"
+     style="marker-end:url(#Triangle)"
+     sodipodi:nodetypes="cc" />
+  <path
+     d="m 396.56698,145.54127 c 6.74786,12.70185 39.00464,61.6301 62.33797,61.6301"
+     stroke="#607d8b"
+     stroke-width="1.5"
+     fill="none"
+     marker-end="url(#arrowhead)"
+     id="arrow8"
+     style="marker-end:url(#Triangle)"
+     sodipodi:nodetypes="cc" />
+  <text
+     xml:space="preserve"
+     style="font-size:14.6667px;line-height:4.25;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle"
+     x="72.430794"
+     y="34.763649"
+     id="text1"><tspan
+       sodipodi:role="line"
+       id="tspan1"
+       x="72.430794"
+       y="34.763649">sends what it has</tspan></text>
+  <text
+     xml:space="preserve"
+     style="font-size:14.6667px;line-height:4.25;font-family:sans-serif;text-align:center;letter-spacing:0px;word-spacing:0px;text-anchor:middle"
+     x="602.12518"
+     y="31.931536"
+     id="text1-9"><tspan
+       sodipodi:role="line"
+       id="tspan1-1"
+       x="602.12518"
+       y="31.931536">reads what it needs</tspan></text>
+  <text
+     font-family="Arial, sans-serif"
+     font-size="9px"
+     fill="#546e7a"
+     y="62.641678"
+     id="text9"
+     x="476.26361"
+     style="font-size:12px;fill:#374850;fill-opacity:1">Simple use case:</text>
+  <text
+     font-family="monospace"
+     font-size="14px"
+     fill="#263238"
+     id="text10"
+     x="476.26361"
+     y="78.641678">text = await stream.text()</text>
+  <text
+     font-family="Arial, sans-serif"
+     font-size="9px"
+     fill="#546e7a"
+     y="106.64168"
+     id="text13-7"
+     x="476.26361"
+     style="font-size:12px;fill:#374850;fill-opacity:1">Multimodal or streaming:</text>
+  <text
+     font-family="monospace"
+     font-size="14px"
+     fill="#263238"
+     id="text14-5"
+     x="476.26361"
+     y="122.64168">async for part in stream:</text>
+  <text
+     font-family="Arial, sans-serif"
+     font-size="9px"
+     fill="#546e7a"
+     y="148.64168"
+     id="text15-9"
+     x="476.26361"
+     style="font-size:12px;fill:#374850;fill-opacity:1">Constrained decoding:</text>
+  <text
+     font-family="monospace"
+     font-size="14px"
+     fill="#263238"
+     id="text16"
+     x="498.7182"
+     y="180.64168"
+     style="text-align:start;text-anchor:start"><tspan
+       sodipodi:role="line"
+       id="tspan9"
+       x="498.7182"
+       y="180.64168">Weather)</tspan></text>
+  <text
+     font-family="monospace"
+     font-size="14px"
+     fill="#263238"
+     id="text16-9"
+     x="476.7182"
+     y="164.64168"
+     style="text-align:start;text-anchor:start"><tspan
+       sodipodi:role="line"
+       id="tspan9-1"
+       x="476.7182"
+       y="164.64168">await stream.get_dataclass(</tspan></text>
+  <text
+     font-family="Arial, sans-serif"
+     font-size="9px"
+     fill="#546e7a"
+     y="202.64168"
+     id="text17"
+     x="476.26361"
+     style="font-size:12px;fill:#374850;fill-opacity:1">Function calling:</text>
+  <text
+     font-family="monospace"
+     font-size="14px"
+     fill="#263238"
+     id="text18"
+     x="476.26361"
+     y="218.64168">def get_weather(loc, time):</text>
+  <g
+     id="g6"
+     transform="translate(-40,0.470472)">
+    <text
+       x="63.87793"
+       y="89.408272"
+       font-family="monospace"
+       font-size="14px"
+       fill="#263238"
+       id="text5-8">string</text>
+    <g
+       id="g_pictograms"
+       transform="translate(63.87793,114.40827)">
+      <g
+         id="g1-9">
+        <rect
+           width="24"
+           height="18"
+           rx="2"
+           fill="none"
+           stroke="#263238"
+           stroke-width="1.5"
+           x="0"
+           y="0"
+           id="rect1" />
+        <circle
+           cx="7"
+           cy="8"
+           r="3"
+           fill="#263238"
+           id="circle1" />
+        <polyline
+           points="2,15 10,9 17,14 22,11"
+           fill="none"
+           stroke="#263238"
+           stroke-width="1.5"
+           id="polyline1" />
+      </g>
+      <g
+         id="g7-7"
+         transform="translate(35)">
+        <path
+           d="M 0,6 H 4 L 10,2 V 16 L 4,12 H 0 Z"
+           fill="#263238"
+           id="path1" />
+        <path
+           d="m 13,5 q 4,4 0,8"
+           fill="none"
+           stroke="#263238"
+           stroke-width="1.5"
+           id="path2" />
+      </g>
+    </g>
+    <text
+       x="63.87793"
+       y="159.40826"
+       font-family="monospace"
+       font-size="14px"
+       fill="#263238"
+       id="text7-3">list[Part]</text>
+    <text
+       x="63.87793"
+       y="199.40826"
+       font-family="monospace"
+       font-size="14px"
+       fill="#263238"
+       id="text8-6">AsyncIterator[Part]</text>
+  </g>
+</svg>

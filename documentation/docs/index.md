@@ -19,6 +19,16 @@ asynchronous, and composable AI applications and agents.
 
     [:octicons-arrow-right-24: Quick Start](getting-started.md)
 
+    [:octicons-arrow-right-24: Examples](examples/cli.md)
+
+-   :material-lightbulb-outline:{ .lg .middle } __Design Principles__
+
+    ---
+
+    The philosophy behind GenAI Processors: unified content, streaming, and composability.
+
+    [:octicons-arrow-right-24: Principles](principles.md)
+
 -   :material-book-open-variant:{ .lg .middle } __Core Concepts__
 
     ---
@@ -27,13 +37,6 @@ asynchronous, and composable AI applications and agents.
 
     [:octicons-arrow-right-24: Concepts](concepts/processor.md)
 
--   :material-code-tags:{ .lg .middle } __Examples__
-
-    ---
-
-    Explore real-world applications, agents, and CLI tools.
-
-    [:octicons-arrow-right-24: Examples](examples/cli.md)
 
 -   :material-chip:{ .lg .middle } __Built-in Processors__
 
