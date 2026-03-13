@@ -1,0 +1,520 @@
+# GenAI Processors Library API
+
+GenAI Processors is a Python library for building modular, asynchronous, and composable AI pipelines.
+
+## Core Concepts
+
+### Processor
+A `Processor` transforms an input stream of `ProcessorPart`s into an output stream of `ProcessorPart`s.
+It implements the `__call__` interface:
+```python
+def __call__(self, content: AsyncIterable[ProcessorPart] | ProcessorContentTypes) -> ProcessorStream: ...
+```
+
+### PartProcessor
+A `PartProcessor` transforms a single `ProcessorPart` into a stream of `ProcessorPart`s.
+It implements the `__call__` interface:
+```python
+def __call__(self, part: ProcessorPartTypes) -> ProcessorStream: ...
+```
+The library automatically parallelizes the execution of `PartProcessor`s over a stream.
+
+### ProcessorPart
+A wrapper around `google.genai.types.Part` with additional metadata.
+Key attributes:
+- `part`: Underlying `genai.types.Part`.
+- `role`: Role of the content producer (e.g., 'user', 'model').
+- `mimetype`: MIME type of the content.
+- `substream_name`: Name of the substream (empty for default).
+- `metadata`: Dictionary of arbitrary metadata.
+- `text`: String content (if text).
+- `bytes`: Byte content (if blob).
+
+### ProcessorStream
+An `AsyncIterable[ProcessorPart]` with convenience methods:
+- `text()`: Returns concatenated text of all parts.
+- `gather()`: Returns a `ProcessorContent` list of all parts.
+
+## API Reference
+
+### `genai_processors.processor`
+
+#### Classes
+- `Processor`: Base class for processors. Override `async def call(self, content: ProcessorStream) -> AsyncIterable[ProcessorPartTypes]`.
+- `PartProcessor`: Base class for part processors. Override `async def call(self, part: ProcessorPart) -> AsyncIterable[ProcessorPartTypes]`. Optionally override `match(self, part: ProcessorPart) -> bool`.
+
+#### Decorators
+- `@processor_function`: Converts an async generator function `(ProcessorStream) -> AsyncIterable[ProcessorPartTypes]` into a `Processor`.
+- `@part_processor_function(match_fn=...)`: Converts an async generator function `(ProcessorPart) -> AsyncIterable[ProcessorPartTypes]` into a `PartProcessor`.
+- `@source(stop_on_first=True)`: Converts an async generator function `(*args, **kwargs) -> AsyncIterable[ProcessorPartTypes]` into a `Source` processor.
+- `@yield_exceptions_as_parts`: Wraps a processor's `call` method to yield exceptions as `text/x-exception` parts instead of raising them.
+
+#### Composition
+- `chain(processors: Sequence[Processor | PartProcessor]) -> Processor`: Sequential chain. Equivalent to `p1 + p2`.
+- `parallel(processors: Sequence[PartProcessor]) -> PartProcessor`: Parallel execution on same part. Equivalent to `p1 // p2`.
+- `parallel_concat(processors: Sequence[Processor]) -> Processor`: Parallel execution on stream, output concatenated.
+
+#### Utilities
+- `apply_async(processor, content) -> list[ProcessorPart]`: Run processor on content asynchronously.
+- `apply_sync(processor, content) -> list[ProcessorPart]`: Run processor on content synchronously.
+- `context()`: Context manager for processor execution lifecycle (TaskGroup, cancellation).
+
+### `genai_processors.content_api`
+
+#### Classes
+- `ProcessorPart`: (See Core Concepts). Methods: `from_uri`, `from_function_call`, `from_function_response`, `from_bytes`, `to_genai_part`.
+- `ProcessorContent`: List-like container for `ProcessorPart`s. Inherits from `ContentStream`.
+
+#### Functions
+- `as_text(content)`: Extract text from content.
+- `as_images(content)`: Extract images from content.
+- `to_genai_contents(content)`: Convert to `list[genai.types.Content]`.
+
+### `genai_processors.streams`
+
+- `split(content, n=2, with_copy=False)`: Split stream into `n` independent streams.
+- `concat(*contents)`: Concatenate multiple streams sequentially.
+- `merge(streams, stop_on_first=False)`: Merge multiple streams by interleaving items as they arrive.
+- `stream_content(content)`: Convert iterable to async iterable.
+- `gather_stream(content)`: Collect stream into list.
+- `enqueue(content, queue)`: Put stream items into queue.
+- `dequeue(queue)`: Create stream from queue.
+
+### `genai_processors.core.genai_model`
+
+#### `GenaiModel`
+Turn-based processor for Gemini API.
+```python
+GenaiModel(
+    api_key: str,
+    model_name: str,
+    generate_content_config: genai_types.GenerateContentConfigOrDict | None = None,
+    ...
+)
+```
+
+#### `ImagePreprocess`
+PartProcessor that uploads images to Gemini File API.
+```python
+ImagePreprocess(api_key: str, ttl_secs: int | None = None)
+```
+
+### `genai_processors.core.realtime`
+
+#### `LiveProcessor` (Turn-based Realtime)
+Converts a turn-based model into a real-time processor with sliding window prompt.
+```python
+LiveProcessor(
+    turn_processor: Processor,
+    duration_prompt_sec: float | None = 600,
+    trigger_model_mode: AudioTriggerMode = AudioTriggerMode.FINAL_TRANSCRIPTION,
+)
+```
+- `trigger_model_mode`: `END_OF_SPEECH` (for audio models) or `FINAL_TRANSCRIPTION` (for text models).
+
+### `genai_processors.core.live_model`
+
+#### `LiveProcessor` (Gemini Live API)
+Wrapper for native Gemini Live API (WebSocket).
+```python
+LiveProcessor(
+    api_key: str,
+    model_name: str,
+    realtime_config: genai_types.LiveConnectConfigOrDict | None = None,
+    ...
+)
+```
+Input stream should use `substream_name='realtime'` for media inputs.
+
+### `genai_processors.core.function_calling`
+
+#### `FunctionCalling`
+Wraps a model processor to handle tool execution loop.
+```python
+FunctionCalling(
+    model: Processor,
+    fns: list[Callable | genai_types.McpClientSession],
+    is_bidi_model: bool = False,
+    ...
+)
+```
+- Handles both sync and async tools.
+- Supports streaming tools (async generators).
+- `is_bidi_model=True` for `LiveProcessor` (both types).
+
+### `genai_processors.core.audio`
+
+#### `AudioToWav`
+Concatenates consecutive audio parts into a single WAV part.
+```python
+AudioToWav()
+```
+
+### `genai_processors.core.audio_io`
+
+#### `PyAudioIn` (Source)
+Receives audio input from microphone.
+```python
+PyAudioIn(
+    pya: pyaudio.PyAudio,
+    substream_name: str = 'realtime',
+    rate: int = 24000,
+    ...
+)
+```
+
+#### `PyAudioOut`
+Plays audio output to speaker.
+```python
+PyAudioOut(
+    pya: pyaudio.PyAudio,
+    rate: int = 24000,
+    passthrough_audio: bool = False,
+    ...
+)
+```
+
+### `genai_processors.core.video`
+
+#### `VideoIn` (Source)
+Yields image parts from camera or screen.
+```python
+VideoIn(
+    substream_name: str = 'realtime',
+    video_mode: VideoMode = VideoMode.CAMERA
+)
+```
+- `VideoMode`: `CAMERA`, `SCREEN`.
+
+#### `VideoExtract`
+PartProcessor that extracts frames from video files.
+```python
+VideoExtract(
+    frames_per_second: float = 1.0,
+    video_format: VideoAVFormat = VideoAVFormat.BOTH_INTERLEAVED
+)
+```
+
+### `genai_processors.core.text`
+
+#### `MatchProcessor`
+Extracts text patterns from the input stream.
+```python
+MatchProcessor(
+    pattern: str | re.Pattern,
+    word_start: str | None = None,
+    substream_input: str = '',
+    substream_output: str = '',
+    remove_from_input_stream: bool = True,
+    ...
+)
+```
+
+#### `UrlExtractor`
+Replaces text URLs with `FetchRequest` parts.
+```python
+UrlExtractor(
+    urls: Mapping[str, Type] | None = None, # Default: http/https -> FetchRequest
+    ...
+)
+```
+
+#### `HtmlCleaner`
+PartProcessor cleaning up HTML content.
+```python
+HtmlCleaner(cleaning_mode: Literal['html', 'plain'] = 'plain')
+```
+
+#### `terminal_input` (Source)
+Yields lines from terminal input.
+```python
+terminal_input(prompt: str = '')
+```
+
+#### `terminal_output`
+Async function (not a processor class) to print stream to terminal.
+```python
+await terminal_output(content, prompt='')
+```
+
+### `genai_processors.core.pdf`
+
+#### `PDFExtract`
+PartProcessor that extracts text and images from PDF bytes (using `pypdfium2`).
+```python
+PDFExtract()
+```
+
+### `genai_processors.core.speech_to_text`
+
+#### `SpeechToText`
+Transcribes audio parts using Google Cloud Speech API.
+```python
+SpeechToText(
+    project_id: str,
+    recognition_config: speech_v2.types.RecognitionConfig | None = None,
+    audio_passthrough: bool = False,
+    with_endpointing: bool = True,
+    substream_transcription: str = 'input_transcription',
+    ...
+)
+```
+
+### `genai_processors.core.text_to_speech`
+
+#### `TextToSpeech`
+Generates audio from text using Google Cloud Text-to-Speech API.
+```python
+TextToSpeech(
+    project_id: str,
+    voice_name: str = 'en-US-Chirp3-HD-Charon',
+    with_text_passthrough: bool = True,
+    ...
+)
+```
+
+### `genai_processors.core.rate_limit_audio`
+
+#### `RateLimitAudio`
+Splits and rate-limits audio parts for natural playback speed.
+```python
+RateLimitAudio(sample_rate: int, delay_other_parts: bool = True)
+```
+
+### `genai_processors.core.filesystem`
+
+#### `GlobSource` (Source)
+Yields files matching a glob pattern.
+```python
+GlobSource(
+    pattern: str,
+    base_dir: str = '.',
+    inline_file_data: bool = True
+)
+```
+
+### `genai_processors.core.drive`
+
+#### `Docs`, `Sheets`, `Slides`
+PartProcessors for extracting content from Google Drive files using JSON requests (e.g., `DocsRequest`).
+```python
+Docs(creds=...)
+Sheets(creds=...)
+Slides(creds=...)
+```
+
+### `genai_processors.core.github`
+
+#### `GithubProcessor`
+PartProcessor for extracting content from GitHub URLs.
+```python
+GithubProcessor(api_key: str)
+```
+
+### `genai_processors.core.web`
+
+#### `UrlFetch`
+PartProcessor that fetches content for `FetchRequest` parts.
+```python
+UrlFetch(timeout_seconds: int = 10)
+```
+
+### `genai_processors.core.ollama_model`
+
+#### `OllamaModel`
+Turn-based processor for Ollama API (local models).
+```python
+OllamaModel(
+    model_name: str = '',
+    host: str | None = None,
+    generate_content_config: GenerateContentConfig | None = None,
+    stream_json: bool = False,
+    ...
+)
+```
+
+### `genai_processors.core.transformers_model`
+
+#### `TransformersModel`
+Turn-based processor for Hugging Face Transformers models.
+```python
+TransformersModel(
+    model_name: str = '',
+    generate_content_config: GenerateContentConfig | None = None,
+    ...
+)
+```
+
+### `genai_processors.core.jinja_template`
+
+#### `JinjaTemplate`
+Renders a Jinja template with multimodal content.
+```python
+JinjaTemplate(
+    template_str: str,
+    content_varname: str = 'content',
+    role: str = 'user',
+    ...
+)
+```
+
+#### `RenderDataClass`, `RenderJson`, `RenderProtoMessage`
+PartProcessors for rendering specific data types using Jinja templates.
+
+### `genai_processors.core.preamble`
+
+#### `Preamble`, `Suffix`
+Prepends or appends content to a stream.
+```python
+Preamble(content=...)
+Suffix(content=...)
+```
+
+### `genai_processors.core.timestamp`
+
+#### `add_timestamps`
+Processor function that adds timestamp text parts after image parts.
+```python
+add_timestamps(with_ms: bool = False, substream_name: str | None = None)
+```
+
+### `genai_processors.core.window`
+
+#### `Window`
+Invokes a processor on a sliding window of content.
+```python
+Window(
+    window_processor: Processor,
+    compress_history: Callable | None = None,
+    max_concurrency: int = 0,
+    stride: int = 1,
+)
+```
+
+#### `RollingPrompt`
+Low-level utility for managing a sliding window of conversation history.
+
+### `genai_processors.core.event_detection`
+
+#### `EventDetection`
+Detects events from images in the stream using an LLM.
+```python
+EventDetection(
+    api_key: str,
+    model: str,
+    config: genai_types.GenerateContentConfig,
+    output_dict: dict[EventTransition, ProcessorContentTypes | None],
+    ...
+)
+```
+
+### `genai_processors.core.constrained_decoding`
+
+#### `StructuredOutputParser`
+Buffers text parts and parses them into a structured object (JSON/Enum/Dataclass) based on a schema.
+```python
+StructuredOutputParser(schema: type[Any])
+```
+
+### `genai_processors.core.adk`
+
+#### `ProcessorAgent`
+ADK Agent implementation that delegates to a Processor.
+```python
+ProcessorAgent(processor_factory: Callable[[], Processor], name: str)
+```
+
+### `genai_processors.dev.trace` / `genai_processors.dev.trace_file`
+
+#### `Trace`
+Abstract base class for tracing execution.
+
+#### `SyncFileTrace`
+Concrete implementation that saves traces to JSON and HTML files.
+```python
+async with SyncFileTrace(name="my_trace", trace_dir="/tmp/traces"):
+    # Run pipeline
+```
+
+### `genai_processors.cache` / `genai_processors.processor`
+
+#### `InMemoryCache`
+In-memory implementation of `CacheBase`.
+```python
+cache = InMemoryCache(ttl_hours=12, max_items=1000)
+```
+
+#### `CachedPartProcessor` / `CachedProcessor`
+Wrappers that add caching to any processor.
+```python
+cached_p = CachedPartProcessor(my_part_processor, default_cache=cache)
+```
+
+### `genai_processors.sql_cache`
+
+#### `SqlCache`
+Persistent SQLite/SQLAlchemy implementation of `CacheBase`.
+```python
+async with sql_cache(db_url="sqlite+aiosqlite:///cache.db") as cache:
+    # Use cache
+```
+
+### `genai_processors.switch`
+
+#### `Switch`
+Routes stream parts to different Processors based on a condition.
+```python
+Switch(match_fn=lambda part: part.mimetype)
+    .case("text/plain", text_processor)
+    .default(other_processor)
+```
+
+#### `PartSwitch`
+Routes individual parts to different PartProcessors based on a condition (concurrent).
+```python
+PartSwitch()
+    .case(content_api.is_image, image_processor)
+    .default(processor.passthrough())
+```
+
+### `genai_processors.debug`
+
+#### `TTFTSingleStream`
+Measures Time To First Token for single-stream processors.
+```python
+TTFTSingleStream(message="Model Latency", p=model_processor)
+```
+
+#### `log_stream` / `print_stream`
+Processors that log or print passing parts for debugging.
+```python
+log_stream(message="Debug")
+```
+
+## Usage Examples
+
+### Basic Pipeline
+```python
+@processor.processor_function
+async def my_filter(content: ProcessorStream):
+    async for part in content:
+        if "bad" not in part.text:
+            yield part
+
+model = GenaiModel(api_key=..., model_name="gemini-2.0-flash")
+pipeline = my_filter + model
+
+async with processor.context():
+    async for part in pipeline(input_stream):
+        print(part.text)
+```
+
+### Realtime Pipeline with Tools
+```python
+tools = [get_weather]
+model = GenaiModel(..., tools=tools)
+fc = FunctionCalling(model, fns=tools, is_bidi_model=True)
+realtime_proc = realtime.LiveProcessor(turn_processor=fc)
+
+pipeline = audio_source + stt + realtime_proc + tts + audio_sink
+```
