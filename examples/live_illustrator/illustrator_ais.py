@@ -47,7 +47,7 @@ from typing import Any
 from absl import app
 from absl import flags
 from genai_processors import processor
-from genai_processors.examples import live_server
+from genai_processors.dev import live_server
 import illustrator
 
 _PORT = flags.DEFINE_integer(

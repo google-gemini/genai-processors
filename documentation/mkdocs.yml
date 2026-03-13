@@ -66,15 +66,16 @@ nav:
     - Async & Streaming: concepts/async-streaming.md
     - Realtime Processing: concepts/realtime.md
     - Function Calling: concepts/function-calling.md
-  - Rapid Prototyping:
-    - AI Studio: rapid-prototyping/ai-studio.md
-    - Command Line: rapid-prototyping/cli.md
-    - Coding Agent: rapid-prototyping/coding-agent.md
   - Development:
     - Supported Models: development/supported-models.md
     - Built-in Processors: development/built-in-processors.md
     - Tracing: development/tracing.md
     - Caching: development/caching.md
+    - WebSocket Server: development/websocket-server.md
+  - Rapid Prototyping:
+    - Command Line: rapid-prototyping/cli.md
+    - AI Studio: rapid-prototyping/ai-studio.md
+    - Coding Agent: rapid-prototyping/coding-agent.md
   - Examples:
     - CLI: examples/cli.md
     - Research Agent: examples/research_agent.md

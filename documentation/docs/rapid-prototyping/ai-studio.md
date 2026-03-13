@@ -1,149 +1,70 @@
 # Building AI Studio Applets for Live Agents
 
-You can use Google's [AI Studio](https://aistudio.google.com/) to build custom
-web UIs called "Applets", which are ideal for rapidly prototyping interactive AI
-agents.
+Google's [AI Studio](https://aistudio.google.com/) allows you to build
+Applets—custom web-based frontends for rapidly prototyping interactive AI
+agents. Applets are ideal for demos requiring microphone/camera access or
+specialized UI components that the standard chat interface doesn't support.
 
-AI Studio Applets are web applications (HTML, CSS, and JavaScript/TypeScript)
-that run inside AI Studio. They are perfect for building interactive demos for
-agents that require features like live audio streaming from a microphone, camera
-access, or custom UI elements for displaying results.
+## Applet Structure
 
-GenAI Processors provides
-[live_server.py](https://github.com/google-gemini/genai-processors/blob/main/examples/live_server.py)
-to simplify building a backend for these applets. It wraps your processor in a
-WebSocket server, allowing your AI Studio Applet to communicate with it in
-real-time.
+An Applet is a standard web bundle consisting of three core files:
 
-## The `live_server` Backend
+-   `index.html`: The UI skeleton.
 
-The
-[`live_server`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_server.py)
-module provides a simple way to serve a GenAI Processor over a WebSocket
-connection. You typically run this server on your local machine, and your AI
-Studio Applet connects to it.
+-   `index.js / .tsx`: The client-side logic (WebSocket handling, audio
+    processing, UI state).
 
-To use it, you need to provide a `processor_factory` function that creates an
-instance of your processor, and then call `live_server.run_server`:
+-   `metadata.json`: Defines the app's identity and required browser
+    permissions.
 
-```python
-import asyncio
-from typing import Any
-from genai_processors import processor
-from genai_processors.examples import live_server
+**Example** `metadata.json`
 
-def create_my_processor(config: dict[str, Any]) -> processor.Processor:
-  # config contains configuration sent by the client applet.
-  my_processor = ... # Your processor initialization
-  return my_processor
-
-async def main():
-  await live_server.run_server(create_my_processor, port=8765)
-
-if __name__ == '__main__':
-  asyncio.run(main())
+```json
+{
+  "name": "Live Voice Assistant",
+  "description": "Real-time voice agent using WebSockets",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
 ```
 
-See the
-[`live commentator code`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/commentator_ais.py)
-for a complete example.
+## Development Workflow
 
-## The AI Studio Applet Frontend
+The typical Applet logic follows this lifecycle:
 
-An AI Studio Applet consists of three main files:
-
--   `index.html`: The main HTML structure of your app.
--   `index.js` (or `.ts`/`.tsx`): The client-side logic, including WebSocket
-    connection and UI updates.
--   `metadata.json`: Configures app name, description, and permissions (e.g.,
-    microphone).
-
-You can create a new applet in AI Studio and paste your code there, or use AI
-Studio's integration with GitHub to load an applet from a repository.
-
-The client-side JavaScript typically performs these tasks:
-
-1.  Establish a WebSocket connection to your `live_server` (e.g.,
+1.  **Establish Connection:** Open a WebSocket to your backend (e.g.,
     `ws://localhost:8765`).
-2.  Send user inputs (such as microphone audio or text) to the server.
-3.  Receive outputs from the server and update the UI.
 
-See the
-[`live commentator applet`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/ais_app/)
-for a full example of an applet.
+2.  **Handshake:** Send an initial `application/x-config` message to initialize
+    the remote Processor.
 
-## Communication Protocol
+3.  **Input Streaming:** Capture microphone/text and send Base64-encoded
+    `ProcessorPart` objects.
 
-The client (Applet) and server (`live_server`) communicate by exchanging
-JSON-stringified messages over WebSocket. Each message represents a
-`ProcessorPart` object.
-
-**Client-to-Server:**
-
-The client sends user input, such as text or audio, as `ProcessorPart`s. For
-example, to send text:
-
-```json
-{
-  "part": {
-    "text": "Hello World"
-  },
-  "role": "user"
-}
-```
-
-Audio or image data should be Base64-encoded and sent as `inline_data`:
-
-```json
-{
-  "part": {
-    "inline_data": {
-      "data": "SGVsbG8gV29ybGQ=",
-      "mime_type": "audio/l16;rate=24000"
-    }
-  },
-  "role": "user",
-  "substream_name": "realtime"
-}
-```
-
-On connection, the client can also send configuration to the server using the
-`application/x-config` mimetype. This configuration dictionary is passed to the
-`processor_factory` function:
-
-```json
-{
-  "mimetype": "application/x-config",
-  "metadata": {
-    "my_setting": "my_value"
-  }
-}
-```
-
-**Server-to-Client:**
-
-The server sends `ProcessorPart`s generated by the processor back to the client.
-Text, images, and other data types are serialized to JSON. For example:
-
-```json
-{
-  "part": {
-    "text": "This is a response from the model."
-  },
-  "role": "model",
-  "metadata": {}
-}
-```
-
-Images or other binary data are returned with Base64-encoded `inline_data`.
-
-By combining AI Studio Applets with `live_server`, you can rapidly build and
-test interactive AI agents with custom user interfaces.
+4.  **Output Rendering:** Parse incoming JSON messages and update the DOM or
+    play audio buffers.
 
 ## Generating Applets with AI
 
-AI Studio can help generate the applet code for you. To do this, simply describe
-the desired UI and specify the communication protocol in your prompt.
+AI Studio is highly effective at generating the boilerplate for these Applets.
+To get a functional starting point, use a prompt that specifies the
+communication requirements:
 
-For example, you can include: "The applet should connect to a WebSocket backend
-that sends and receives JSON dictionaries representing Google GenAI parts."
+**Example of Prompt snippet:**
+
+> "Create an AI Studio Applet with a clean UI for a voice commentator. The
+> applet must:
+>
+> 1.  Connect to a WebSocket backend at ws://localhost:8765. The server is not
+>     hosted on the applet nor in typescript. It is already built elsewhere, do
+>     not build it.
+>
+> 2.  Send/receive JSON serialized representations of ProcessorParts (from the
+>     GenAI Processor library).
+
+## Reference Implementation
+
+For a complete example including audio buffering and state management, see the
+[`Live Commentator Applet Source`](https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/ais_app/).

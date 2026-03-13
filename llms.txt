@@ -18,6 +18,11 @@ The GenAI Processors library provides composable, async building blocks for gene
 * `filesystem.py`, `web.py`, `github.py`, `pdf.py`: File IO, fetching, and document parsing.
 * `audio.py`, `video.py`: Multimodal processors.
 
+## 🛠️ Developing end to end AI applications
+* `live_server.py`: websocket server serves as backend, default to localhost.
+* create local webpage with JS or TS for the frontend, base64 decode the media data when receiving.
+* All messages sent and received are JSON-serialized ProcessorParts.
+
 ## 📖 Where to Look for Help
 * **Documentation Guides** (`documentation/docs/`):
   * `getting-started.md` / `index.md`: Setup and basics.

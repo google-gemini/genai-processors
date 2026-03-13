@@ -38,7 +38,7 @@ from absl import app
 from absl import flags
 from absl import logging
 from genai_processors import processor
-from genai_processors.examples import live_server
+from genai_processors.dev import live_server
 import commentator
 
 _PORT = flags.DEFINE_integer(

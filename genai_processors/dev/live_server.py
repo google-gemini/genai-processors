@@ -20,8 +20,8 @@ WebSocket server. This allows any GenAI processor to be used with external
 applications such as AI Studio.
 
 The server expects a stringified json dictionary of content_api.ProcessorPart as
-input from the client. The bytes field should be base64 encoded. The mime_type
-field should be set to the correct mime_type. The substream_name field should be
+input from the client. The bytes field should be base64 encoded. The mimetype
+field should be set to the correct mimetype. The substream_name field should be
 set to 'realtime' for images and audio streamed live from the UI.
 
 Empty ProcessorPart with the following metadata fields can also be sent:
@@ -87,10 +87,6 @@ Example of messages going back and forth between the client and the server:
   }
   "mimetype": "application/x-state",
 }
-
-__WARNING__: this is a work in progress and is provided here for convenience and
-for prototyping quickly. We will likely make backwards incompatible changes to
-comply with a more stable GenAI API between clients and servers.
 """
 
 import asyncio
