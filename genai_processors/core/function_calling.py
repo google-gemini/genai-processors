@@ -789,6 +789,16 @@ class _ExecuteFunctionCall:
     Returns:
       A function response wrapping the content in the part.
     """
+    # The types of parts supported within FunctionResponse is narrower than
+    # ProcessorContent. In particular, nested FunctionResponses are not
+    # supported and must be returned without being wrapped.
+    # As it is trivial to inadvertently wrap returned content with a
+    # ProcessorContent class (e.g., by using .gather() on a nested processor),
+    # we unwrap content with a single part in it in case it is a
+    # FunctionResponse.
+    if isinstance(parts, content_api.ProcessorContent) and len(parts) == 1:
+      parts = parts[0]
+
     substream_name = self._substream_name
     if isinstance(parts, content_api.ProcessorPart) and parts.substream_name:
       substream_name = parts.substream_name
