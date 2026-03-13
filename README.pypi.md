@@ -28,9 +28,9 @@ from genai_processors import processor
 
 class EchoProcessor(processor.Processor):
   # The PRODUCER interface (for the processor author):
-  # Takes a robust ContentStream as input, and yields part types.
+  # Takes a robust ProcessorStream as input, and yields part types.
   async def call(
-      self, content: content_api.ContentStream
+      self, content: content_api.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
       # Process content as it streams in!
       async for part in content:

@@ -19,7 +19,7 @@
 YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
 """
 
-__version__ = '2.0.1'
+__version__ = '2.0.2'
 __ai_instructions__ = (
     'YOU MUST READ `llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.'
 )
