@@ -10,31 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://google-gemini.github.io/genai-processors/getting-started/">
+        <link rel="canonical" href="https://google-gemini.github.io/genai-processors/development/websocket-server/">
       
       
-        <link rel="prev" href="..">
+        <link rel="prev" href="../caching/">
       
       
-        <link rel="next" href="../principles/">
+        <link rel="next" href="../../rapid-prototyping/cli/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.5">
     
     
       
-        <title>Getting Started - GenAI Processors</title>
+        <title>WebSocket Server - GenAI Processors</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,9 +53,9 @@
       
     
     
-      <link rel="stylesheet" href="../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -80,7 +80,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#getting-started" class="md-skip">
+        <a href="#wrapping-a-processor-into-a-websocket-server" class="md-skip">
           Skip to content
         </a>
       
@@ -96,7 +96,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="GenAI Processors" class="md-header__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+    <a href="../.." title="GenAI Processors" class="md-header__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Getting Started
+              WebSocket Server
             
           </span>
         </div>
@@ -234,7 +234,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="GenAI Processors" class="md-nav__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
+    <a href="../.." title="GenAI Processors" class="md-nav__button md-logo" aria-label="GenAI Processors" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -264,7 +264,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -288,37 +288,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting Started
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
         
   
   
@@ -334,92 +307,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#google-api-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Google API Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#your-first-processor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Your First Processor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#composition" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Composition
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next Steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -431,7 +318,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../principles/" class="md-nav__link">
+      <a href="../../principles/" class="md-nav__link">
         
   
   
@@ -522,7 +409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/processor/" class="md-nav__link">
+      <a href="../../concepts/processor/" class="md-nav__link">
         
   
   
@@ -550,7 +437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/async-streaming/" class="md-nav__link">
+      <a href="../../concepts/async-streaming/" class="md-nav__link">
         
   
   
@@ -578,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/realtime/" class="md-nav__link">
+      <a href="../../concepts/realtime/" class="md-nav__link">
         
   
   
@@ -606,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concepts/function-calling/" class="md-nav__link">
+      <a href="../../concepts/function-calling/" class="md-nav__link">
         
   
   
@@ -638,8 +525,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -662,13 +551,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
@@ -689,7 +576,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -707,7 +594,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/supported-models/" class="md-nav__link">
+      <a href="../supported-models/" class="md-nav__link">
         
   
   
@@ -735,7 +622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/built-in-processors/" class="md-nav__link">
+      <a href="../built-in-processors/" class="md-nav__link">
         
   
   
@@ -763,7 +650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/tracing/" class="md-nav__link">
+      <a href="../tracing/" class="md-nav__link">
         
   
   
@@ -791,7 +678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../development/caching/" class="md-nav__link">
+      <a href="../caching/" class="md-nav__link">
         
   
   
@@ -816,10 +703,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../development/websocket-server/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    WebSocket Server
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -835,6 +749,48 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#communication-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Communication Protocol
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -916,7 +872,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rapid-prototyping/cli/" class="md-nav__link">
+      <a href="../../rapid-prototyping/cli/" class="md-nav__link">
         
   
   
@@ -944,7 +900,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rapid-prototyping/ai-studio/" class="md-nav__link">
+      <a href="../../rapid-prototyping/ai-studio/" class="md-nav__link">
         
   
   
@@ -972,7 +928,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../rapid-prototyping/coding-agent/" class="md-nav__link">
+      <a href="../../rapid-prototyping/coding-agent/" class="md-nav__link">
         
   
   
@@ -1073,7 +1029,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/cli/" class="md-nav__link">
+      <a href="../../examples/cli/" class="md-nav__link">
         
   
   
@@ -1101,7 +1057,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/research_agent/" class="md-nav__link">
+      <a href="../../examples/research_agent/" class="md-nav__link">
         
   
   
@@ -1129,7 +1085,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/live_commentator/" class="md-nav__link">
+      <a href="../../examples/live_commentator/" class="md-nav__link">
         
   
   
@@ -1157,7 +1113,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/live_illustrator/" class="md-nav__link">
+      <a href="../../examples/live_illustrator/" class="md-nav__link">
         
   
   
@@ -1185,7 +1141,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/widgets/" class="md-nav__link">
+      <a href="../../examples/widgets/" class="md-nav__link">
         
   
   
@@ -1453,10 +1409,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
+  <a href="#quick-start" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Prerequisites
+        Quick Start
       
     </span>
   </a>
@@ -1464,54 +1420,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#communication-protocol" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#google-api-configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Google API Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#your-first-processor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Your First Processor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#composition" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Composition
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next Steps
+        Communication Protocol
       
     </span>
   </a>
@@ -1538,97 +1450,132 @@
   
 
 
-<h1 id="getting-started">Getting Started</h1>
-<p>This guide will walk you through setting up GenAI Processors and building your
-first AI pipeline.</p>
-<h2 id="prerequisites">Prerequisites</h2>
+<h1 id="wrapping-a-processor-into-a-websocket-server">Wrapping a Processor into a WebSocket Server</h1>
+<p>The
+<a href="https://github.com/google-gemini/genai-processors/blob/main/dev/live_server.py"><code>live_server</code></a>
+module provides a simple way to serve a GenAI Processor over a WebSocket
+connection. This allows you to bridge a local agent pipeline to an AI Studio
+Applet or a custom web interface.</p>
+<h2 id="quick-start">Quick Start</h2>
+<p>To initialize the server, define a <code>processor_factory</code> function to creates an
+instance of your processor and pass it to <code>live_server.run_server</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">processor</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.dev</span><span class="w"> </span><span class="kn">import</span> <span class="n">live_server</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">create_my_processor</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">processor</span><span class="o">.</span><span class="n">Processor</span><span class="p">:</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="c1"># &#39;config&#39; is sent by the client at start.</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="n">my_processor</span> <span class="o">=</span> <span class="o">...</span> <span class="c1"># Your processor initialization</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  <span class="k">return</span> <span class="n">my_processor</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  <span class="c1"># Defaults to localhost.</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  <span class="k">await</span> <span class="n">live_server</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span><span class="n">create_my_processor</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8765</span><span class="p">)</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s1">&#39;__main__&#39;</span><span class="p">:</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>  <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+</code></pre></div>
+<h2 id="communication-protocol">Communication Protocol</h2>
+<p>The client and server exchange JSON-stringified messages. Each message follows a
+consistent envelope representing a <code>ProcessorPart</code>.</p>
+<p><strong>1. Initialization (Client → Server)</strong></p>
+<p>Before sending data, the client should send a configuration message. This
+dictionary is passed directly to your <code>processor_factory</code> as the <code>config</code>
+argument.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;mimetype&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;application/x-config&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">&quot;my_setting&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;my_value&quot;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>2. Sending Data &amp; Control (Client → Server)</strong></p>
+<p>Input (Text, Audio, Images) is wrapped in a <code>ProcessorPart</code> object. Binary data
+must be Base64-encoded.</p>
 <ul>
-<li><strong>Python 3.11+</strong></li>
-<li><strong>Google AI Studio API Key</strong> as the tutorials and the demos use Gemini. You
-    can get the key for free
-    <a href="https://ai.google.dev/gemini-api/docs/api-key">here</a>. Once you know more
-    about the library, you will be able to use Gemma and other models available
-    via Ollama or Transformers.</li>
+<li>
+<p><strong>Text</strong>: <code>json { "part": { "text": "Hello World" }, "role": "user" }</code></p>
+</li>
+<li>
+<p><strong>Media</strong>:</p>
+</li>
 </ul>
-<h2 id="installation">Installation</h2>
-<p>Install the core library:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>genai-processors
+<blockquote>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w"> </span><span class="nt">&quot;part&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">   </span><span class="nt">&quot;inline_data&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">     </span><span class="nt">&quot;data&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SGVsbG8gV29ybGQ=&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">     </span><span class="nt">&quot;mime_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;audio/l16;rate=24000&quot;</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">   </span><span class="p">}</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w"> </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w"> </span><span class="nt">&quot;substream_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;realtime&quot;</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="p">}</span>
 </code></pre></div>
-<h2 id="google-api-configuration">Google API Configuration</h2>
-<p>We will use Gemini API extensively in our examples. Set your API key as an
-environment variable for ease of use:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GOOGLE_API_KEY</span><span class="o">=</span><span class="s2">&quot;your_api_key_here&quot;</span>
-</code></pre></div>
-<h2 id="your-first-processor">Your First Processor</h2>
-<p>Let's build a simple processor that accepts text input and generates a response
-using Gemini. For this example, we use a Gemini API model.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">content_api</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">genai_model</span>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="c1"># Get your key from the environment variable</span>
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="n">api_key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GOOGLE_API_KEY&quot;</span><span class="p">)</span>
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    <span class="c1"># Initialize the model.</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">model</span> <span class="o">=</span> <span class="n">genai_model</span><span class="o">.</span><span class="n">GenaiModel</span><span class="p">(</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>        <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;gemini-3.0-flash&quot;</span><span class="p">,</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>        <span class="n">api_key</span><span class="o">=</span><span class="n">api_key</span><span class="p">,</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="p">)</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>    <span class="c1"># Process a single prompt.</span>
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="n">response</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorContent</span><span class="p">(</span><span class="s2">&quot;Hello, GenAI!&quot;</span><span class="p">))</span>
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>    <span class="c1"># Convenient method to collect all textual parts.</span>
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>    <span class="nb">print</span><span class="p">(</span><span class="k">await</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
-</code></pre></div>
-<h2 id="composition">Composition</h2>
-<p>The true power of GenAI Processors lies in composition. You can chain processors
-using the <code>+</code> operator. More generally, you can combine processors in different
-ways knowing they always follow the same simple signature: streams of parts
-coming in and out. We recommend to use the <code>+</code> operator whenever possible to
-benefit from the framework optimizations done under the hood: the processing of
-parts is indeed implemented to minimize TTFT and concurrency is used extensively
-whenever possible.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors</span><span class="w"> </span><span class="kn">import</span> <span class="n">content_api</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">preamble</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Create a processor that adds a prefix to any input.</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">system_prompt</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Preamble</span><span class="p">(</span>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="s2">&quot;You are a pirate styling assistant. Answer everything in pirate speak.&quot;</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="p">)</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="c1"># Chain it with the model</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">pirate_bot</span> <span class="o">=</span> <span class="n">system_prompt</span> <span class="o">+</span> <span class="n">model</span>
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Now the model will always act like a pirate</span>
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">response</span> <span class="o">=</span> <span class="n">pirate_bot</span><span class="p">(</span>
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>    <span class="n">content_api</span><span class="o">.</span><span class="n">ContentStream</span><span class="p">(</span><span class="n">content</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;What color matches blue?&quot;</span><span class="p">])</span>
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>    <span class="p">)</span>
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="nb">print</span><span class="p">(</span><span class="k">await</span> <span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">())</span>
-</code></pre></div>
-<p>We used textual response but could work with multi-model response as well using
-a direct iteration over the output of the processor.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">response</span><span class="p">:</span>
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>  <span class="c1"># Print all objects returned by the processor.</span>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>  <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Response part: </span><span class="si">{</span><span class="n">part</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="next-steps">Next Steps</h2>
-<p>Now that you have the basics, dive deeper into the core concepts:</p>
+</blockquote>
 <ul>
 <li>
-<p><strong><a href="https://github.com/google-gemini/genai-processors/blob/main/notebooks/content_api_intro.ipynb">Tutorials</a></strong>:
-    Learn about the different components of the library step-by-step with
-    examples [external colabs].</p>
+<p><strong>Control Signals:</strong> The client can send empty <code>ProcessorPart</code> objects with
+    <code>metadata</code> to manage the session:</p>
+<ul>
+<li>
+<p><code>{"metadata": {"reset": true}}</code>: Resets the processor state on the
+    server.</p>
 </li>
 <li>
-<p><strong><a href="../concepts/processor/">Core Concepts</a></strong>: get an overview of the core
-    concepts of the library from processor to content stream and more.</p>
+<p><code>{"metadata": {"mic": "off"}}</code>: Notifies the server the client has muted
+    their microphone. This sends a <code>part</code> to the underlying processor on the
+    <code>realtime</code> substream with the metadata entry for <code>audio_stream_end</code> set
+    to <code>True</code>.</p>
 </li>
+</ul>
+</li>
+</ul>
+<p><strong>3. Receiving Data &amp; State (Server → Client)</strong></p>
+<p>The server streams responses back using the same structure. Common mimetypes to
+handle include <code>text/plain</code>, <code>audio/*</code>, and the internal <code>application/x-state</code>.</p>
+<p><strong>State Metadata to Monitor:</strong></p>
+<ul>
+<li>
+<p><code>generation_complete: True</code>: The processor has finished generating a
+    response.</p>
+</li>
+<li>
+<p><code>interrupted: True</code>: The processor was interrupted (e.g., by a "start of
+    speech" signal).</p>
+</li>
+<li>
+<p><code>health_check: True</code>: Sent periodically to ensure the connection is alive.</p>
+</li>
+</ul>
+<p><strong>Example Response:</strong></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">&quot;part&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;text&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Hello! How can I help?&quot;</span><span class="w"> </span><span class="p">},</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">&quot;role&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;model&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="nt">&quot;mimetype&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text/plain&quot;</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>Implementation Examples (TypeScript):</strong></p>
+<p>A typical way to handle these messages in your Applet frontend:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">this</span><span class="p">.</span><span class="nx">agentWebSocket</span><span class="p">.</span><span class="nx">onmessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">JSON</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">data</span><span class="p">);</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mimetype</span><span class="p">,</span><span class="w"> </span><span class="nx">part</span><span class="p">,</span><span class="w"> </span><span class="nx">metadata</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">msg</span><span class="p">;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">mimetype</span><span class="o">?</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s1">&#39;audio/&#39;</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">        </span><span class="c1">// Decode Base64 and play</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">        </span><span class="k">this</span><span class="p">.</span><span class="nx">playBuffer</span><span class="p">(</span><span class="nx">base64</span><span class="p">.</span><span class="nx">decode</span><span class="p">(</span><span class="nx">part</span><span class="p">.</span><span class="nx">inline_data</span><span class="p">.</span><span class="nx">data</span><span class="p">));</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">mimetype</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">&#39;application/x-state&#39;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">metadata</span><span class="p">.</span><span class="nx">generation_complete</span><span class="p">)</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Done!&quot;</span><span class="p">);</span>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span><span class="p">}</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="p">};</span>
+</code></pre></div>
+<p>You can see real examples of client apps using the websocket server here:</p>
+<ul>
+<li><a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/ais_app/index.tsx">Live Commentator UI</a></li>
+<li><a href="https://github.com/google-gemini/genai-processors/blob/main/examples/live_illustrator/ais_app/index.tsx">Live Ilustrator UI</a></li>
+<li><a href="https://github.com/google-gemini/genai-processors/blob/main/examples/widgets/ais_app/index.tsx">Widgets Agent UI</a></li>
 </ul>
 
 
@@ -1665,7 +1612,7 @@ a direct iteration over the output of the processor.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href=".." class="md-footer__link md-footer__link--prev" aria-label="Previous: Home">
+          <a href="../caching/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Caching">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1675,20 +1622,20 @@ a direct iteration over the output of the processor.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Home
+                Caching
               </div>
             </div>
           </a>
         
         
           
-          <a href="../principles/" class="md-footer__link md-footer__link--next" aria-label="Next: Design Principles">
+          <a href="../../rapid-prototyping/cli/" class="md-footer__link md-footer__link--next" aria-label="Next: Command Line">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Design Principles
+                Command Line
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1725,10 +1672,10 @@ a direct iteration over the output of the processor.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.sections", "navigation.indexes", "navigation.expand", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.sections", "navigation.indexes", "navigation.expand", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "content.code.copy", "content.code.annotate"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
