@@ -20,7 +20,6 @@ from typing import AsyncIterable
 from genai_processors import content_api
 from genai_processors import processor
 
-
 class CriticReviser(processor.Processor):
   """Agent that uses a critic-reviser loop to improve responses.
 

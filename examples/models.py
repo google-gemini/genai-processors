@@ -108,6 +108,9 @@ def turn_based_model(
     if model_name.startswith('critic:'):
       model_name = model_name[len('critic:') :]
       agent_name = 'critic'
+    elif model_name.startswith('research:'):
+      model_name = model_name[len('research:') :]
+      agent_name = 'research'
 
     config = genai_types.GenerateContentConfig(
         system_instruction=[
