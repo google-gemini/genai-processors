@@ -37,7 +37,7 @@ from genai_processors import debug
 from genai_processors import mime_types
 from genai_processors import processor
 from genai_processors import streams
-from genai_processors.core import speech_to_text
+from genai_processors.core import speech_events
 from genai_processors.core import window
 
 
@@ -49,7 +49,7 @@ Processor = processor.Processor
 CONVERSATION_START = '\nThe following is your conversation so far:\n'
 
 # Substream name to output part directly as is without going through the model.
-DIRECT_OUTPUT_SUBSTREAM = speech_to_text.TRANSCRIPTION_SUBSTREAM_NAME
+DIRECT_OUTPUT_SUBSTREAM = speech_events.TRANSCRIPTION_SUBSTREAM_NAME
 # Metadata key that should be set to True if the part that is output directly
 # as text (see DIRECT_OUTPUT_TEXT) should also be in the prompt.
 DIRECT_OUTPUT_IN_PROMPT = 'is_final'
@@ -164,11 +164,11 @@ class LiveProcessor(Processor):
           if self._trigger_model_mode == AudioTriggerMode.FINAL_TRANSCRIPTION:
             await conversation_model.cancel()
             await conversation_model.turn()
-      elif mime_types.is_dataclass(part.mimetype, speech_to_text.StartOfSpeech):
+      elif speech_events.is_start_of_speech(part):
         # User starts talking.
         user_not_talking.clear()
         await conversation_model.cancel()
-      elif mime_types.is_dataclass(part.mimetype, speech_to_text.EndOfSpeech):
+      elif speech_events.is_end_of_speech(part):
         # User is done talking, a conversation turn is requested.
         user_not_talking.set()
         if self._trigger_model_mode == AudioTriggerMode.END_OF_SPEECH:

@@ -29,14 +29,13 @@ different models and recognizers.
 
 import asyncio
 from collections.abc import AsyncIterable
-import dataclasses
 import time
 
 from absl import logging
-import dataclasses_json
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors import streams
+from genai_processors.core import speech_events
 from google.cloud import speech_v2
 import grpc
 
@@ -63,24 +62,12 @@ STREAMING_LIMIT_SEC = (
 ProcessorPart = content_api.ProcessorPart
 ProcessorPartTypes = content_api.ProcessorPartTypes
 
-TRANSCRIPTION_SUBSTREAM_NAME = 'input_transcription'
-ENDPOINTING_SUBSTREAM_NAME = 'input_endpointing'
-
-
-@dataclasses_json.dataclass_json
-@dataclasses.dataclass(frozen=True)
-class StartOfSpeech:
-  """Start of speech event."""
-
-  pass
-
-
-@dataclasses_json.dataclass_json
-@dataclasses.dataclass(frozen=True)
-class EndOfSpeech:
-  """End of speech event."""
-
-  pass
+# Re-export from speech_events for backward compatibility.
+# Use speech_events variants instead.
+StartOfSpeech = speech_events.StartOfSpeech
+EndOfSpeech = speech_events.EndOfSpeech
+TRANSCRIPTION_SUBSTREAM_NAME = speech_events.TRANSCRIPTION_SUBSTREAM_NAME
+ENDPOINTING_SUBSTREAM_NAME = speech_events.ENDPOINTING_SUBSTREAM_NAME
 
 
 class AddSilentPartMaybe(processor.Processor):
@@ -139,10 +126,10 @@ class _Transcriber(processor.Processor):
       project_id: str,
       recognition_config: speech_v2.types.RecognitionConfig,
       with_endpointing: bool = True,
-      substream_endpointing: str = ENDPOINTING_SUBSTREAM_NAME,
+      substream_endpointing: str = speech_events.ENDPOINTING_SUBSTREAM_NAME,
       strict_endpointing: bool = True,
       with_interim_results: bool = True,
-      substream_transcription: str = TRANSCRIPTION_SUBSTREAM_NAME,
+      substream_transcription: str = speech_events.TRANSCRIPTION_SUBSTREAM_NAME,
       passthrough_audio: bool = False,
   ):
     """Transcribes audio parts using the Cloud Speech API.
@@ -350,10 +337,10 @@ class SpeechToText(processor.Processor):
       recognition_config: speech_v2.types.RecognitionConfig | None = None,
       audio_passthrough: bool = False,
       with_endpointing: bool = True,
-      substream_endpointing: str = ENDPOINTING_SUBSTREAM_NAME,
+      substream_endpointing: str = speech_events.ENDPOINTING_SUBSTREAM_NAME,
       strict_endpointing: bool = True,
       with_interim_results: bool = True,
-      substream_transcription: str = TRANSCRIPTION_SUBSTREAM_NAME,
+      substream_transcription: str = speech_events.TRANSCRIPTION_SUBSTREAM_NAME,
       maintain_connection_active_with_silent_audio: bool = False,
   ):
     """Initializes the SpeechToText processor.

@@ -119,6 +119,20 @@ class MimeTypesTest(parameterized.TestCase, unittest.TestCase):
         expected,
     )
 
+  @parameterized.parameters([
+      ('audio/l16;rate=16000', 16000),
+      ('audio/l16; rate=8000', 8000),
+      ('audio/l16; rate= 16000 ', 16000),
+      ('audio/l16', 16000),
+      ('audio/pcm', 16000),
+      ('audio/pcm; rate= ', 16000),
+      ('audio/wav', 16000),
+      ('text/plain', 0),
+  ])
+  def test_get_sample_rate(self, mimetype, expected):
+    result = mime_types.parse_frame_rate(mimetype)
+    self.assertEqual(result, expected)
+
 
 if __name__ == '__main__':
   absltest.main()

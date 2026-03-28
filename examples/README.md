@@ -34,15 +34,18 @@ We recommend checking the following CLI examples first:
 
 Sub-directories include more complex agents like
 [Research](https://github.com/google-gemini/genai-processors/blob/main/examples/research/README.md)
-(deep research agent) or
+(deep research agent),
 [Commentator](https://github.com/google-gemini/genai-processors/blob/main/examples/live_commentator/README.md)
-(live commentator on a video feed including an interruption mechanism). Check
-the README files in these subdirectories to get an in-depth description of how
-they work and how they were built.
+(live commentator on a video feed including an interruption mechanism), or
+[Live Illustrator](https://github.com/google-gemini/genai-processors/blob/main/examples/live_illustrator/README.md)
+(continuously listens to audio and generates accompanying images triggered by speech).
+Check the README files in these subdirectories to get an in-depth
+description of how they work and how they were built.
 
 Other CLIs like
-[speech_to_text_cli](https://github.com/google-gemini/genai-processors/blob/main/examples/speech_to_text_cli.py)
+[speech_to_text_cli](https://github.com/google-gemini/genai-processors/blob/main/examples/speech_to_text_cli.py),
+[text_to_speech_cli](https://github.com/google-gemini/genai-processors/blob/main/examples/text_to_speech_cli.py),
 or
-[text_to_speech_cli](https://github.com/google-gemini/genai-processors/blob/main/examples/text_to_speech_cli.py)
-are simple wrappers around existing processor and can be used to check that your
-environment is set up correctly, e.g. to use the Google Speech API.
+[vad_cli](https://github.com/google-gemini/genai-processors/blob/main/examples/vad_cli.py)
+are simple wrappers around an existing processor and can be used to check that your
+environment is set up correctly, e.g. to use the Google Speech API or local VAD.

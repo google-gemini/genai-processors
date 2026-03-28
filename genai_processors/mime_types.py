@@ -178,6 +178,32 @@ def is_audio(mime: str) -> bool:
   )
 
 
+def parse_frame_rate(mime: str, default_frame_rate: int = 16000) -> int:
+  """Returns the frame rate of the audio.
+
+  Args:
+    mime: The mime string.
+    default_frame_rate: The default frame rate to use if not found.
+
+  Returns:
+    The frame rate of the audio, or 0 if it is not streaming audio.
+  """
+  if not is_audio(mime):
+    return 0
+  idx = mime.find('rate=')
+  if idx != -1:
+    rate_str = ''
+    for c in mime[idx + 5 :].strip():
+      if c.isdigit():
+        rate_str += c
+      else:
+        break
+    if rate_str:
+      return int(rate_str)
+
+  return default_frame_rate
+
+
 def is_streaming_audio(mime: str) -> bool:
   """Returns whether the content is streaming audio."""
   return mime.lower().startswith('audio/l16')
