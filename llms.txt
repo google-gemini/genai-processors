@@ -13,7 +13,7 @@ The GenAI Processors library provides composable, async building blocks for gene
 ## 🔎 Core Modules (`genai_processors.core.*`)
 * `genai_model.py`: Google GenAI API integration (`GenaiModel`).
 * `text.py`: Shell IO (`terminal_input`, `terminal_output`), URL extractors, match processors.
-* `function_calling.py`: Function schemas and tool calling support.
+* `function_calling.py`: Function calling loop (`FunctionCalling`). Tool declarations are automatically registered on the model—do not pass `tools=` to the model config. Unknown function calls are passed through (not errors), enabling nested `FunctionCalling` processors for hierarchical agent patterns.
 * `live_model.py` / `realtime.py`: Streaming and WebRTC interfaces.
 * `filesystem.py`, `web.py`, `github.py`, `pdf.py`: File IO, fetching, and document parsing.
 * `audio.py`, `video.py`: Multimodal processors.

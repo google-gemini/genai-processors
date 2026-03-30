@@ -4,6 +4,7 @@ from unittest import mock
 from absl.testing import absltest
 from genai_processors import content_api
 from genai_processors import streams
+from genai_processors.core import function_calling
 from genai_processors.core import live_model
 from google.genai import live
 from google.genai import types as genai_types
@@ -412,6 +413,113 @@ class LiveModelTest(unittest.IsolatedAsyncioTestCase):
             )
         )
 
+  async def test_register_tools(self):
+    model = live_model.LiveProcessor(
+        api_key='test_api_key',
+        model_name='test_model_name',
+    )
+    # Config starts as None.
+    self.assertIsNone(model._realtime_config)
+
+    def my_tool(x: str) -> str:
+      """A test tool."""
+      return x
+
+    def another_tool(y: int) -> int:
+      """Another test tool."""
+      return y
+
+    # First call creates the config and adds the tool.
+    model.register_tools([my_tool])
+    self.assertIsNotNone(model._realtime_config)
+    self.assertEqual(len(model._realtime_config.tools), 1)
+    self.assertEqual(model._realtime_config.tools[0], my_tool)
+
+    # Second call with the same tool should not duplicate it.
+    model.register_tools([my_tool])
+    self.assertEqual(len(model._realtime_config.tools), 1)
+
+    # Adding a different tool should work.
+    model.register_tools([another_tool])
+    self.assertEqual(len(model._realtime_config.tools), 2)
+    self.assertEqual(model._realtime_config.tools[1], another_tool)
+
+  async def test_register_tools_with_existing_config(self):
+    model = live_model.LiveProcessor(
+        api_key='test_api_key',
+        model_name='test_model_name',
+        realtime_config=genai_types.LiveConnectConfig(
+            response_modalities=['TEXT'],
+        ),
+    )
+
+    def my_tool(x: str) -> str:
+      """A test tool."""
+      return x
+
+    model.register_tools([my_tool])
+    # Tools should be added while preserving existing config.
+    self.assertEqual(len(model._realtime_config.tools), 1)
+    self.assertEqual(
+        model._realtime_config.response_modalities, ['TEXT']
+    )
+
+  async def test_register_tools_with_function_declaration(self):
+    model = live_model.LiveProcessor(
+        api_key='test_api_key',
+        model_name='test_model_name',
+    )
+
+    fd = genai_types.FunctionDeclaration(
+        name='my_declared_tool',
+        description='A declared tool.',
+        parameters=genai_types.Schema(
+            type='OBJECT',
+            properties={'x': genai_types.Schema(type='STRING')},
+        ),
+    )
+    model.register_tools([fd])
+    self.assertEqual(len(model._realtime_config.tools), 1)
+    self.assertIsInstance(model._realtime_config.tools[0], genai_types.Tool)
+    self.assertEqual(
+        model._realtime_config.tools[0].function_declarations[0].name,
+        'my_declared_tool',
+    )
+
+    # Duplicate FunctionDeclaration should be skipped.
+    model.register_tools([fd])
+    self.assertEqual(len(model._realtime_config.tools), 1)
+
+  async def test_function_calling_registers_tools_on_live_model(self):
+    """Tests that FunctionCalling auto-registers tools on the LiveProcessor."""
+
+    def get_weather(location: str) -> str:
+      """Returns the weather for a location."""
+      return f'Sunny in {location}'
+
+    model = live_model.LiveProcessor(
+        api_key='test_api_key',
+        model_name='test_model_name',
+    )
+
+    # Before FunctionCalling, no tools are registered.
+    self.assertIsNone(model._realtime_config)
+
+    fc_processor = function_calling.FunctionCalling(
+        model,
+        fns=[get_weather],
+        is_bidi_model=True,
+    )
+
+    # FunctionCalling registers tools during call(). Trigger registration
+    # directly to avoid needing a full bidi mock.
+    fc_processor._register_tools_on_model()
+
+    # get_weather + cancel_fc + list_fc = 3 tools.
+    self.assertIsNotNone(model._realtime_config)
+    self.assertEqual(len(model._realtime_config.tools), 3)
+
 
 if __name__ == '__main__':
   absltest.main()
+

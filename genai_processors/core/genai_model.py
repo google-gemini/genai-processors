@@ -68,7 +68,7 @@ YOU MUST READ `../llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
 """
 
 import asyncio
-from collections.abc import AsyncIterable
+from collections.abc import AsyncIterable, Callable
 import io
 import time
 from typing import Any, NamedTuple
@@ -181,6 +181,53 @@ class GenaiModel(processor.Processor):
     # set up the JSON decoding processor.
     if schema and not stream_json:
       self._parser = constrained_decoding.StructuredOutputParser(schema)
+
+  def register_tools(
+      self,
+      tools: list[Callable[..., Any] | genai_types.McpClientSession],
+  ) -> None:
+    """Registers tool callables with the model's generation config.
+
+    Called by ``FunctionCalling`` to auto-register tool declarations so
+    that the model knows about the available tools. Also disables automatic
+    function calling since ``FunctionCalling`` handles the tool-use loop.
+
+    Args:
+      tools: Functions to register. Callables are passed through to the SDK
+        which auto-generates declarations. McpClientSessions are expected to
+        have been converted to callables by FunctionCalling before reaching this
+        method.
+    """
+    if not tools:
+      return
+    if self._generate_content_config is None:
+      self._generate_content_config = genai_types.GenerateContentConfig()
+    elif isinstance(self._generate_content_config, dict):
+      self._generate_content_config = genai_types.GenerateContentConfig(
+          **self._generate_content_config
+      )
+    config = self._generate_content_config
+    if config.tools is None:
+      config.tools = []
+    # Build set of existing tool names to avoid duplicates.
+    existing_names: set[str] = set()
+    for tool in config.tools:
+      if isinstance(tool, genai_types.Tool) and tool.function_declarations:
+        for fd in tool.function_declarations:
+          existing_names.add(fd.name)
+      elif callable(tool):
+        existing_names.add(getattr(tool, '__name__', type(tool).__name__))
+    # Add new tools, skipping duplicates.
+    for tool in tools:
+      if callable(tool):
+        name = getattr(tool, '__name__', type(tool).__name__)
+        if name not in existing_names:
+          config.tools.append(tool)
+          existing_names.add(name)
+    # Disable automatic function calling (FunctionCalling handles it).
+    config.automatic_function_calling = (
+        genai_types.AutomaticFunctionCallingConfig(disable=True)
+    )
 
   async def _generate_from_api(
       self, content: content_api.ContentStream

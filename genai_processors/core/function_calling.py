@@ -148,10 +148,9 @@ where:
 -  `pre_processor` is a processor called once on `input` and on all results
 obtained by tool invocation. This could for instance be an image tokenizer to
 preprocess images and avoid re-tokenizing them on every model invocation.
--  `model` is a model processor that generates content. For the model to know
-which tools are available, the samefunction/tool set should be given both to the
-FunctionCalling and the model constructor. This model can be turn-based or
-bidi but this should be specificed in the FunctionCalling ctor.
+-  `model` is a model processor that generates content. Tool declarations are
+automatically registered — you only need to pass functions to
+``FunctionCalling(fns=...)``.
 -  `function_call` executes the function calls returned by the model. This is
 a private processor in this file. The function response is then fed back to the
 model for another iteration. If there is no function call to execute and the
@@ -162,36 +161,47 @@ The output is the model output including the function call and the responses.
 They are all in the same substream as identified by `substream_name` in the
 FunctionCalling ctor.
 
-When used with GenAI models (i.e. Gemini API), the model should be defined as
-follows:
+Nesting
+-------
+
+FunctionCalling processors can be nested. When a model returns a function call
+whose name is not in the `fns` list of the inner FunctionCalling processor, the
+part is passed through unmodified to the output stream. An outer FunctionCalling
+processor can then intercept and execute it. This enables delegation patterns
+where a supervisor agent provides high-level tools while subordinate agents each
+have their own function calling loop with specialized tools.
+
+Because tool declarations are automatically registered on the model by
+`FunctionCalling`, you do not need to duplicate tool definitions across nested
+processors — each processor only registers its own tools.
+
+Example:
+
+```python
+inner_agent = FunctionCalling(model, fns=[get_weather])
+outer_agent = FunctionCalling(inner_agent, fns=[send_email])
+```
+
+Here, if the model calls ``send_email``, the inner FunctionCalling processor
+will not recognize it and will pass it through; the outer one will intercept
+and execute it.
+
+When used with GenAI models (i.e. Gemini API), the setup is simply:
 
 ```python
 genai_processor = genai_model.GenaiModel(
     api_key=API_KEY,
     model_name='gemini-2.5-flash',
-    generate_content_config=genai_types.GenerateContentConfig(
-        tools=[fns],
-        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-            disable=True
-        ),
-    ),
 )
+
+agent = FunctionCalling(genai_processor, fns=[get_weather, set_alarm])
 ```
 
-where `fns` are the python functions to be called. Note that we disable the
-automatic function calling feature here to avoid duplicate function calls with
-the GenAI automatic function calling feature.
+Tool declarations and disabling of automatic function calling are handled
+automatically.
 
-If you want to allow cancelling ongoing async functions add `cancel_fc` and
-`list_fc` tool defined in this file:
-
-```python
-generate_content_config=genai_types.GenerateContentConfig(
-    tools=[fns, function_calling.cancel_fc, function_calling.list_fc],
-    automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-        disable=True
-    ),
-)
+Note that ``cancel_fc`` and ``list_fc`` defined in this file are automatically
+added to the tools when `bidi` is set to `True`.
 ```
 
 You define the function `fns` as regular python functions. Arguments and
@@ -441,13 +451,12 @@ class FunctionCalling(processor.Processor):
         processor.
       pre_processor: An optional pre-processor to pass the model input (prompt,
         function responses, model output from previous iterations) through.
-      fns: The functions to register for function calling. Those functions must
-        be known to `model`, and will be called only if `model` returns a
-        function call with the matching name. For Gemini API, this means the
-        same functions should be passed in the `GenerationConfig(tools=[...])`
-        to the `model` constructor. If the function name is not found in the
-        `fns` list, the function calling processor will return the unknown
-        function call part and will raise a `ValueError`. If the execution of
+      fns: The functions to register for function calling. Tool declarations are
+        automatically registered on the model — you do not need to pass them
+        separately to the model's config. If the function name is not found in
+        the `fns` list, the function call part is passed through unmodified to
+        the output stream, enabling nested FunctionCalling processors where an
+        outer processor can intercept and execute it. If the execution of
         the function fails, the function calling processor will return a
         function response with the error message. MCP tools are automatically
         converted to callables when passed in as functions to this processor,
@@ -461,8 +470,12 @@ class FunctionCalling(processor.Processor):
     self._model = model
     self._substream_name = substream_name
     self._is_bidi_model = is_bidi_model
-    self._fns = fns
+    self._fns = fns if fns else []
+    if is_bidi_model:
+      # Automatically add list_fc and cancel_fc for bidi models.
+      self._fns.extend([cancel_fc, list_fc])
     self._fns_initialized = False
+    self._called = False
     self._pre_processor = (
         pre_processor.to_processor()
         if pre_processor
@@ -470,6 +483,10 @@ class FunctionCalling(processor.Processor):
     )
     default_max_function_calls = 5 if not is_bidi_model else math.inf
     self._max_function_calls = max_function_calls or default_max_function_calls
+
+  def children(self) -> list[processor.Processor]:
+    """Returns the list of sub-processors (children) for this processor."""
+    return [self._model]
 
   async def _initialize_mcp_tools(self):
     """Initializes the MCP tools."""
@@ -486,10 +503,42 @@ class FunctionCalling(processor.Processor):
     self._fns_initialized = True
     self._fns = fns
 
+  def _find_last_tool_supporting_processor(
+      self, proc: processor.Processor
+  ) -> processor.Processor | None:
+    """Recursively finds the last processor supporting register_tools."""
+    if hasattr(proc, 'register_tools'):
+      return proc
+
+    for child in reversed(proc.children()):
+      found = self._find_last_tool_supporting_processor(child)
+      if found:
+        return found
+    return None
+
+  def _register_tools_on_model(self) -> None:
+    """Registers tool declarations on the inner model processor.
+
+    Uses a generic tree traversal (via ``children()``) to find the last
+    processor in the hierarchy that supports ``register_tools()``.
+    """
+    if not self._fns:
+      return
+
+    target = self._find_last_tool_supporting_processor(self._model)
+    if target:
+      getattr(target, 'register_tools')(self._fns)
+    else:
+      raise ValueError(
+          f'No sub-processor in the model processor supports tool registration: {self._model}'
+      )
+
   async def call(
       self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    self._called = True
     await self._initialize_mcp_tools()
+    self._register_tools_on_model()
     state = _FunctionCallState(fn_call_count_limit=self._max_function_calls)
     # To support both bidi and unary models we reduce both cases to bidi.
     model = _to_bidi(self._model) if not self._is_bidi_model else self._model
@@ -602,6 +651,10 @@ class FunctionCalling(processor.Processor):
             yield part
       else:
         if context_lib.is_reserved_substream(part.substream_name):
+          yield part
+        elif part.function_call and not part.substream_name:
+          # Unhandled function call (not in this FC's fns). Pass through
+          # directly so an outer FunctionCalling processor can intercept it.
           yield part
         else:
           should_defer = False
@@ -912,35 +965,22 @@ class _ExecuteFunctionCall:
 
   async def __call__(self, part: content_api.ProcessorPart) -> None:
     """Executes a function call and returns the result."""
-    # The match() method ensures that the part is a function call.
+    call = part.function_call
+
+    if call.name not in self._fns:
+      # Unknown function — pass through without modification so an outer
+      # FunctionCalling processor can intercept and execute it.
+      await self._output_queue.put(part)
+      return
+
     self._fn_state.fn_call_count += 1
     if self._fn_state.fn_call_count > self._fn_state.fn_call_count_limit:
       return
 
     part.substream_name = FUNCTION_CALL_SUBSTREAM_NAME
-    call = part.function_call
+    fn = self._fns[call.name]
 
     await self._output_queue.put(part)
-
-    try:
-      fn = self._fns[call.name]
-    except KeyError:
-      function_names = ', '.join(repr(fn) for fn in sorted(self._fns.keys()))
-      await self._output_queue.put(
-          content_api.ProcessorPart.from_function_response(
-              name=call.name,
-              function_call_id=call.id,
-              response=(
-                  f'Function {call.name} not found. Available functions:'
-                  f' {function_names}.'
-              ),
-              role='user',
-              substream_name=self._substream_name,
-              will_continue=False if self._is_bidi_model else None,
-              is_error=True,
-          )
-      )
-      return
 
     if (
         _is_coroutine_function(fn)

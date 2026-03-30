@@ -382,6 +382,26 @@ class TransformersModelTest(
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
 
+  def test_register_tools(self):
+    model = transformers_model.TransformersModel(model_name='unused')
+
+    def sample_tool(location: str) -> str:
+      """Sample tool.
+
+      Args:
+        location: location
+
+      Returns:
+        A hello message.
+      """
+      return f'Hello {location}'
+
+    model.register_tools([sample_tool])
+
+    self.assertTrue(model._parse_function_calls)
+    self.assertLen(model._tools, 1)
+    self.assertEqual(model._tools[0]['function']['name'], 'sample_tool')
+
 
 if __name__ == '__main__':
   absltest.main()

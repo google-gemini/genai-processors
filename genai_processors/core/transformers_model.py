@@ -142,6 +142,29 @@ class TransformersModel(processor.Processor):
     if seed := self._generate_content_config.get('seed'):
       transformers.set_seed(seed)
 
+  def register_tools(
+      self,
+      tools: list[Callable[..., Any] | genai_types.McpClientSession],
+  ) -> None:
+    """Registers tool callables with the model.
+
+    Called by ``FunctionCalling`` to auto-register tool declarations.
+
+    Args:
+      tools: Functions to register. Callables are converted to Function
+        Declarations and then to JSON for Transformers. McpClientSessions are
+        expected to have been converted to callables by FunctionCalling before
+        reaching this method.
+    """
+    if not tools:
+      return
+    existing_names = {t['function']['name'] for t in self._tools}
+    for fdecl in tool_utils.to_function_declarations(tools):
+      if fdecl.name not in existing_names:
+        self._tools.append(tool_utils.function_declaration_to_json(fdecl))
+        existing_names.add(fdecl.name)
+    self._parse_function_calls = True
+
   async def call(
       self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:

@@ -183,14 +183,6 @@ def create_dr_widget(
       model_name=MODEL,
       generate_content_config=genai_types.GenerateContentConfig(
           system_instruction=SYSTEM_INSTRUCTION,
-          # We will be handling tool calls on the client side.
-          automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-              disable=True
-          ),
-          tools=[
-              image_gen.create_image_from_description,
-              plot_gen.create_plot_from_description,
-          ],
       ),
   )
   fc_processor = function_calling.FunctionCalling(

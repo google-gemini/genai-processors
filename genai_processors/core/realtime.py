@@ -29,6 +29,7 @@ import asyncio
 from collections.abc import AsyncIterable
 import enum
 import traceback
+from typing import Any
 
 from absl import logging
 from genai_processors import content_api
@@ -131,6 +132,10 @@ class LiveProcessor(Processor):
     self.duration_prompt_sec = duration_prompt_sec
     self._trigger_model_mode = trigger_model_mode
     self._debug_latency = debug_latency
+
+  def children(self) -> list[processor.Processor]:
+    """Returns the list of sub-processors (children) for this processor."""
+    return [self._single_turn_processor]
 
   async def _conversation_loop(
       self,

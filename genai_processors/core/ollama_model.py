@@ -206,6 +206,31 @@ class OllamaModel(processor.Processor):
     if generate_content_config.get('stop_sequences'):
       self._options['stop'] = generate_content_config['stop_sequences']
 
+  def register_tools(
+      self,
+      tools: list[Callable[..., Any] | genai_types.McpClientSession],
+  ) -> None:
+    """Registers tool callables with the model.
+
+    Called by ``FunctionCalling`` to auto-register tool declarations.
+
+    Args:
+      tools: Functions to register. Callables are converted to Function
+        Declarations and then to JSON for Ollama. McpClientSessions are expected
+        to have been converted to callables by FunctionCalling before reaching
+        this method.
+    """
+    if not tools:
+      return
+    if self._tools is None:
+      self._tools = []
+    existing_names = {t['function']['name'] for t in self._tools}
+    # Converts Callables to FunctionDeclarations.
+    for fdecl in tool_utils.to_function_declarations(tools):
+      if fdecl.name not in existing_names:
+        self._tools.append(tool_utils.function_declaration_to_json(fdecl))
+        existing_names.add(fdecl.name)
+
   async def _generate_from_api(
       self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:

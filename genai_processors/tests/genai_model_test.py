@@ -193,6 +193,24 @@ class GenaiModelTest(parameterized.TestCase):
     self.assertEqual(passed_contents[0].parts[0].inline_data.data, b'imagedata')
     self.assertEqual(passed_contents[0].parts[1].text, 'what is this image?')
 
+  def test_register_tools(self):
+    model = genai_model.GenaiModel(
+        api_key='unused', model_name='gemini-2.5-flash'
+    )
+
+    def sample_tool():
+      """Sample tool."""
+      return 'Hello'
+
+    model.register_tools([sample_tool])
+
+    self.assertIsNotNone(model._generate_content_config)
+    self.assertLen(model._generate_content_config.tools, 1)
+    self.assertEqual(model._generate_content_config.tools[0], sample_tool)
+    self.assertTrue(
+        model._generate_content_config.automatic_function_calling.disable
+    )
+
 
 class ImagePreprocessTest(unittest.IsolatedAsyncioTestCase):
 

@@ -355,14 +355,6 @@ def create_live_illustrator(
       model_name=MODEL_LISTEN,
       generate_content_config=genai_types.GenerateContentConfig(
           system_instruction=SYSTEM_INSTRUCTION,
-          # We will be handling tool calls on the client side.
-          automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-              disable=True
-          ),
-          tools=[
-              image_gen.create_image_from_description,
-              image_gen.create_concept_art,
-          ],
       ),
   )
   end_of_turns_scheduler = ScheduleEndOfTurns(period_sec=image_period_sec)
