@@ -85,37 +85,20 @@ async def smart_home_state() -> AsyncIterable[str]:
 
 ## Configuring the Processor
 
-To enable function calling, you must:
-
-1.  Let the model know which tools are available by providing the tool list in
-    the model config.
-
-2.  **Disable** any built-in automatic function calling in the model (e.g., for
-    `GenaiModel`, set `automatic_function_calling=...disable=True`).
-
-3.  Wrap the model processor with `FunctionCalling`, providing the same list of
-    functions for execution.
+To enable function calling, wrap your model with `FunctionCalling` and provide
+the list of functions:
 
 ```python
 from genai_processors.core import function_calling, genai_model
-from google.genai import types as genai_types
 
-tools = [get_weather, set_alarm]
+model = genai_model.GenaiModel(model_name="gemini-2.0-flash")
 
-# 1 & 2: Configure model and disable its internal AFC.
-model = genai_model.GenaiModel(
-    model_name="gemini-2.0-flash",
-    generate_content_config=genai_types.GenerateContentConfig(
-        tools=tools,
-        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-            disable=True
-        ),
-    ),
-)
-
-# 3. Wrap with FunctionCalling.
-agent = function_calling.FunctionCalling(model=model, fns=tools)
+agent = function_calling.FunctionCalling(model=model, fns=[get_weather, set_alarm])
 ```
+
+Tool declarations are **automatically registered** on the model via
+`register_tools()`. There is no need to pass `tools=` to the model's config or to
+manually disable automatic function calling — `FunctionCalling` handles both.
 
 ## Async Tools and Real-Time Interaction
 
@@ -203,13 +186,11 @@ additional tools you can add to your model's tool list:
 ```python
 from genai_processors.core import function_calling
 
-# We explicitly add the list_fc and cancel_fc functions from function calling
-# to let the model cancel async function calls. If tools contains only synced
-# functions, list_fc and cancel_fc can be omitted.
-tools = [my_async_tool, function_calling.list_fc, function_calling.cancel_fc]
-model = genai_model.GenaiModel(..., tools=tools, ...)
-
-agent = function_calling.FunctionCalling(model=model, fns=tools, is_bidi_model=True)
+agent = function_calling.FunctionCalling(
+    model=model,
+    fns=[my_async_tool, function_calling.list_fc, function_calling.cancel_fc],
+    is_bidi_model=True,
+)
 ```
 
 ## Using MCP (Model Context Protocol)
@@ -234,6 +215,34 @@ agent = function_calling.FunctionCalling(
 When used with a real-time model (setting `is_bidi_model=True`), all MCP
 functions will be run in the background. This lets you build real-time agents
 with MCP capabilities without adapting your MCP implementation.
+
+## Nesting FunctionCalling Processors
+
+`FunctionCalling` processors can be nested to build hierarchical agent
+architectures. When a model produces a function call whose name is **not** in
+the inner processor's `fns` list, the call is passed through unmodified to the
+output stream rather than raising an error. An outer `FunctionCalling` processor
+can then intercept and execute it.
+
+This enables delegation patterns—for example, a supervisor agent that owns
+high-level tools (like `send_email`) while a subordinate agent handles
+domain-specific tools (like `get_weather`):
+
+```python
+from genai_processors.core import function_calling, genai_model
+
+model = genai_model.GenaiModel(model_name="gemini-2.5-flash")
+
+# Inner agent handles weather queries.
+inner_agent = function_calling.FunctionCalling(model, fns=[get_weather])
+
+# Outer agent handles email; unknown calls from inner are passed through to it.
+outer_agent = function_calling.FunctionCalling(inner_agent, fns=[send_email])
+```
+
+Because tool declarations are automatically registered on the model by
+`FunctionCalling`, you **do not** need to duplicate tool definitions across
+nested processors—each processor only registers its own tools.
 
 ## Tutorial
 

@@ -78,7 +78,6 @@ def turn_based_model(
         ]
         | None
     ) = None,
-    disable_automatic_function_calling: bool = False,
 ) -> processor.Processor:
   """Returns a turn-based model based on command line flags.
 
@@ -87,9 +86,10 @@ def turn_based_model(
 
   Args:
     system_instruction: The system instruction to use for the model.
-    tools: The tools to use for the model, or google search tool if None.
-    disable_automatic_function_calling: Whether to disable automatic function
-      calling.
+    tools: Server-side tools to use for the model (e.g. google_search).
+      Client-side function tools should be registered via
+      ``FunctionCalling(fns=...)`` instead — they will be auto-declared on the
+      model. Defaults to Google Search if None.
 
   Returns:
     A turn-based LLM model.
@@ -124,9 +124,6 @@ def turn_based_model(
         tools=tools
         if tools is not None
         else [genai_types.Tool(google_search=genai_types.GoogleSearch())],
-        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-            disable=disable_automatic_function_calling
-        ),
     )
 
     model_instance = genai_model.GenaiModel(

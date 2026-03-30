@@ -45,7 +45,7 @@ import asyncio
 from collections.abc import AsyncIterable
 import re
 import time
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 from absl import logging
 from genai_processors import content_api
 from genai_processors import processor
@@ -177,6 +177,50 @@ class LiveProcessor(processor.Processor):
     )
     self._model_name = model_name
     self._realtime_config = realtime_config
+
+  def register_tools(
+      self,
+      tools: list[Any],
+  ) -> None:
+    """Adds tool declarations to the live model config.
+
+    Called by ``FunctionCalling`` to auto-register tool declarations so
+    that the model knows about the available tools.
+
+    Args:
+      tools: Functions, ``FunctionDeclaration`` objects, or ``Tool`` objects to
+        add.
+    """
+    if not tools:
+      return
+    if self._realtime_config is None:
+      self._realtime_config = genai_types.LiveConnectConfig()
+    elif isinstance(self._realtime_config, dict):
+      self._realtime_config = genai_types.LiveConnectConfig(
+          **self._realtime_config
+      )
+    config = self._realtime_config
+    if config.tools is None:
+      config.tools = []
+    # Build set of existing tool names to avoid duplicates.
+    existing_names: set[str] = set()
+    for tool in config.tools:
+      if isinstance(tool, genai_types.Tool) and tool.function_declarations:
+        for fd in tool.function_declarations:
+          existing_names.add(fd.name)
+      elif callable(tool):
+        existing_names.add(getattr(tool, '__name__', type(tool).__name__))
+    # Add new tools, skipping duplicates.
+    for tool in tools:
+      if isinstance(tool, genai_types.FunctionDeclaration):
+        if tool.name not in existing_names:
+          config.tools.append(genai_types.Tool(function_declarations=[tool]))
+          existing_names.add(tool.name)
+      elif callable(tool):
+        name = getattr(tool, '__name__', type(tool).__name__)
+        if name not in existing_names:
+          config.tools.append(tool)
+          existing_names.add(name)
 
   async def call(
       self, content: processor.ProcessorStream

@@ -184,6 +184,10 @@ class Processor(abc.ABC):
         getattr(self, 'trace_module', self.__class__.__module__)
     )
 
+  def children(self) -> list['Processor']:
+    """Returns the list of sub-processors (children) for this processor."""
+    return []
+
   @typing.final
   async def _call_impl(
       self,
@@ -946,6 +950,10 @@ class _ChainProcessor(Processor):
     )(content):
       yield result
 
+  def children(self) -> list['Processor']:
+    """Returns the list of sub-processors (children) for this chain."""
+    return typing.cast(list[Processor], list(self._processor_list))
+
   @functools.cached_property
   def key_prefix(self) -> str:
     return '_ChainProcessor:' + _combined_key_prefix(self._processor_list)
@@ -1138,6 +1146,10 @@ class _ParallelProcessor(Processor):
   def __repr__(self):
     list_repr = ','.join(map(repr, self._processor_list))
     return f'ParallelProcessor[{list_repr}]'
+
+  def children(self) -> list['Processor']:
+    """Returns the list of sub-processors (children)."""
+    return typing.cast(list[Processor], list(self._processor_list))
 
   async def call(
       self, content: ProcessorStream

@@ -692,35 +692,36 @@ class TraceTest(unittest.IsolatedAsyncioTestCase):
       del prompt  # Unused in test
       return test_image
 
-    # Mock model that issues a function call and then responds after
-    call_count = 0
+    class MockTraceModel(processor.Processor):
 
-    @processor.processor_function
-    async def mock_model(
-        content: processor.ProcessorStream,
-    ) -> AsyncIterable[content_api.ProcessorPartTypes]:
-      """Mock model that issues a generate_image function call."""
-      nonlocal call_count
-      async for part in content:
-        del part  # consume input
-      call_count += 1
-      if call_count == 1:
-        # First call: issue a function call
-        yield content_api.ProcessorPart.from_function_call(
-            name='generate_image',
-            args={'prompt': 'A cat'},
-            role='model',
-        )
-      else:
-        # Second call (after function response): respond with text
-        yield content_api.ProcessorPart(
-            'Here is the generated image.',
-            role='model',
-        )
+      def __init__(self):
+        self.call_count = 0
+        self._added_tools = []
+
+      async def call(
+          self, content: processor.ProcessorStream
+      ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+        async for part in content:
+          del part  # consume input
+        self.call_count += 1
+        if self.call_count == 1:
+          yield content_api.ProcessorPart.from_function_call(
+              name='generate_image',
+              args={'prompt': 'A cat'},
+              role='model',
+          )
+        else:
+          yield content_api.ProcessorPart(
+              'Here is the generated image.',
+              role='model',
+          )
+
+      def register_tools(self, tools: list) -> None:
+        self._added_tools.extend(tools)
 
     # Wrap model with FunctionCalling
     fc_processor = function_calling.FunctionCalling(
-        model=realtime.LiveProcessor(mock_model),
+        model=realtime.LiveProcessor(MockTraceModel()),
         fns=[generate_image],
         is_bidi_model=True,
     )

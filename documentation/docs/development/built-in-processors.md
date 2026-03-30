@@ -278,24 +278,14 @@ results back to the model.
 
 ```python
 from genai_processors.core import function_calling
-from google.genai import types as genai_types
 
 def get_weather(city: str) -> str:
     # ... implementation ...
     return f"Weather in {city} is sunny."
 
-tools = [get_weather]
-model_with_tools = genai_model.GenaiModel(
-    ...,
-    generate_content_config=genai_types.GenerateContentConfig(
-        tools=tools,
-        automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
-            disable=True
-        ),
-    ),
-)
+model_with_tools = genai_model.GenaiModel(...)
 
-agent = function_calling.FunctionCalling(model=model_with_tools, fns=tools)
+agent = function_calling.FunctionCalling(model=model_with_tools, fns=[get_weather])
 ```
 
 *See: [Function Calling Concept](../concepts/function-calling.md) and

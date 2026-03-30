@@ -324,6 +324,23 @@ class OllamaProcessorTest(
           '{"name": "test", "value": 123}',
       )
 
+  def test_register_tools(self):
+    model = ollama_model.OllamaModel(model_name='gemma3')
+
+    def sample_tool(location: str) -> str:
+      """Sample tool.
+
+      Args:
+        location: location
+      """
+      return f'Hello {location}'
+
+    model.register_tools([sample_tool])
+
+    self.assertIsNotNone(model._tools)
+    self.assertLen(model._tools, 1)
+    self.assertEqual(model._tools[0]['function']['name'], 'sample_tool')
+
 
 if __name__ == '__main__':
   absltest.main()

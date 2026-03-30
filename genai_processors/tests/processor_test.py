@@ -834,6 +834,13 @@ class ProcessorChainMixTest(TestWithProcessors):
     content = processor.apply_sync(chain, inputs)
     self.assertSequenceEqual(content, inputs * 4)
 
+  def test_chain_children(self):
+    inputs = [content_api.ProcessorPart('0')]
+    p1 = self.twice
+    p2 = self.tozero
+    chain = p1 + p2
+    self.assertEqual(chain.children(), [p1, p2])
+
   def test_chain_immutable(self):
 
     @processor.processor_function
@@ -1092,6 +1099,12 @@ class ParallelProcessorsTest(TestWithProcessors, parameterized.TestCase):
     self.assertSequenceEqual(
         content, get_processor_parts(['2', '1', '2', '0', '1', '0'])
     )
+
+  def test_parallel_concat_children(self):
+    p1 = self.twice
+    p2 = self.tozero
+    parallel = processor.parallel_concat([p1, p2])
+    self.assertEqual(parallel.children(), [p1, p2])
 
   def test_parallel_operator(self):
     inputs = [content_api.ProcessorPart('0')]
