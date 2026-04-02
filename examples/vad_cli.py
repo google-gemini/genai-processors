@@ -35,11 +35,12 @@ python3 ./vad_cli.py
 """
 
 import asyncio
+from collections.abc import AsyncIterable
 import os
 import time
 
 from genai_processors import content_api
-from genai_processors import mime_types
+from genai_processors import processor
 from genai_processors.core import audio
 from genai_processors.core import audio_io
 from genai_processors.core import genai_model
@@ -53,6 +54,17 @@ import pyaudio
 # You need to define the api key in the environment variables.
 # export GOOGLE_API_KEY=...
 GOOGLE_API_KEY = os.environ.get('GOOGLE_API_KEY')
+
+
+@processor.part_processor_function
+async def add_speech_event_status(
+    part: content_api.ProcessorPart,
+) -> AsyncIterable[content_api.ProcessorPartTypes]:
+  if speech_events.is_start_of_speech(part):
+    print(f'\n{time.perf_counter():.2f} - [User Started Speaking]')
+  elif speech_events.is_end_of_speech(part):
+    print(f'\n{time.perf_counter():.2f} - [User Stopped Speaking]')
+  yield part
 
 
 async def run_vad_cli() -> None:
