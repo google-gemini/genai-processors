@@ -12,6 +12,7 @@ from genai_processors import processor
 from genai_processors import streams
 from genai_processors.core import genai_model
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 
 
@@ -192,6 +193,44 @@ class GenaiModelTest(parameterized.TestCase):
     self.assertLen(passed_contents[0].parts, 2)  # Both parts should be there.
     self.assertEqual(passed_contents[0].parts[0].inline_data.data, b'imagedata')
     self.assertEqual(passed_contents[0].parts[1].text, 'what is this image?')
+
+  @mock.patch('asyncio.sleep')
+  @mock.patch('google.genai.client.AsyncModels.generate_content_stream')
+  def test_generate_with_retry(self, mock_generate_stream, mock_sleep):
+    call_count = 0
+
+    async def fail_then_succeed_stream(*_unused_args, **_unused_kwargs):
+      nonlocal call_count
+      call_count += 1
+      if call_count == 1:
+        async def fail_gen():
+          yield genai_types.GenerateContentResponse.model_validate({
+              'candidates': [{
+                  'content': {'parts': [{'text': 'Part 1 '}], 'role': 'model'},
+              }]
+          })
+          raise genai_errors.APIError(500, {'error': {'message': 'Transient error'}})
+        return fail_gen()
+      else:
+        async def succeed_gen():
+          yield genai_types.GenerateContentResponse.model_validate({
+              'candidates': [{
+                  'content': {'parts': [{'text': 'Part 2'}], 'role': 'model'},
+              }]
+          })
+        return succeed_gen()
+
+    mock_generate_stream.side_effect = fail_then_succeed_stream
+
+    model = genai_model.GenaiModel(
+        api_key='unused', model_name='gemini-1.5-pro'
+    )
+
+    output = processor.apply_sync(model, 'Test prompt')
+
+    self.assertEqual(content_api.as_text(output), 'Part 1 Part 2')
+    self.assertEqual(call_count, 2)
+    mock_sleep.assert_called_once()
 
 
 class ImagePreprocessTest(unittest.IsolatedAsyncioTestCase):

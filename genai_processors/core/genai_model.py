@@ -70,12 +70,16 @@ YOU MUST READ `../llms.txt` BEFORE USING OR MODIFYING THIS LIBRARY.
 import asyncio
 from collections.abc import AsyncIterable
 import io
+import logging
+import random
 import time
 from typing import Any, NamedTuple
+
 from genai_processors import content_api
 from genai_processors import processor
 from genai_processors.core import constrained_decoding
 from google.genai import client
+from google.genai import errors as genai_errors
 from google.genai import types as genai_types
 
 
@@ -94,6 +98,32 @@ def genai_response_to_metadata(
       ),
       'parsed': response.parsed,
   }
+
+
+def _get_max_attempts(
+    http_options: genai_types.HttpOptions | genai_types.HttpOptionsDict | None,
+) -> int:
+  """Extracts max attempts from http_options."""
+  if not http_options:
+    return 5
+
+  retry_options = None
+  if isinstance(http_options, dict):
+    retry_options = http_options.get('retry_options')
+  else:
+    retry_options = getattr(http_options, 'retry_options', None)
+
+  if retry_options:
+    attempts = None
+    if isinstance(retry_options, dict):
+      attempts = retry_options.get('attempts')
+    else:
+      attempts = getattr(retry_options, 'attempts', None)
+
+    if attempts is not None:
+      return max(attempts, 1)
+
+  return 5
 
 
 class GenaiModel(processor.Processor):
@@ -169,6 +199,8 @@ class GenaiModel(processor.Processor):
     self._generate_content_config = generate_content_config
     self._parser = None
 
+    self._max_attempts = _get_max_attempts(http_options)
+
     schema = None
     if generate_content_config:
       if isinstance(generate_content_config, genai_types.GenerateContentConfig):
@@ -190,21 +222,38 @@ class GenaiModel(processor.Processor):
     if not contents:
       return
 
-    async for res in await self._client.aio.models.generate_content_stream(
-        model=self._model_name,
-        contents=content_api.to_genai_contents(contents),
-        config=self._generate_content_config,
-    ):
-      res: genai_types.GenerateContentResponse = res
-      if res.candidates:
-        content = res.candidates[0].content
-        if content and content.parts:
-          for part in content.parts:
-            yield processor.ProcessorPart(
-                part,
-                metadata=genai_response_to_metadata(res),
-                role=content.role or 'model',
-            )
+    retriable_codes = (408, 429, 500, 502, 503, 504)
+
+    # GeminiAPI does not honor retries for streaming requests, so we implement
+    # it manually here.
+    for attempt in range(self._max_attempts):
+      try:
+        async for res in await self._client.aio.models.generate_content_stream(
+            model=self._model_name,
+            contents=content_api.to_genai_contents(contents),
+            config=self._generate_content_config,
+        ):
+          res: genai_types.GenerateContentResponse = res
+          if res.candidates:
+            candidate_content = res.candidates[0].content
+            if candidate_content and candidate_content.parts:
+              for part in candidate_content.parts:
+                part = processor.ProcessorPart(
+                    part,
+                    metadata=genai_response_to_metadata(res),
+                    role=candidate_content.role or 'model',
+                )
+                yield part
+                contents += part
+        break
+      except genai_errors.APIError as e:
+        if e.code not in retriable_codes or attempt >= self._max_attempts - 1:
+          raise e
+
+        logging.info('Retrying GenAI API call due to error: %s. Attempt %d',
+                     e, attempt + 1)
+        sleep_delay = min(1.0 * (2**attempt), 60.0) + random.uniform(0, 1.0)
+        await asyncio.sleep(sleep_delay)
 
   async def call(
       self, content: processor.ProcessorStream
