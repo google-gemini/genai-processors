@@ -107,6 +107,9 @@ class TransformersModel(processor.Processor):
     self._generate_content_config = generate_content_config or {}
 
     self._hf_processor = transformers.AutoProcessor.from_pretrained(model_name)
+    self._tokenizer = getattr(
+        self._hf_processor, 'tokenizer', self._hf_processor
+    )
     self._model = transformers.AutoModelForCausalLM.from_pretrained(
         model_name, device_map='auto'
     )
@@ -133,11 +136,19 @@ class TransformersModel(processor.Processor):
       if self._generate_content_config.get(arg) is not None:
         self._generation_kwargs[arg] = self._generate_content_config[arg]
 
-    self._generation_kwargs['max_new_tokens'] = (
-        self._generate_content_config.get(
-            'max_output_tokens', self._model.config.max_position_embeddings
-        )
-    )
+    max_output_tokens = self._generate_content_config.get('max_output_tokens')
+    if max_output_tokens is None:
+      # Some models use different names for the context length.
+      # Check the model config, and sub-configs for multimodal models.
+      config = self._model.config
+      if hasattr(config, 'text_config'):
+        config = config.text_config
+      max_output_tokens = getattr(
+          config,
+          'max_position_embeddings',
+          getattr(config, 'n_positions', getattr(config, 'max_seq_len', 4096)),
+      )
+    self._generation_kwargs['max_new_tokens'] = max_output_tokens
 
     if seed := self._generate_content_config.get('seed'):
       transformers.set_seed(seed)
@@ -166,6 +177,11 @@ class TransformersModel(processor.Processor):
         return_tensors='pt',
     )
 
+    if isinstance(inputs, str):
+      inputs = self._hf_processor(
+          text=inputs, return_tensors='pt', add_special_tokens=False
+      )
+
     if self._log_chat_template:
       inputs_str = self._hf_processor.apply_chat_template(
           messages,
@@ -176,7 +192,7 @@ class TransformersModel(processor.Processor):
       )
       logging.info('HF CHAT TEMPLATE: %s', inputs_str)
 
-    input_len = len(inputs['input_ids'][0])
+    input_len = inputs['input_ids'].shape[-1]
     output_queue = asyncio.Queue[content_api.ProcessorPart | None]()
 
     generate_task = processor.create_task(
@@ -190,7 +206,7 @@ class TransformersModel(processor.Processor):
                 output_queue,
                 parse_function_calls=self._parse_function_calls,
             ),
-            pad_token_id=self._hf_processor.eos_token_id,
+            pad_token_id=self._tokenizer.eos_token_id,
             **self._generation_kwargs,
         )
     )
@@ -287,6 +303,7 @@ class _Streamer(transformers.generation.BaseStreamer):
     self._skip_tokens = skip_tokens
     self._loop = loop
     self._hf_processor = hf_processor
+    self._tokenizer = getattr(hf_processor, 'tokenizer', hf_processor)
     self._queue = output_queue
     self._parse_function_calls = parse_function_calls
     # To mitigate prompt injection attacks we parse function calls directly from
@@ -297,17 +314,39 @@ class _Streamer(transformers.generation.BaseStreamer):
     self._current_function_call_tokens = None
     # Collect the token ids for the start and end of the function call. They
     # will be used to detect the tokens corresponding to a full function call.
-    function_call_token_ids = hf_processor.encode(
-        text='<start_function_call><end_function_call><escape>',
-        add_special_tokens=False,
-    )
-    assert len(function_call_token_ids) == 3
-    self._start_function_id = function_call_token_ids[0]
-    self._end_function_id = function_call_token_ids[1]
-    self._escape_id = function_call_token_ids[2]
+    start_tag = '<start_function_call>'
+    end_tag = '<end_function_call>'
+    escape_tag = '<escape>'
+
+    # Gemma 4 uses different names for the same tokens.
+    special_tokens = self._tokenizer.special_tokens_map
+    if 'stc_token' in special_tokens:
+      start_tag = special_tokens['stc_token']
+    if 'etc_token' in special_tokens:
+      end_tag = special_tokens['etc_token']
+    if 'escape_token' in special_tokens:
+      escape_tag = special_tokens['escape_token']
+
+    if self._parse_function_calls:
+      function_call_token_ids = self._tokenizer.encode(
+          text=f'{start_tag}{end_tag}{escape_tag}',
+          add_special_tokens=False,
+      )
+      assert len(function_call_token_ids) == 3, (
+          f'Expected 3 tokens for {start_tag}{end_tag}{escape_tag},'
+          f' got {len(function_call_token_ids)}: {function_call_token_ids}'
+      )
+      self._start_function_id = function_call_token_ids[0]
+      self._end_function_id = function_call_token_ids[1]
+      self._escape_id = function_call_token_ids[2]
+    else:
+      self._start_function_id = -1
+      self._end_function_id = -1
+      self._escape_id = -1
+
     # Pattern to capture the function name and arguments as groups.
     self._function_call_pattern = re.compile(
-        r'^<start_function_call>call:([^{]+)(\{.*\})<end_function_call>$'
+        f'^{re.escape(start_tag)}call:([^{{]+)(\\{{.*\\}}){re.escape(end_tag)}$'
     )
 
   def _process_function_call_tokens(self, tokens: list[int]) -> list[_Tokens]:
@@ -414,7 +453,7 @@ class _Streamer(transformers.generation.BaseStreamer):
           # achieve a more robust operation: we escape all the text in between
           # <escape> tokens and parse the result as JSON.
           if token == self._escape_id:
-            token_str = self._hf_processor.decode(
+            token_str = self._tokenizer.decode(
                 token_ids, skip_special_tokens=True
             )
             if inside_escape:
@@ -432,14 +471,14 @@ class _Streamer(transformers.generation.BaseStreamer):
         if token_ids:
           text_tokens.append(
               self._add_quotes_on_properties(
-                  self._hf_processor.decode(token_ids, skip_special_tokens=True)
+                  self._tokenizer.decode(token_ids, skip_special_tokens=True)
               )
           )
         part = ''.join(text_tokens)
         # Parse the function call arguments as plain json object.
         part = self._extract_function_call_part(part)
       else:
-        part = self._hf_processor.decode(tokens.ids, skip_special_tokens=True)
+        part = self._tokenizer.decode(tokens.ids, skip_special_tokens=True)
       if part:
         self._loop.call_soon_threadsafe(self._queue.put_nowait, part)
 

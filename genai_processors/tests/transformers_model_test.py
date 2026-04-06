@@ -27,7 +27,7 @@ class MockInputs(dict):
   """Mock inputs returned by apply_chat_template."""
 
   def __init__(self):
-    super().__init__(input_ids=[[1, 2]])
+    super().__init__(input_ids=torch.tensor([[1, 2]]))
 
   def to(self, device):
     del device  # Unused.
@@ -42,7 +42,9 @@ class TransformersModelTest(
     super().setUp()
 
     self.mock_processor = mock.Mock()
+    self.mock_processor.tokenizer = self.mock_processor
     self.mock_processor.eos_token_id = 0
+    self.mock_processor.special_tokens_map = {}
     self.mock_processor.apply_chat_template.return_value = MockInputs()
 
     self.decode_map = {
@@ -381,6 +383,17 @@ class TransformersModelTest(
     )
     self.mock_processor.apply_chat_template.assert_called_once()
     self.mock_model.generate.assert_called_once()
+
+  async def test_apply_chat_template_returns_string(self):
+    self.mock_processor.apply_chat_template.return_value = 'formatted prompt'
+    self.mock_processor.return_value = MockInputs()
+
+    model = transformers_model.TransformersModel(model_name='unused')
+    await model('Test prompt')
+
+    self.mock_processor.assert_called_with(
+        text='formatted prompt', return_tensors='pt', add_special_tokens=False
+    )
 
 
 if __name__ == '__main__':
