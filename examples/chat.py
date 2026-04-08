@@ -33,7 +33,7 @@ from genai_processors.core import pdf
 from genai_processors.core import realtime
 from genai_processors.core import text
 from genai_processors.dev import trace_file
-from genai_processors.examples import mcp as mcp_examples
+from genai_processors.examples import mcp_server
 from genai_processors.examples import models
 from google.genai import types as genai_types
 import httpx
@@ -82,7 +82,7 @@ def _get_mcp_session():
   if not server_val:
     raise ValueError('MCP server address must be provided')
   if server_val == 'demo':
-    return mcp_examples.get_demo_mcp_session()
+    return mcp_server.get_demo_mcp_session()
   elif server_val.startswith('https://'):
     if _API_KEY_ENV.value:
       api_key = os.environ.get(_API_KEY_ENV.value)
@@ -94,9 +94,9 @@ def _get_mcp_session():
     else:
       api_key_header = None
 
-    return mcp_examples.get_remote_mcp_session(server_val, api_key_header)
+    return mcp_server.get_remote_mcp_session(server_val, api_key_header)
   elif server_val.startswith('local:'):
-    return mcp_examples.get_local_mcp_session(server_val[6:])
+    return mcp_server.get_local_mcp_session(server_val[6:])
   else:
     raise ValueError(
         f'Unsupported MCP server: {server_val}. Use one of the'

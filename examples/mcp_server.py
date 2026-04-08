@@ -166,7 +166,7 @@ async def get_remote_mcp_session(
   ) as client:
     async with streamable_http.streamable_http_client(
         server_address, http_client=client
-    ) as (read, write, session_id):
+    ) as (read, write, _):
       async with mcp.ClientSession(read, write) as session:
         print(f'Connecting to MCP server: {server_address}')
         await session.initialize()
