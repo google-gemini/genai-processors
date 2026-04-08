@@ -209,7 +209,9 @@ class GenaiModelTest(parameterized.TestCase):
                   'content': {'parts': [{'text': 'Part 1 '}], 'role': 'model'},
               }]
           })
-          raise genai_errors.APIError(500, {'error': {'message': 'Transient error'}})
+          raise genai_errors.APIError(
+              500, {'error': {'message': 'Transient error'}}
+          )
         return fail_gen()
       else:
         async def succeed_gen():

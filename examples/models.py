@@ -127,6 +127,9 @@ def turn_based_model(
         automatic_function_calling=genai_types.AutomaticFunctionCallingConfig(
             disable=disable_automatic_function_calling
         ),
+        tool_config=genai_types.ToolConfig(
+            include_server_side_tool_invocations=True
+        ),
     )
 
     model_instance = genai_model.GenaiModel(
@@ -139,6 +142,8 @@ def turn_based_model(
 
     if agent_name == 'critic':
       return smart_model.CriticReviser(model=model_instance)
+    elif agent_name == 'research':
+      return smart_model.Researcher(model_name=model_name, api_key=API_KEY)
     else:
       return model_instance
 
