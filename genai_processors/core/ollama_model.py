@@ -30,6 +30,7 @@ ollama pull gemma3
 ```
 """
 
+import asyncio
 import base64
 from collections.abc import AsyncIterable
 import json
@@ -121,6 +122,8 @@ class OllamaModel(processor.Processor):
       generate_content_config: GenerateContentConfig | None = None,
       keep_alive: float | str | None = None,
       stream_json: bool = False,
+      timeout: float | None = None,
+      max_concurrency: int | None = None,
   ):
     """Initializes the Ollama model.
 
@@ -137,6 +140,8 @@ class OllamaModel(processor.Processor):
         model and parse them into the `generate_content_config`'s response
         schema. Set this to True to stream raw JSON parts from the model
         instead.
+      timeout: Timeout for Ollama server requests in seconds. Default is 300.
+      max_concurrency: Maximum number of concurrent requests to this model instance.
 
     Returns:
       A `Processor` that calls the Ollama API in turn-based fashion.
@@ -164,7 +169,7 @@ class OllamaModel(processor.Processor):
             'Accept': mime_types.TEXT_JSON,
             'User-Agent': 'genai-processors',
         },
-        timeout=_DEFAULT_TIMEOUT,
+        timeout=timeout or _DEFAULT_TIMEOUT,
     )
 
     response_mime_type = generate_content_config.get('response_mime_type')
@@ -205,6 +210,10 @@ class OllamaModel(processor.Processor):
         self._options[field] = generate_content_config[field]
     if generate_content_config.get('stop_sequences'):
       self._options['stop'] = generate_content_config['stop_sequences']
+
+    self._semaphore = (
+        asyncio.Semaphore(max_concurrency) if max_concurrency else None
+    )
 
   async def _generate_from_api(
       self, content: processor.ProcessorStream
@@ -258,6 +267,17 @@ class OllamaModel(processor.Processor):
           )
 
   async def call(
+      self, content: processor.ProcessorStream
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    if self._semaphore:
+      async with self._semaphore:
+        async for part in self._call_ollama(content):
+          yield part
+    else:
+      async for part in self._call_ollama(content):
+        yield part
+
+  async def _call_ollama(
       self, content: processor.ProcessorStream
   ) -> AsyncIterable[content_api.ProcessorPartTypes]:
     api_stream = self._generate_from_api(content)
