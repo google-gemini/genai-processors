@@ -195,7 +195,7 @@ class SqlCache(cache_base.CacheBase):
     item.value = data_to_cache_bytes
     item.expires_at = expires_at
     async with self._lock:
-      self._session.add(item)
+      await self._session.merge(item)
       await self._cleanup_expired()
       await self._session.commit()
 
