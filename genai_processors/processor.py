@@ -73,7 +73,7 @@ def _key_prefix(
     return p.key_prefix
   elif isinstance(p, functools.partial):
     return p.func.__qualname__  # pylint: disable=attribute-error
-  return p.__qualname__  # pylint: disable=attribute-error
+  return p.__qualname__  # pylint: disable=attribute-error  # pyrefly: ignore[missing-attribute]
 
 
 def _combined_key_prefix(
@@ -496,7 +496,7 @@ class PartProcessor(abc.ABC):
       in the input stream.
     """
     return _ProcessorWrapper(
-        map_processor.map_part_function(
+        map_processor.map_part_function(  # pyrefly: ignore[bad-argument-type]
             _chain_part_processors(
                 [self],
                 task_name=self.key_prefix,
@@ -810,7 +810,7 @@ class _ChainPartProcessor(PartProcessor):
     # Excluded from tracing  when the chain contains a single or no processor.
     return ',' not in self.trace_name
 
-  def __add__(
+  def __add__(  # pyrefly: ignore[bad-override]
       self, other: Processor | PartProcessor
   ) -> Processor | PartProcessor:
     if isinstance(other, _ChainPartProcessor):
@@ -855,7 +855,7 @@ class _ProcessorWrapper(Processor):
       name: str | None = None,
       is_excluded_from_trace: bool | None = None,
   ):
-    self.call = fn
+    self.call = fn  # pyrefly: ignore[bad-assignment]
     self.name = name
     self._is_excluded_from_trace = is_excluded_from_trace
 
@@ -880,7 +880,7 @@ class _ProcessorWrapper(Processor):
     default_name = self.call.__class__.__name__
     if default_name == 'function':
       default_name = self.call.__name__
-    return getattr(self.call, 'trace_name', default_name)
+    return getattr(self.call, 'trace_name', default_name)  # pyrefly: ignore[bad-return]
 
   @functools.cached_property
   def trace_module(self) -> str:
@@ -1295,7 +1295,7 @@ def _parallel_part_processors(
       match_fns.append(p.match)
     parallel_processor = _CaptureReservedSubstreams(
         output_queue,
-        map_processor.parallel_part_functions(
+        map_processor.parallel_part_functions(  # pyrefly: ignore[bad-argument-type]
             processors,
             match_fns,
             with_default_output=passthrough_fallback,
@@ -1303,19 +1303,19 @@ def _parallel_part_processors(
         ),
     )
     # Processed content
-    content = parallel_processor(content)
+    content = parallel_processor(content)  # pyrefly: ignore[bad-assignment]
     create_task(
         # Place output processed output parts on the queue.
-        _enqueue_content(content, output_queue)
+        _enqueue_content(content, output_queue)  # pyrefly: ignore[bad-argument-type]
     )
     while (part := await output_queue.get()) is not None:
       yield part
       output_queue.task_done()
 
-  return part_processor
+  return part_processor  # pyrefly: ignore[bad-return]
 
 
-@part_processor_function(match_fn=lambda _: False)
+@part_processor_function(match_fn=lambda _: False)  # pyrefly: ignore[bad-argument-type]
 async def _passthrough_fallback(
     content: ProcessorPart,
 ) -> AsyncIterable[ProcessorPart]:
@@ -1323,7 +1323,7 @@ async def _passthrough_fallback(
   yield content
 
 
-@part_processor_function(match_fn=lambda _: False)
+@part_processor_function(match_fn=lambda _: False)  # pyrefly: ignore[bad-argument-type]
 async def _passthrough_always(
     content: ProcessorPart,
 ) -> AsyncIterable[ProcessorPart]:
@@ -1652,7 +1652,7 @@ class CachedProcessor(Processor):
     part_cache = _PROCESSOR_PART_CACHE.get(self._default_cache)
 
     if part_cache is not None:
-      content = await content.gather()
+      content = await content.gather()  # pyrefly: ignore[bad-assignment]
 
       part_cache = part_cache.with_key_prefix(self.key_prefix)
       key = part_cache.hash_fn(content)
