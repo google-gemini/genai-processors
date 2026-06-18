@@ -126,8 +126,8 @@ def test_log_arrival_trace():
 @pytest.mark.asyncio
 async def test_throttler_drop_strategy():
     """Tests that Throttler protects probers and drops the oldest non-prober part."""
-    # max_size=1 in the throttler + 1 in bridge + 1 in hand-off queue, i.e. we can
-    # handle max_size + 3 in flight but then we'll start dropping parts.
+    # max_size=1 in the throttler + 1 in hand-off queue, i.e. we can
+    # handle max_size + 2 in flight but then we'll start dropping parts.
 
     @processor.processor_function
     async def slow_consumer(
@@ -160,7 +160,7 @@ async def test_throttler_drop_strategy():
 
     names = [p.text for p in results if p]
     # See explanation above.
-    assert names == ['p1', 'p2', 'p3', 'p6']
+    assert names == ['p1', 'p2', 'p6']
 
 
 @pytest.mark.asyncio
