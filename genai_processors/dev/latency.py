@@ -226,7 +226,6 @@ class Throttler(processor.Processor):
             async for part in content:
                 if input_queue.full():
                     oldest_part = input_queue.get_nowait()
-                    input_queue.put_nowait(part)
                     prober = oldest_part.metadata.get("prober")
                     if prober:
                         # We block on probers, since we want to see the full trace.
@@ -243,8 +242,7 @@ class Throttler(processor.Processor):
                             self.tag,
                             part_type,
                         )
-                else:
-                    input_queue.put_nowait(part)
+                input_queue.put_nowait(part)
             await input_queue.put(None)
 
         bridge_task = processor.create_task(bridge())

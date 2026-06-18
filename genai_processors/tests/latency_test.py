@@ -18,18 +18,18 @@ async def test_prober_structure():
     pipeline = latency.Prober("start", interval_seconds=0.1)
 
     # Send a few parts to establish a baseline for FPS
-    input_stream = streams.stream_content(["test"] * 6, with_delay_sec=0.02)
+    input_stream = streams.stream_content(["test"] * 11, with_delay_sec=0.02)
     results = await pipeline(input_stream).gather()
 
     for part in results:
         assert part.text == "test"
 
-    assert len(results) == 6
-    assert "prober" in results[0].metadata
+    assert len(results) == 11
     assert "prober" in results[5].metadata
+    assert "prober" in results[10].metadata
     delta_time = (
-        results[5].metadata["prober"]["markers"][0][1]
-        - results[0].metadata["prober"]["markers"][0][1]
+        results[10].metadata["prober"]["markers"][0][1]
+        - results[5].metadata["prober"]["markers"][0][1]
     )
     assert delta_time == pytest.approx(0.1, abs=0.01)
 
@@ -40,17 +40,22 @@ async def test_probe_checkpoint_trace():
     pipeline = latency.ProbeCheckpoint("step1") + latency.ProbeCheckpoint("step2")
     start_time = 100.0
     # Prober now starts with one marker
-    metadata = {
-        "prober": {
-            "start_time": start_time,
-            "markers": [("start", start_time, 0, 50.0)],
-        }
-    }
-    input_stream = [content_api.ProcessorPart("test", metadata=metadata)]
+    input_stream = [
+        "initial",
+        content_api.ProcessorPart(
+            "test",
+            metadata={
+                "prober": {
+                    "start_time": start_time,
+                    "markers": [("start", start_time, 0, 50.0)],
+                }
+            },
+        ),
+    ]
     result = await pipeline(input_stream).gather()
 
     # Check that we have the original marker + the extra 2.
-    markers = result[0].metadata["prober"]["markers"]
+    markers = result[1].metadata["prober"]["markers"]
     assert len(markers) == 3
     assert markers[1][0] == "step1"
     assert markers[2][0] == "step2"
