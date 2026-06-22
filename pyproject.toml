@@ -70,6 +70,7 @@ dev = [
     "pyink",
     "pylint>=2.6.0",
     "pytest",
+    "pytest-asyncio",
     "pytest-xdist",
     "torch",
     "transformers",
