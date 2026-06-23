@@ -2,9 +2,15 @@
 
 ## Stream latency monitoring
 
-`latency.py` provides a lightweight solution for diagnosing and managing performance issues in real-time streaming pipelines (e.g., video feeds, live audio). The telemetry hooks rely on `time.monotonic()` and lightweight dictionary updates. They run at native Python speeds without blocking your async stream.
+`latency.py` provides a lightweight solution for diagnosing and managing
+performance issues in real-time streaming pipelines (e.g., video feeds, live
+audio). The telemetry hooks rely on `time.monotonic()` and lightweight
+dictionary updates. They run at native Python speeds without blocking your
+async stream.
 
-Measuring latency is done via probing: we inject non-intrusive tracking parts into your stream to map out precise end-to-end processing times and frame rates (FPS) at every step.
+Measuring latency is done via probing: we inject non-intrusive tracking parts
+into your stream to map out precise end-to-end processing times and frame
+rates (FPS) at every step.
 
 To trace a pipeline:
 
@@ -15,7 +21,8 @@ To trace a pipeline:
 By default, all parts on the default substream are considered. Status or debug
 parts are ignored.
 
-A prober is a processor so it can easily be combined with any existing processor chain or any existing pipeline.
+A prober is a processor so it can easily be combined with any existing
+processor chain or any existing pipeline.
 
 For example:
 
@@ -31,7 +38,7 @@ model = (
     + latency.ProbeCheckpoint(tag="Crop")
     + latency.ProbeLog()  # Outputs telemetry to console
 )
-# When computing the output_stream, the probers will collect 
+# When computing the output_stream, the probers will collect
 # statistics between the check points
 output_stream = model(input_stream)
 ```
@@ -44,13 +51,20 @@ INFO:absl:Latency Trace[default]: Source (+0.0ms, 30.0fps) -> Extract (+45.2ms, 
 
 ## Handling Latency Issues (The Throttling Trick)
 
-If a downstream consumer or model slows down, incoming data will back up, causing memory spikes or severe lag.
+If a downstream consumer or model slows down, incoming data will back up,
+causing memory spikes or severe lag.
 
-The Throttler processor plays the role of a safety valve. It uses a small internal buffer (max_size) to drop older, stale data (like old video frames) so your pipeline stays strictly locked to real-time speeds.
+The Throttler processor plays the role of a safety valve. It uses a small
+internal buffer (max_size) to drop older, stale data (like old video frames)
+so your pipeline stays strictly locked to real-time speeds.
 
-While it drops regular data to clear congestion, it never drops probing/telemetry data. Telemetry tokens are automatically prioritized and pushed through, ensuring your performance graphs and logs remain completely unbroken even during heavy traffic spikes.
+While it drops regular data to clear congestion, it never drops
+probing/telemetry data. Telemetry tokens are automatically prioritized and
+pushed through, ensuring your performance graphs and logs remain completely
+unbroken even during heavy traffic spikes.
 
-Drop the Throttler right before any known bottleneck or slow consumer in your processor chain.
+Drop the Throttler right before any known bottleneck or slow consumer in your
+processor chain.
 
 ```python
 from genai_processors.dev import latency
@@ -65,7 +79,7 @@ model = (
     + latency.ProbeLog()
 )
 
-# If the input_stream generates content faster than 
+# If the input_stream generates content faster than
 # what the pipeline can process, the throttler "Before Crop"
 # will drop frames.
 output_stream = model(input_stream)
