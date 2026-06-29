@@ -439,7 +439,7 @@ class PartProcessor(abc.ABC):
     return self.__class__.__qualname__
 
   @overload
-  def __add__(self, other: PartProcessor) -> PartProcessor:
+  def __add__(self, other: PartProcessor) -> PartProcessor:  # pyrefly: ignore[inconsistent-overload]
     ...
 
   @overload
