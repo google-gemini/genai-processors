@@ -163,7 +163,7 @@ class EventDetection(processor.Processor):
       max_images: The maximum number of images to keep in the input stream.
     """
     self._backend = backend
-    self._sensitivity = sensitivity
+    self._sensitivity = sensitivity or {}
     self._output_dict = {}
     self._init_output_dict(output_dict)
     self._last_transition = (START_STATE, START_STATE)

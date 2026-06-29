@@ -747,6 +747,7 @@ class _ExecuteFunctionCall:
   ) -> None:
     """Adds the Task running a function and returns task_id."""
     task_id = call.id
+    assert task_id is not None, 'call.id must not be None'
     task = processor.create_task(
         self._put_function_response_to_output_queue(call, fn)
     )
@@ -919,6 +920,7 @@ class _ExecuteFunctionCall:
 
     part.substream_name = FUNCTION_CALL_SUBSTREAM_NAME
     call = part.function_call
+    assert call is not None, 'part.function_call must not be None'
 
     await self._output_queue.put(part)
 

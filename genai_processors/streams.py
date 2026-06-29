@@ -17,7 +17,7 @@
 import asyncio
 from collections.abc import AsyncIterable, AsyncIterator, Iterable
 import copy
-from typing import Any, TypeVar, Union, overload
+from typing import Any, TypeVar, Union, overload, cast
 
 from genai_processors import context
 
@@ -126,6 +126,7 @@ def merge(
 @overload
 def merge(
     streams: Iterable[AsyncIterable[_T]],
+    /,
     *,
     queue_maxsize: int = 0,
     stop_on_first: bool = False,
@@ -137,7 +138,7 @@ async def merge(
     *args: Union[Iterable[AsyncIterable[_T]], AsyncIterable[_T]],
     queue_maxsize: int = 0,
     stop_on_first: bool = False,
-) -> AsyncIterator[_T]:
+) -> AsyncIterable[_T]:
   """Merges multiple streams into one.
 
   The order is defined by the asyncio loop and will likely be determined by the
@@ -165,10 +166,11 @@ async def merge(
   """
 
   # Determine if the first arg is the collection or a single stream
-  if len(args) == 1 and not hasattr(args[0], '__aiter__'):
+  if len(args) == 1 and not isinstance(args[0], AsyncIterable):
     streams = list(args[0])
   else:
     streams = list(args)
+  streams = cast(list[AsyncIterable[_T]], streams)
 
   if not streams:
     return
@@ -254,7 +256,7 @@ async def stream_content(
   # this function doesn't work for generators.
   delay_next = with_delay_sec is not None and delay_first
   for c in content:
-    if delay_next:
+    if delay_next and with_delay_sec is not None:
       await asyncio.sleep(with_delay_sec)
     else:
       delay_next = with_delay_sec is not None  # From the 2nd iteration onwards.

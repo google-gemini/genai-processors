@@ -168,8 +168,11 @@ class VideoExtract(processor.PartProcessor):
     try:
       audio_mime_type = f'audio/l16;rate={DEFAULT_SAMPLE_RATE};channels=1'
 
+      part_bytes = part.bytes
+      if part_bytes is None:
+        raise ValueError(f'Video part has no bytes: {part}')
       with tempfile.NamedTemporaryFile('wb', suffix='.mp4') as temp_file:
-        temp_file.write(part.bytes)
+        temp_file.write(part_bytes)
         temp_file.flush()
 
         with av.open(temp_file.name) as container:

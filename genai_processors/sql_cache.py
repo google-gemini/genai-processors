@@ -148,7 +148,15 @@ class SqlCache(cache_base.CacheBase):
       *,
       key: str | None = None,
   ) -> content_api.ProcessorContent | cache_base.CacheMissT:
-    query_key = key if key is not None else self._hash_fn(query)
+    if key is not None:
+      query_key = key
+    elif query is not None:
+      query_key = self._hash_fn(query)
+    else:
+      return cache_base.CacheMiss
+
+    if query_key is None:
+      return cache_base.CacheMiss
 
     async with self._lock:
       item = await self._session.get(_ContentCacheEntry, query_key)
@@ -180,7 +188,15 @@ class SqlCache(cache_base.CacheBase):
       key: str | None = None,
       value: content_api.ProcessorContentTypes,
   ) -> None:
-    query_key = key if key is not None else self._hash_fn(query)
+    if key is not None:
+      query_key = key
+    elif query is not None:
+      query_key = self._hash_fn(query)
+    else:
+      return
+
+    if query_key is None:
+      return
 
     data_to_cache_bytes = _serialize_content(
         content_api.ProcessorContent(value)

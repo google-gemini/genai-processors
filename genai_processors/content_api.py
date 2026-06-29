@@ -290,7 +290,7 @@ class ProcessorPart:
       raise ValueError(f'Part is not text but {self._debug_string()}')
     if self.part.text:
       return self.part.text
-    if self.part.inline_data:
+    if self.part.inline_data and self.part.inline_data.data is not None:
       return self.part.inline_data.data.decode('utf-8')
     return ''
 
@@ -371,7 +371,11 @@ class ProcessorPart:
           f'Part is not a {proto_message.DESCRIPTOR.name} proto message but'
           f' {self._debug_string()}.'
       )
-    return proto_message.FromString(self.bytes)
+    if (part_bytes := self.bytes) is None:
+      raise ValueError(
+          f'Part has no bytes to parse as proto: {self._debug_string()}'
+      )
+    return proto_message.FromString(part_bytes)
 
   @property
   def pil_image(self) -> PIL.Image.Image:
@@ -379,7 +383,10 @@ class ProcessorPart:
     if not mime_types.is_image(self.mimetype):
       raise ValueError(f'Part is not an image but {self._debug_string()}.')
     bytes_io = io.BytesIO()
-    if self.part.inline_data is not None:
+    if (
+        self.part.inline_data is not None
+        and self.part.inline_data.data is not None
+    ):
       bytes_io.write(self.part.inline_data.data)
     bytes_io.seek(0)
     return PIL.Image.open(bytes_io)

@@ -72,14 +72,14 @@ def to_schema(
   Returns:
     A `genai_types.Schema` object representing the schema.
   """
-  return _transformers.t_schema(  # pytype: disable=wrong-arg-types
-      _FakeClient(), schema
-  )
+  result = _transformers.t_schema(None, schema)
+  assert result is not None
+  return result
 
 
 def to_json_schema(
     schema: Union[genai_types.SchemaUnion, genai_types.SchemaUnionDict, None],
-) -> str | None:
+) -> dict[str, Any] | None:
   """Returns a JSON schema given a Python object representing the schema.
 
   GenAI SDK accepts a variety of Python objects, such as Enum, dataclass or a
@@ -122,7 +122,7 @@ def to_function_declarations(
         fdecl.description += f'{parsed_docstring.short_description}'
       if parsed_docstring.long_description:
         fdecl.description += f'\n\n{parsed_docstring.long_description}'
-      if fdecl.parameters:
+      if fdecl.parameters and fdecl.parameters.properties:
         for param in parsed_docstring.params:
           if param.arg_name in fdecl.parameters.properties:
             fdecl.parameters.properties[param.arg_name].description = (
@@ -154,9 +154,4 @@ def function_declaration_to_json(
   }
 
 
-# TODO(kibergus): Remove this hack once Genai SDK allows None as the client.
-class _FakeClient:
-  """A fake genai client to invoke t_schema."""
 
-  def __init__(self):
-    self.vertexai = False

@@ -19,13 +19,21 @@ But when doing local development with `PYTHONPATH=.`Python will look for them
 here. This magic tells Python where the examples packages are really located.
 """
 
+import collections.abc
 import importlib
+import importlib.machinery
 import sys
+import types
 
 
 class ExamplesImporter(object):
 
-  def find_spec(self, fullname: str, path: str, target=None):
+  def find_spec(
+      self,
+      fullname: str,
+      path: collections.abc.Sequence[str] | None,
+      target: types.ModuleType | None = None,
+  ) -> importlib.machinery.ModuleSpec | None:
     del path, target  # Unused.
     if fullname.startswith('genai_processors.examples'):
       return importlib.util.find_spec(fullname.replace('genai_processors.', ''))

@@ -446,7 +446,7 @@ class PartProcessor(abc.ABC):
   def __add__(self, other: Processor) -> Processor:
     ...
 
-  def __add__(self, other: Self | Processor) -> PartProcessor | Processor:
+  def __add__(self, other: PartProcessor | Processor) -> PartProcessor | Processor:
     """Adds `other` to this processor.
 
     Args:

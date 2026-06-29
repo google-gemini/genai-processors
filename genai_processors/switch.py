@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterable, Callable
-from typing import Generic, Self, TypeAlias, TypeVar
+from typing import Generic, Self, TypeAlias, TypeVar, cast
 
 from genai_processors import content_api
 from genai_processors import processor
@@ -79,7 +79,7 @@ class Switch(Processor, Generic[_T]):
       self,
       match_fn: Callable[[ProcessorPart], _T] | None = None,
   ):
-    self._cases: list[tuple[Callable[[_T], bool], Processor]] = []
+    self._cases: list[tuple[Callable[[ProcessorPart], bool], Processor]] = []
     self._match = match_fn
     self._default_set = False
 
@@ -119,16 +119,18 @@ class Switch(Processor, Generic[_T]):
       raise ValueError(
           f'This case is added after the default processor is set: {v}'
       )
-    if self._match is None:
-      self._match = lambda x: x
+    match_fn = self._match
+    if match_fn is None:
+      match_fn = cast(Callable[[ProcessorPart], _T], lambda x: x)
+      self._match = match_fn
     if isinstance(p, PartProcessor):
       case_processor = p.to_processor()
     else:
       case_processor = p
     if isinstance(v, Callable):
-      self._cases.append((lambda x: v(self._match(x)), case_processor))
+      self._cases.append((lambda x: v(match_fn(x)), case_processor))
     else:
-      self._cases.append((lambda x: v == self._match(x), case_processor))
+      self._cases.append((lambda x: v == match_fn(x), case_processor))
     return self
 
   def default(self, p: Processor | PartProcessor) -> Self:
@@ -189,7 +191,7 @@ class PartSwitch(PartProcessor, Generic[_T]):
       self,
       match_fn: Callable[[ProcessorPart], _T] | None = None,
   ):
-    self._cases: list[tuple[Callable[[_T], bool], PartProcessor]] = []
+    self._cases: list[tuple[Callable[[ProcessorPart], bool], PartProcessor]] = []
     self._match = match_fn
     self._default_set = False
 
@@ -211,12 +213,14 @@ class PartSwitch(PartProcessor, Generic[_T]):
       raise ValueError(
           f'This case is added after the default processor is set: {v}'
       )
-    if self._match is None:
-      self._match = lambda x: x
+    match_fn = self._match
+    if match_fn is None:
+      match_fn = cast(Callable[[ProcessorPart], _T], lambda x: x)
+      self._match = match_fn
     if isinstance(v, Callable):
-      self._cases.append((lambda x: v(self._match(x)), p))
+      self._cases.append((lambda x: v(match_fn(x)), p))
     else:
-      self._cases.append((lambda x: v == self._match(x), p))
+      self._cases.append((lambda x: v == match_fn(x), p))
     return self
 
   def default(self, p: PartProcessor) -> Self:

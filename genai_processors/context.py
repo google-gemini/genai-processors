@@ -53,9 +53,9 @@ _PROCESSOR_RESERVED_SUBSTREAMS: contextvars.ContextVar[frozenset[str]] = (
 )
 
 
-def raise_flattened_exception_group(exception: Exception):
+def raise_flattened_exception_group(exception: BaseException):
   e = exception
-  while isinstance(e, ExceptionGroup):
+  while isinstance(e, BaseExceptionGroup):
     e = e.exceptions[0]
   if e is exception:
     raise exception

@@ -56,7 +56,7 @@ still pending. Once the 'f1(f0(c0)[0])' sub-tree completes, its results
 import asyncio
 from collections.abc import AsyncIterable, Callable, Iterable, Sequence
 import functools
-from typing import TypeAlias, TypeVar
+from typing import TypeAlias, TypeVar, cast
 
 from genai_processors import context
 from genai_processors import streams
@@ -252,7 +252,7 @@ async def _result_aiter(
 ) -> AsyncIterable[_T]:
   """Flattens the queue of aiters into a single aiter."""
   while (c_iter := await q.get()) is not _Finished:
-    async for c in c_iter:
+    async for c in cast(AsyncIterable[_T], c_iter):
       yield c
 
 
@@ -317,11 +317,11 @@ def _chain_part_functions(
 
 
 def _apply_part_function(
-    fn: PartWithMatchFn, content: AsyncIterable[_T]
+    fn_and_match: PartWithMatchFn, content: AsyncIterable[_T]
 ) -> AsyncIterable[_T]:
   """Applies a part function to a stream of parts."""
   q = asyncio.Queue[AsyncIterable[_T] | _FinishedT]()
-  fn, match_fn = fn
+  fn, match_fn = fn_and_match
 
   async def f():
     async for c in content:
