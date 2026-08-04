@@ -154,7 +154,7 @@ def turn_based_model(
         model_name=model_name,
         generate_content_config=ollama_model.GenerateContentConfig(
             system_instruction=system_instruction,
-            tools=tools,  # pyrefly: ignore[bad-argument-type]
+            tools=tools,
         ),
     )
 
@@ -171,7 +171,7 @@ def turn_based_model(
         model_name=model_name,
         generate_content_config=transformers_model.GenerateContentConfig(
             system_instruction=system_instruction,
-            tools=tools,  # pyrefly: ignore[bad-argument-type]
+            tools=tools,
         ),
     )
 

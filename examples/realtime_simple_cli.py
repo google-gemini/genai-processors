@@ -112,7 +112,7 @@ async def run_conversation() -> None:
   # The STT processor is used to convert the audio stream to text. This will
   # be used to store the conversation history in the prompt.
   pya = pyaudio.PyAudio()
-  input_processor = audio_io.PyAudioIn(pya) + speech_to_text.SpeechToText(  # pyrefly: ignore[unsupported-operation]
+  input_processor = audio_io.PyAudioIn(pya) + speech_to_text.SpeechToText(
       project_id=GOOGLE_PROJECT_ID,
       with_interim_results=False,
   )
@@ -129,7 +129,7 @@ async def run_conversation() -> None:
   # chunks to the client at the same rate as how they are played back. This is
   # needed to stop the audio when the user is speaking: the rate limit audio
   # processor will then stop and the audio will not be played anymore.
-  tts = text_to_speech.TextToSpeech(  # pyrefly: ignore[unsupported-operation]
+  tts = text_to_speech.TextToSpeech(
       project_id=GOOGLE_PROJECT_ID
   ) + rate_limit_audio.RateLimitAudio(
       sample_rate=24000,

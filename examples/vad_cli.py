@@ -74,7 +74,7 @@ async def run_vad_cli() -> None:
 
   # The base model that we want to query.
   base_model = genai_model.GenaiModel(
-      api_key=GOOGLE_API_KEY,  # pyrefly: ignore[bad-argument-type]
+      api_key=GOOGLE_API_KEY,
       model_name='gemini-2.5-flash',
   )
 
@@ -83,12 +83,12 @@ async def run_vad_cli() -> None:
   # accumulated audio (which AudioToWav converts into a single .wav part)
   # to the GenAI model.
   live_processor = realtime.LiveProcessor(
-      turn_processor=(audio.AudioToWav() + base_model),  # pyrefly: ignore[unsupported-operation]
+      turn_processor=(audio.AudioToWav() + base_model),
       trigger_model_mode=realtime.AudioTriggerMode.END_OF_SPEECH,
   )
 
   pipeline = (
-      audio_io.PyAudioIn(pya)  # pyrefly: ignore[unsupported-operation]
+      audio_io.PyAudioIn(pya)
       # Aggressive VAD to detect speech activity (less false positives). User
       # needs to speak loud and clear.
       + vad.Vad()

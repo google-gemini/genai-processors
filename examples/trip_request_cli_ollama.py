@@ -95,7 +95,7 @@ async def run_trip_request() -> None:
   # We need a json dataclass (we use the wrapper from pydantic) to parse the
   # json output of the model. We add the current date to the prompt to make
   # sure the model uses the current date.
-  extract_trip_request = preamble.Suffix(  # pyrefly: ignore[unsupported-operation]
+  extract_trip_request = preamble.Suffix(
       content_factory=lambda: f'Today is: {datetime.date.today()}'
   ) + ollama_model.OllamaModel(
       model_name='gemma3',

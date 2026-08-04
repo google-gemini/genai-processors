@@ -175,7 +175,7 @@ class SqlCache(cache_base.CacheBase):
           return cache_base.CacheMiss
 
       try:
-        return _deserialize_content(item.value)  # pyrefly: ignore[bad-argument-type]
+        return _deserialize_content(item.value)
       except Exception:  # pylint: disable=broad-exception-caught
         await self._remove_by_string_key(query_key)
         return cache_base.CacheMiss
@@ -207,9 +207,9 @@ class SqlCache(cache_base.CacheBase):
       expires_at = datetime.datetime.now(datetime.timezone.utc) + self._ttl
 
     item = _ContentCacheEntry()
-    item.key = query_key  # pyrefly: ignore[bad-assignment]
-    item.value = data_to_cache_bytes  # pyrefly: ignore[bad-assignment]
-    item.expires_at = expires_at  # pyrefly: ignore[bad-assignment]
+    item.key = query_key
+    item.value = data_to_cache_bytes
+    item.expires_at = expires_at
     async with self._lock:
       await self._session.merge(item)
       await self._cleanup_expired()
