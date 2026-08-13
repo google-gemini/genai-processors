@@ -181,8 +181,20 @@ class StreamsTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
       self.assertEqual(item, 1)
       break
 
-    await asyncio.sleep(0.05)
+    await concat_stream.aclose()
+    await asyncio.wait_for(task_cancelled.wait(), timeout=1.0)
     self.assertTrue(task_cancelled.is_set())
+
+  async def test_concat_propagates_exceptions(self):
+    async def producer_with_error():
+      yield 1
+      raise ValueError("producer error")
+
+    concat_stream = streams.concat(producer_with_error())
+    
+    with self.assertRaisesRegex(ValueError, "producer error"):
+      async for _ in concat_stream:
+        pass
 
 
 if __name__ == '__main__':

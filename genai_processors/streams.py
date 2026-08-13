@@ -98,29 +98,19 @@ async def concat(
   output_queues = [asyncio.Queue(maxsize=queue_maxsize) for _ in contents]
 
   async def _stream_outputs(idx: int):
-    try:
-      async for c in contents[idx]:
-        await output_queues[idx].put(c)
-      await output_queues[idx].put(None)
-    except asyncio.CancelledError:
-      raise
+    async for c in contents[idx]:
+      await output_queues[idx].put(c)
+    await output_queues[idx].put(None)
 
-  tasks = []
-  try:
+  async with context.context() as tg:
     for idx, _ in enumerate(contents):
-      tasks.append(context.create_task(_stream_outputs(idx)))
+      tg.create_task(_stream_outputs(idx))
 
     for q in output_queues:
       while (part := await q.get()) is not None:
         q.task_done()
         yield part
       q.task_done()
-  finally:
-    for t in tasks:
-      if not t.done():
-        t.cancel()
-    if tasks:
-      await asyncio.gather(*tasks, return_exceptions=True)
 
 
 # 1. Overload for the *args style
@@ -225,9 +215,8 @@ async def enqueue(
   try:
     async for part in content:
       await queue.put(part)
+  finally:
     await queue.put(None)
-  except asyncio.CancelledError:
-    raise
 
 
 async def dequeue(queue: asyncio.Queue[_T | None]) -> AsyncIterator[_T]:
