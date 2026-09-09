@@ -33,7 +33,7 @@ def _item_parser(
   if hasattr(item_type, 'from_dict') and dataclasses.is_dataclass(item_type):
 
     def parse_dataclass(data: Any) -> content_api.ProcessorPart:
-      instance = item_type.from_dict(data)
+      instance = item_type.from_dict(data)  # pyrefly: ignore[missing-attribute]
       return content_api.ProcessorPart.from_dataclass(instance)
 
     return parse_dataclass
