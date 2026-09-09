@@ -2007,7 +2007,7 @@ for handling I/O, data fetching, text manipulation, function calling, and more.<
 generates speech events like <code>StartOfSpeech</code> and <code>EndOfSpeech</code>.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">speech_to_text</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">stt</span> <span class="o">=</span> <span class="n">speech_to_text</span><span class="o">.</span><span class="n">SpeechToText</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="s1">&#39;your-gcp-project-id&#39;</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">stt</span> <span class="o">=</span> <span class="n">speech_to_text</span><span class="o">.</span><span class="n">SpeechToText</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="s1">'your-gcp-project-id'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/speech_to_text.py"><code>speech_to_text.py</code></a></em></p>
@@ -2015,7 +2015,7 @@ generates speech events like <code>StartOfSpeech</code> and <code>EndOfSpeech</c
 <p>Converts text streams into audible speech using Google Cloud Text-to-Speech.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text_to_speech</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">tts</span> <span class="o">=</span> <span class="n">text_to_speech</span><span class="o">.</span><span class="n">TextToSpeech</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="s1">&#39;your-gcp-project-id&#39;</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">tts</span> <span class="o">=</span> <span class="n">text_to_speech</span><span class="o">.</span><span class="n">TextToSpeech</span><span class="p">(</span><span class="n">project_id</span><span class="o">=</span><span class="s1">'your-gcp-project-id'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/text_to_speech.py"><code>text_to_speech.py</code></a></em></p>
@@ -2050,8 +2050,8 @@ interruption.</p>
 <p>Captures video frames from a camera or screen recording as a stream of images.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">video</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">camera</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">VideoIn</span><span class="p">(</span><span class="n">video_mode</span><span class="o">=</span><span class="n">video</span><span class="o">.</span><span class="n">VideoMode</span><span class="o">.</span><span class="n">CAMERA</span><span class="p">,</span> <span class="n">substream_name</span><span class="o">=</span><span class="s1">&#39;realtime&#39;</span><span class="p">)</span>
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">screen</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">VideoIn</span><span class="p">(</span><span class="n">video_mode</span><span class="o">=</span><span class="n">video</span><span class="o">.</span><span class="n">VideoMode</span><span class="o">.</span><span class="n">SCREEN</span><span class="p">,</span> <span class="n">substream_name</span><span class="o">=</span><span class="s1">&#39;realtime&#39;</span><span class="p">)</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">camera</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">VideoIn</span><span class="p">(</span><span class="n">video_mode</span><span class="o">=</span><span class="n">video</span><span class="o">.</span><span class="n">VideoMode</span><span class="o">.</span><span class="n">CAMERA</span><span class="p">,</span> <span class="n">substream_name</span><span class="o">=</span><span class="s1">'realtime'</span><span class="p">)</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">screen</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">VideoIn</span><span class="p">(</span><span class="n">video_mode</span><span class="o">=</span><span class="n">video</span><span class="o">.</span><span class="n">VideoMode</span><span class="o">.</span><span class="n">SCREEN</span><span class="p">,</span> <span class="n">substream_name</span><span class="o">=</span><span class="s1">'realtime'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/video.py"><code>video.py</code></a></em></p>
@@ -2085,8 +2085,8 @@ outputs.</p>
 Useful for adding system prompts or instructions.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">preamble</span>
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
-<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">add_prompt</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Preamble</span><span class="p">(</span><span class="s2">&quot;You are a helpful assistant.&quot;</span><span class="p">)</span>
-<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">add_suffix</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Suffix</span><span class="p">(</span><span class="s2">&quot;Answer in one sentence.&quot;</span><span class="p">)</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="n">add_prompt</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Preamble</span><span class="p">(</span><span class="s2">"You are a helpful assistant."</span><span class="p">)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="n">add_suffix</span> <span class="o">=</span> <span class="n">preamble</span><span class="o">.</span><span class="n">Suffix</span><span class="p">(</span><span class="s2">"Answer in one sentence."</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/preamble.py"><code>preamble.py</code></a></em></p>
@@ -2096,9 +2096,9 @@ content.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">jinja_template</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">template</span> <span class="o">=</span> <span class="n">jinja_template</span><span class="o">.</span><span class="n">JinjaTemplate</span><span class="p">(</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">template_str</span><span class="o">=</span><span class="s1">&#39;Summary of {{ doc_name }}: {{ content }}&#39;</span><span class="p">,</span>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">doc_name</span><span class="o">=</span><span class="s1">&#39;Annual Report&#39;</span><span class="p">,</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">content_varname</span><span class="o">=</span><span class="s1">&#39;content&#39;</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="n">template_str</span><span class="o">=</span><span class="s1">'Summary of {{ doc_name }}: {{ content }}'</span><span class="p">,</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">doc_name</span><span class="o">=</span><span class="s1">'Annual Report'</span><span class="p">,</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">content_varname</span><span class="o">=</span><span class="s1">'content'</span>
 <a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
@@ -2121,7 +2121,7 @@ instances based on a provided schema.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
 <a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
 <a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="n">url_extractor</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">UrlExtractor</span><span class="p">()</span>
-<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">html_cleaner</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">HtmlCleaner</span><span class="p">(</span><span class="n">cleaning_mode</span><span class="o">=</span><span class="s1">&#39;plain&#39;</span><span class="p">)</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">html_cleaner</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">HtmlCleaner</span><span class="p">(</span><span class="n">cleaning_mode</span><span class="o">=</span><span class="s1">'plain'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/text.py"><code>text.py</code></a></em></p>
@@ -2132,7 +2132,7 @@ commands or structured data embedded in text before it is returned to the user.
 It can also be used to detect unsafe keywords.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">text</span>
 <a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
-<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">matcher</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">MatchProcessor</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s1">&#39;\[command:.*\]&#39;</span><span class="p">,</span> <span class="n">substream_output</span><span class="o">=</span><span class="s1">&#39;commands&#39;</span><span class="p">)</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">matcher</span> <span class="o">=</span> <span class="n">text</span><span class="o">.</span><span class="n">MatchProcessor</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="sa">r</span><span class="s1">'\[command:.*\]'</span><span class="p">,</span> <span class="n">substream_output</span><span class="o">=</span><span class="s1">'commands'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/text.py"><code>text.py</code></a></em></p>
@@ -2163,7 +2163,7 @@ web URLs.</p>
 <p>Fetches file content from GitHub URLs.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">github</span>
 <a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>
-<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">github_fetcher</span> <span class="o">=</span> <span class="n">github</span><span class="o">.</span><span class="n">GithubProcessor</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="s1">&#39;your-github-api-key&#39;</span><span class="p">)</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="n">github_fetcher</span> <span class="o">=</span> <span class="n">github</span><span class="o">.</span><span class="n">GithubProcessor</span><span class="p">(</span><span class="n">api_key</span><span class="o">=</span><span class="s1">'your-github-api-key'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/github.py"><code>github.py</code></a></em></p>
@@ -2171,7 +2171,7 @@ web URLs.</p>
 <p>Reads local files matching a glob pattern.</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">genai_processors.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">filesystem</span>
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>
-<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">file_loader</span> <span class="o">=</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">GlobSource</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">&#39;**/*.txt&#39;</span><span class="p">,</span> <span class="n">base_dir</span><span class="o">=</span><span class="s1">&#39;./docs&#39;</span><span class="p">)</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">file_loader</span> <span class="o">=</span> <span class="n">filesystem</span><span class="o">.</span><span class="n">GlobSource</span><span class="p">(</span><span class="n">pattern</span><span class="o">=</span><span class="s1">'**/*.txt'</span><span class="p">,</span> <span class="n">base_dir</span><span class="o">=</span><span class="s1">'./docs'</span><span class="p">)</span>
 </code></pre></div>
 <p><em>See:
 <a href="https://github.com/google-gemini/genai-processors/blob/main/genai_processors/core/filesystem.py"><code>filesystem.py</code></a></em></p>
@@ -2184,7 +2184,7 @@ results back to the model.</p>
 <a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>
 <a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="k">def</span><span class="w"> </span><span class="nf">get_weather</span><span class="p">(</span><span class="n">city</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="c1"># ... implementation ...</span>
-<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Weather in </span><span class="si">{</span><span class="n">city</span><span class="si">}</span><span class="s2"> is sunny.&quot;</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>    <span class="k">return</span> <span class="sa">f</span><span class="s2">"Weather in </span><span class="si">{</span><span class="n">city</span><span class="si">}</span><span class="s2"> is sunny."</span>
 <a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
 <a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="n">tools</span> <span class="o">=</span> <span class="p">[</span><span class="n">get_weather</span><span class="p">]</span>
 <a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="n">model_with_tools</span> <span class="o">=</span> <span class="n">genai_model</span><span class="o">.</span><span class="n">GenaiModel</span><span class="p">(</span>

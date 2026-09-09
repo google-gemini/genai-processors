@@ -1981,12 +1981,12 @@ use the <code>@processor.processor_function</code> decorator.</p>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">simple_filter</span><span class="p">(</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span><span class="p">,</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Passes through only text parts buffering them first.&quot;&quot;&quot;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">    </span><span class="sd">"""Passes through only text parts buffering them first."""</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">text_buffer</span> <span class="o">=</span> <span class="p">[]</span>
 <a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="k">if</span> <span class="n">content_api</span><span class="o">.</span><span class="n">is_text</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">mimetype</span><span class="p">):</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>            <span class="n">text_buffer</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="k">yield</span> <span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text_buffer</span><span class="p">)</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="k">yield</span> <span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">text_buffer</span><span class="p">)</span>
 </code></pre></div>
 <p>You’ll notice that a Processor’s implementation signature differs slightly from
 its usage signature. This is intentional. When implementing a processor, you get
@@ -2049,7 +2049,7 @@ handles. This improves readability and performance and is recommended.</p>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">shouter</span><span class="p">(</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">part</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="c1"># We are guaranteed that &#39;part&#39; is text because of match_fn</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="c1"># We are guaranteed that 'part' is text because of match_fn</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">yield</span> <span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span>
 </code></pre></div>
 <h3 id="comparison-processor-vs-partprocessor">Comparison: Processor vs. PartProcessor</h3>
@@ -2167,7 +2167,7 @@ source (e.g., from a microphone, a queue, or a file) using the
 <a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>    <span class="k">yield</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
 <a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
 <a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># Usage:</span>
-<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># p = file_source(&quot;data.txt&quot;) + simple_filter + model</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># p = file_source("data.txt") + simple_filter + model</span>
 <a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="c1"># async for part in p(streams.endless_stream()):</span>
 <a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1">#   ...</span>
 </code></pre></div>
@@ -2203,19 +2203,19 @@ inside the processor and yield it as a <code>ProcessorPart</code> to the output 
 <a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">faulty_processor</span><span class="p">(</span>
 <a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a>    <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span><span class="p">,</span>
 <a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
-<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;This processor will sometimes fail.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="w">    </span><span class="sd">"""This processor will sometimes fail."""</span>
 <a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>    <span class="k">if</span> <span class="n">random</span><span class="o">.</span><span class="n">random</span><span class="p">()</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
-<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Something went wrong&quot;</span><span class="p">)</span>
-<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>    <span class="k">yield</span> <span class="s2">&quot;Hello&quot;</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Something went wrong"</span><span class="p">)</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a>    <span class="k">yield</span> <span class="s2">"Hello"</span>
 <a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>
 <a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="nd">@processor</span><span class="o">.</span><span class="n">processor_function</span>
 <a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">recover_from_error</span><span class="p">(</span>
 <a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a>    <span class="n">content</span><span class="p">:</span> <span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorStream</span><span class="p">,</span>
 <a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AsyncIterable</span><span class="p">[</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPartTypes</span><span class="p">]:</span>
-<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;This processor will recover from an error.&quot;&quot;&quot;</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="w">    </span><span class="sd">"""This processor will recover from an error."""</span>
 <a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a>    <span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
 <a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a>        <span class="k">if</span> <span class="n">part</span><span class="o">.</span><span class="n">mimetype</span> <span class="o">==</span> <span class="n">mime_types</span><span class="o">.</span><span class="n">TEXT_EXCEPTION</span><span class="p">:</span>
-<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>            <span class="k">yield</span> <span class="sa">f</span><span class="s2">&quot;Processor failed with: </span><span class="si">{</span><span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">, trying something else.&quot;</span>
+<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>            <span class="k">yield</span> <span class="sa">f</span><span class="s2">"Processor failed with: </span><span class="si">{</span><span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="si">}</span><span class="s2">, trying something else."</span>
 <a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a>        <span class="k">else</span><span class="p">:</span>
 <a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a>            <span class="k">yield</span> <span class="n">part</span>
 </code></pre></div>

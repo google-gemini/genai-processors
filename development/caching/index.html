@@ -1741,14 +1741,14 @@ is not required.</p>
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
 <a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># GenaiModel makes expensive LLM calls.</span>
 <a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">llm_processor</span> <span class="o">=</span> <span class="n">genai_model</span><span class="o">.</span><span class="n">GenaiModel</span><span class="p">(</span>
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">api_key</span><span class="o">=</span><span class="s1">&#39;API_KEY&#39;</span><span class="p">,</span>
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s1">&#39;...&#39;</span><span class="p">,</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">api_key</span><span class="o">=</span><span class="s1">'API_KEY'</span><span class="p">,</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s1">'...'</span><span class="p">,</span>
 <a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 <a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># Wrap with caching using CachedProcessor</span>
 <a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">cached_llm_processor</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">CachedProcessor</span><span class="p">(</span>
 <a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">llm_processor</span><span class="p">,</span>
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">key_prefix</span><span class="o">=</span><span class="s1">&#39;llm_v1&#39;</span><span class="p">,</span>  <span class="c1"># Optional: for key namespacing</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">key_prefix</span><span class="o">=</span><span class="s1">'llm_v1'</span><span class="p">,</span>  <span class="c1"># Optional: for key namespacing</span>
 <a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="p">)</span>
 </code></pre></div>
 <h3 id="setting-the-cache-instance">Setting the Cache Instance</h3>
@@ -1799,7 +1799,7 @@ manager.</p>
 <a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">run_with_persistent_cache</span><span class="p">():</span>
 <a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="c1"># Requires SQLite backend: pip install aiosqlite</span>
 <a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">sql_cache</span><span class="o">.</span><span class="n">sql_cache</span><span class="p">(</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="s1">&#39;sqlite+aiosqlite:///my_cache.db&#39;</span><span class="p">,</span> <span class="n">ttl_hours</span><span class="o">=</span><span class="mi">24</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>        <span class="s1">'sqlite+aiosqlite:///my_cache.db'</span><span class="p">,</span> <span class="n">ttl_hours</span><span class="o">=</span><span class="mi">24</span>
 <a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="p">)</span> <span class="k">as</span> <span class="n">persistent_cache</span><span class="p">:</span>
 <a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>      <span class="n">processor</span><span class="o">.</span><span class="n">CachedProcessor</span><span class="o">.</span><span class="n">set_cache</span><span class="p">(</span><span class="n">persistent_cache</span><span class="p">)</span>
 <a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>      <span class="c1"># Run processors that use caching here...</span>

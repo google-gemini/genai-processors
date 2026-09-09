@@ -1578,14 +1578,14 @@ module provides additional utilities for direct stream manipulation.</p>
 <p>If the same input needs to be sent to multiple destinations at once, the <code>split</code>
 method comes in handy. It creates many streams identical to the original one
 which can be iterated over independently.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># &#39;split&#39; creates two independent iterators from one source. Note that the</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># 'split' creates two independent iterators from one source. Note that the</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># parts are not copied. If copies are required, use `with_copy=True` as</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># described below.</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">stream1</span><span class="p">,</span> <span class="n">stream2</span> <span class="o">=</span> <span class="n">streams</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">output_stream1</span> <span class="o">=</span> <span class="n">processor1</span><span class="p">(</span><span class="n">stream1</span><span class="p">)</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">output_stream2</span> <span class="o">=</span> <span class="n">processor2</span><span class="p">(</span><span class="n">stream2</span><span class="p">)</span>
 <a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Use &#39;with_copy=True&#39; if downstream processors might mutate the objects</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Use 'with_copy=True' if downstream processors might mutate the objects</span>
 <a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">s1</span><span class="p">,</span> <span class="n">s2</span> <span class="o">=</span> <span class="n">streams</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">with_copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </code></pre></div>
 <p>A typical usage of splitting is when you want to "fan out" the user request to
@@ -1685,9 +1685,9 @@ starting with stream1 fed by an external input processor.</p>
 <a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="c1"># processor1 into its input.</span>
 <a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="k">async</span> <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">processor1</span><span class="p">(</span><span class="n">stream1</span><span class="p">):</span>
 <a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>    <span class="k">if</span> <span class="n">content_api</span><span class="o">.</span><span class="n">is_text</span><span class="p">(</span><span class="n">part</span><span class="o">.</span><span class="n">mimetype</span><span class="p">):</span>
-<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>        <span class="k">if</span> <span class="s2">&quot;error&quot;</span> <span class="ow">in</span> <span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="p">:</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>        <span class="k">if</span> <span class="s2">"error"</span> <span class="ow">in</span> <span class="n">part</span><span class="o">.</span><span class="n">text</span><span class="p">:</span>
 <a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>            <span class="c1"># We signal to the processor1 that it needs to try again.</span>
-<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>            <span class="n">queue1</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span><span class="p">(</span><span class="s2">&quot;error, try again&quot;</span><span class="p">))</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>            <span class="n">queue1</span><span class="o">.</span><span class="n">put_nowait</span><span class="p">(</span><span class="n">content_api</span><span class="o">.</span><span class="n">ProcessorPart</span><span class="p">(</span><span class="s2">"error, try again"</span><span class="p">))</span>
 </code></pre></div>
 <p>This example is obviously a bit constructed but it shows how easy it is to
 transfer parts between streams. We used the <code>enqueue</code> and <code>dequeue</code> operation
