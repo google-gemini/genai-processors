@@ -78,7 +78,10 @@ def split(
   return tuple(dequeue_parts(queue) for queue in queues)
 
 
-async def concat(*contents: AsyncIterable[_T]) -> AsyncIterable[_T]:
+async def concat(
+    *contents: AsyncIterable[_T],
+    queue_maxsize: int = 1,
+) -> AsyncIterable[_T]:
   """Concatenate multiple streams into one.
 
   The streams are looped over concurrently before being assembled into a single
@@ -86,28 +89,28 @@ async def concat(*contents: AsyncIterable[_T]) -> AsyncIterable[_T]:
 
   Args:
     *contents: each stream to concat as a separate argument.
+    queue_maxsize: The maximum number of items to buffer in an internal queue
+      for each input stream. Set to 0 to use an unbounded queue.
 
   Yields:
     The concatenation of all streams.
   """
-  output_queues = [asyncio.Queue() for _ in contents]
+  output_queues = [asyncio.Queue(maxsize=queue_maxsize) for _ in contents]
 
-  async def _stream_outputs(
-      idx: int,
-  ):
+  async def _stream_outputs(idx: int):
     async for c in contents[idx]:
-      output_queues[idx].put_nowait(c)
-    # Adds None to indicate end of output.
-    output_queues[idx].put_nowait(None)
+      await output_queues[idx].put(c)
+    await output_queues[idx].put(None)
 
-  tasks = []
-  for idx, _ in enumerate(contents):
-    tasks.append(context.create_task(_stream_outputs(idx)))
+  async with context.context() as tg:
+    for idx, _ in enumerate(contents):
+      tg.create_task(_stream_outputs(idx))
 
-  for q in output_queues:
-    while (part := await q.get()) is not None:
+    for q in output_queues:
+      while (part := await q.get()) is not None:
+        q.task_done()
+        yield part
       q.task_done()
-      yield part
 
 
 # 1. Overload for the *args style
