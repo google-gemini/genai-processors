@@ -13,3 +13,4 @@
 # limitations under the License.
 # ==============================================================================
 """Community contributed processors."""
+from .lowercase_text_processor import LowercaseTextProcessor
