@@ -13,3 +13,15 @@
 # limitations under the License.
 # ==============================================================================
 """Community contributed processors."""
+
+from .code_documentation_processor import (
+    CodeDocumentationProcessor,
+    create_code_documentation_processor,
+    document_code_file,
+)
+
+__all__ = [
+    'CodeDocumentationProcessor',
+    'create_code_documentation_processor', 
+    'document_code_file',
+]
