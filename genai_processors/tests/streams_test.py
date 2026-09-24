@@ -61,6 +61,51 @@ class StreamsTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
     self.assertEqual(output, ['foo 0', 'foo 1', 'foo 2'])
 
+  async def test_concat_bounded_queue_applies_backpressure(self):
+    produced = []
+
+    async def _producer(n: int):
+      for i in range(n):
+        produced.append(i)
+        yield content_api.ProcessorPart(str(i))
+
+    async def _run():
+      concat_ = streams.concat(_producer(100), queue_maxsize=2)
+      first = await anext(aiter(concat_))
+      await asyncio.sleep(0.05)
+      # One item consumed plus a small bounded buffer, not all 100.
+      self.assertLess(len(produced), 10)
+      return first, concat_
+
+    _, concat_ = await _run()
+    await concat_.aclose()
+
+  async def test_concat_bounded_queue_yields_everything_in_order(self):
+    output = await text(
+        streams.concat(_parts('a', 'b', 'c'), _parts('d', 'e'), queue_maxsize=1)
+    )
+    self.assertEqual(output, ['a', 'b', 'c', 'd', 'e'])
+
+  async def test_concat_cancels_tasks_on_early_exit(self):
+    cancelled = []
+
+    async def _endless(name: str):
+      try:
+        while True:
+          yield content_api.ProcessorPart(name)
+          await asyncio.sleep(0)
+      finally:
+        cancelled.append(name)
+
+    before = asyncio.all_tasks()
+    async for _ in streams.concat(_endless('a'), _endless('b'), queue_maxsize=2):
+      break
+    await asyncio.sleep(0.05)
+
+    leaked = [t for t in asyncio.all_tasks() - before if not t.done()]
+    self.assertEmpty(leaked)
+    self.assertCountEqual(cancelled, ['a', 'b'])
+
   async def test_merge_empty(self):
     merged = streams.merge([])
     self.assertEqual(await streams.gather_stream(merged), [])

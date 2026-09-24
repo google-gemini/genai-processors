@@ -78,36 +78,58 @@ def split(
   return tuple(dequeue_parts(queue) for queue in queues)
 
 
-async def concat(*contents: AsyncIterable[_T]) -> AsyncIterable[_T]:
+async def concat(
+    *contents: AsyncIterable[_T], queue_maxsize: int = 0
+) -> AsyncIterable[_T]:
   """Concatenate multiple streams into one.
 
   The streams are looped over concurrently before being assembled into a single
   output stream.
 
+  If the consumer stops early (e.g. breaks out of the loop or is cancelled), the
+  background tasks reading the input streams are cancelled.
+
   Args:
     *contents: each stream to concat as a separate argument.
+    queue_maxsize: The maximum number of items to buffer for each input stream.
+      When a buffer is full the corresponding input stream is paused until the
+      consumer catches up. Set to 0 to use unbounded buffers, which lets a fast
+      producer buffer its whole output while an earlier stream is still being
+      consumed.
 
   Yields:
     The concatenation of all streams.
   """
-  output_queues = [asyncio.Queue() for _ in contents]
+  output_queues = [asyncio.Queue(maxsize=queue_maxsize) for _ in contents]
 
-  async def _stream_outputs(
-      idx: int,
-  ):
-    async for c in contents[idx]:
-      output_queues[idx].put_nowait(c)
+  async def _stream_outputs(content: AsyncIterable[_T], q: asyncio.Queue) -> None:
+    try:
+      async for c in content:
+        await q.put(c)
+    except BaseException:
+      # Best effort end marker. Never block here: on cancellation the queue may
+      # be full and nobody is going to drain it.
+      try:
+        q.put_nowait(None)
+      except asyncio.QueueFull:
+        pass
+      raise
     # Adds None to indicate end of output.
-    output_queues[idx].put_nowait(None)
+    await q.put(None)
 
-  tasks = []
-  for idx, _ in enumerate(contents):
-    tasks.append(context.create_task(_stream_outputs(idx)))
+  tasks = [
+      context.create_task(_stream_outputs(c, q))
+      for c, q in zip(contents, output_queues)
+  ]
 
-  for q in output_queues:
-    while (part := await q.get()) is not None:
-      q.task_done()
-      yield part
+  try:
+    for q in output_queues:
+      async for part in dequeue(q):
+        yield part
+  finally:
+    for t in tasks:
+      t.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 
 # 1. Overload for the *args style
