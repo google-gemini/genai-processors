@@ -89,7 +89,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=processor_factory,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
 
     actual_outputs = [json.loads(output) for output in ws.outputs]
@@ -121,7 +121,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=lambda _: echo_processor,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
 
     actual_outputs = [json.loads(output) for output in ws.outputs]
@@ -163,7 +163,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=processor_factory,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
 
     # Initial factory call (empty config)
@@ -194,7 +194,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=processor_factory,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
 
     # Called twice: initial and after reset
@@ -231,7 +231,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=lambda _: capture_processor,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
     actual_outputs = [json.loads(output) for output in ws.outputs]
     self.assertEqual(actual_outputs, expected_outputs)
@@ -264,7 +264,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=lambda _: completion_processor,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
     actual_outputs = [json.loads(output) for output in ws.outputs]
     self.assertEqual(actual_outputs, expected_outputs)
@@ -296,7 +296,7 @@ class LiveServerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
         processor_factory=lambda _: echo_processor,
         trace_dir=None,
         max_size_bytes=None,
-        ais_websocket=ws,  # pytype: disable=wrong-arg-types
+        ais_websocket=ws,  # pyrefly: ignore[bad-argument-type]
     )
 
     # The malformed JSON triggers an exception in receive(),

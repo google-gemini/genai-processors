@@ -533,7 +533,7 @@ class CommentatorStateMachine:
     # Underestimating the TTFT will result in the comment being triggered too
     # late, adding a delay to the conversation but making the comment more
     # aligned (time-wise) with the video stream.
-    return max(0.4, avg - std)  # pyrefly: ignore[bad-return]
+    return max(0.4, avg - std)
 
   def tentative_trigger_time(self) -> Optional[float]:
     """Returns the tentative time when the commentator will trigger."""

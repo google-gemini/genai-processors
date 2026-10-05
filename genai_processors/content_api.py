@@ -356,7 +356,7 @@ class ProcessorPart:
       raise ValueError(f'Part is not a dataclass but {self._debug_string()}')
     try:
       # JSON conversions are provided by the dataclass_json decorator.
-      return json_dataclass.from_json(self.text)  # pytype: disable=attribute-error
+      return json_dataclass.from_json(self.text)  # pyrefly: ignore[missing-attribute]
     except AttributeError as e:
       raise ValueError(
           f'{json_dataclass.__name__} is not a valid json dataclass'

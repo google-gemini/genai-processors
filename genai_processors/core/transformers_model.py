@@ -206,7 +206,7 @@ class TransformersModel(processor.Processor):
                 output_queue,
                 parse_function_calls=self._parse_function_calls,
             ),
-            pad_token_id=self._tokenizer.eos_token_id,  # pyrefly: ignore[missing-attribute]
+            pad_token_id=self._tokenizer.eos_token_id,
             **self._generation_kwargs,
         )
     )
