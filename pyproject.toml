@@ -45,6 +45,7 @@ dependencies = [
     "mcp>=1.26.0",
     "sqlalchemy>=2.0.0",
     "webrtcvad>=2.0.10",
+    "langdetect>=1.0.9",
 ]
 
 # `version` is automatically set by flit to use `genai_processors.__version__`
