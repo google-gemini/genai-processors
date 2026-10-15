@@ -203,7 +203,7 @@ class TransformersModel(processor.Processor):
                 input_len,
                 asyncio.get_running_loop(),
                 self._hf_processor,
-                output_queue,
+                output_queue,  # pyrefly: ignore[bad-argument-type]
                 parse_function_calls=self._parse_function_calls,
             ),
             pad_token_id=self._tokenizer.eos_token_id,

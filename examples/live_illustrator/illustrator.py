@@ -114,7 +114,7 @@ async def unwrap_function_response(
       if fn_part.inline_data:
         # For media content, unwrap the inline data and yield a ProcessorPart.
         yield content_api.ProcessorPart(
-            fn_part.inline_data.data,
+            fn_part.inline_data.data,  # pyrefly: ignore[bad-argument-type]
             mimetype=fn_part.inline_data.mime_type,
             role='tool',
             substream_name=part.function_response.name,  # pyrefly: ignore[bad-argument-type]
@@ -303,7 +303,7 @@ class ImageGenerator:
       content += 'You can use the following concept arts as references:\n'
       for name in concept_arts:
         try:
-          content += [name, await self._concept_arts[name]]
+          content += [name, await self._concept_arts[name]]  # pyrefly: ignore[unsupported-operation]
         except KeyError as exc:
           raise ValueError(f'Concept art "{name}" not found.') from exc
 

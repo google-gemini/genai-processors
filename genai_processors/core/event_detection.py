@@ -165,7 +165,7 @@ class EventDetection(processor.Processor):
     self._backend = backend
     self._sensitivity = sensitivity or {}
     self._output_dict = {}
-    self._init_output_dict(output_dict)
+    self._init_output_dict(output_dict)  # pyrefly: ignore[bad-argument-type]
     self._last_transition = (START_STATE, START_STATE)
     self._transition_counter = (self._last_transition, 0)
 

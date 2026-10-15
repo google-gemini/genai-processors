@@ -167,7 +167,7 @@ class InMemoryCache(cache_base.CacheBase):
       *,
       key: str | None = None,
   ) -> ProcessorContent | CacheMissT:
-    query_key = key if key is not None else self._hash_fn(query)
+    query_key = key if key is not None else self._hash_fn(query)  # pyrefly: ignore[bad-argument-type]
     if query_key is None:
       return CacheMiss
 
@@ -193,7 +193,7 @@ class InMemoryCache(cache_base.CacheBase):
     if self._cache.maxsize == 0:
       return
 
-    query_key = key if key is not None else self._hash_fn(query)
+    query_key = key if key is not None else self._hash_fn(query)  # pyrefly: ignore[bad-argument-type]
     if query_key is None:
       return
 

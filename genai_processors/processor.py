@@ -1655,8 +1655,8 @@ class CachedProcessor(Processor):
       content = await content.gather()  # pyrefly: ignore[bad-assignment]
 
       part_cache = part_cache.with_key_prefix(self.key_prefix)
-      key = part_cache.hash_fn(content)
-      cached_result = await part_cache.lookup(content, key=key)
+      key = part_cache.hash_fn(content)  # pyrefly: ignore[bad-argument-type]
+      cached_result = await part_cache.lookup(content, key=key)  # pyrefly: ignore[bad-argument-type]
 
       if isinstance(cached_result, ProcessorContent):
         for p in cached_result:

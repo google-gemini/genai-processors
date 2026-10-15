@@ -555,7 +555,7 @@ async def terminal_output(
   """
   old_part_role = None
   async for part in content:
-    match part.role:
+    match part.role:  # pyrefly: ignore[missing-attribute]
       case 'user':
         color = 'green'
       case 'model':
@@ -563,20 +563,22 @@ async def terminal_output(
       case _:
         color = 'yellow'
     part_role = part.role or 'default'
-    if content_api.is_text(part.mimetype):
-      content_text = part.text
-    elif part.function_call:
+    if content_api.is_text(part.mimetype):  # pyrefly: ignore[missing-attribute]
+      content_text = part.text  # pyrefly: ignore[missing-attribute]
+    elif part.function_call:  # pyrefly: ignore[missing-attribute]
       content_text = (
+          # pyrefly: ignore[missing-attribute]
           f'\n\033[96m FC [{part.function_call.name}]:'
           f' {part.function_call.args}'
       )
-    elif part.function_response:
+    elif part.function_response:  # pyrefly: ignore[missing-attribute]
       content_text = (
+          # pyrefly: ignore[missing-attribute]
           f'\n\033[96m FR[{part.function_response.name}]:'
           f' {part.function_response.response}'
       )
     else:
-      content_text = f'<{part.mimetype}>'
+      content_text = f'<{part.mimetype}>'  # pyrefly: ignore[missing-attribute]
     if part_role != old_part_role:
       old_part_role = part_role
       print(
@@ -593,5 +595,5 @@ async def terminal_output(
           flush=True,
       )
     # Reprint the prompt when the model is done.
-    if prompt and content_api.is_end_of_turn(part) and part_role == 'model':
+    if prompt and content_api.is_end_of_turn(part) and part_role == 'model':  # pyrefly: ignore[bad-argument-type]
       print('\n' + prompt, end='', flush=True)

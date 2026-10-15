@@ -60,7 +60,7 @@ class CriticReviser(processor.Processor):
     current_response = await self._model(input_content).gather()
 
     for _ in range(self._max_iterations):
-      critic_response = await self._model([
+      critic_response = await self._model([  # pyrefly: ignore[bad-argument-type]
           input_content,
           '\n\nDraft response:\n\n',
           current_response,
@@ -76,7 +76,7 @@ class CriticReviser(processor.Processor):
       if critic_text.strip().upper() == 'OK':
         break
 
-      current_response = await self._model([
+      current_response = await self._model([  # pyrefly: ignore[bad-argument-type]
           input_content,
           '\n\nDraft response:\n\n',
           current_response,
@@ -199,7 +199,7 @@ class Researcher(processor.Processor):
     # The main reason why we need the reviser is that the model may
     # produce intermediate results when the nested research arrive.
     # Here we rewrite research log to a clean final report.
-    async for part in self._reviser([
+    async for part in self._reviser([  # pyrefly: ignore[bad-argument-type]
         input_content,
         research,
         '\n\n============\n\n',

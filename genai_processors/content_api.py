@@ -1151,10 +1151,10 @@ def _as_format_helper(
 
   parts = []
   for p in content:
-    if mime_check(p.mimetype):
+    if mime_check(p.mimetype):  # pyrefly: ignore[missing-attribute]
       parts.append(p)
     elif not ignore_unsupported_types:
-      raise ValueError(f'Unsupported MIME type: {p.mimetype}.')
+      raise ValueError(f'Unsupported MIME type: {p.mimetype}.')  # pyrefly: ignore[missing-attribute]
   return parts
 
 

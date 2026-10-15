@@ -117,4 +117,4 @@ class GithubProcessor(processor.PartProcessor):
     if not parsed_url:
       return
     content = await fetch_url(self._api_key, parsed_url)
-    yield content_api.ProcessorPart(content)
+    yield content_api.ProcessorPart(content)  # pyrefly: ignore[bad-argument-type]
