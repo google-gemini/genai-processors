@@ -162,6 +162,40 @@ class StreamsTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     self.assertIsNone(await q.get())
     await t
 
+  async def test_concat_backpressure_and_cancellation(self):
+    task_started = asyncio.Event()
+    task_cancelled = asyncio.Event()
+
+    async def producer():
+      task_started.set()
+      try:
+        for val in [1, 2, 3]:
+          yield val
+          await asyncio.sleep(0.01)
+      except asyncio.CancelledError:
+        task_cancelled.set()
+        raise
+
+    concat_stream = streams.concat(producer(), queue_maxsize=1)
+    async for item in concat_stream:
+      self.assertEqual(item, 1)
+      break
+
+    await concat_stream.aclose()
+    await asyncio.wait_for(task_cancelled.wait(), timeout=1.0)
+    self.assertTrue(task_cancelled.is_set())
+
+  async def test_concat_propagates_exceptions(self):
+    async def producer_with_error():
+      yield 1
+      raise ValueError("producer error")
+
+    concat_stream = streams.concat(producer_with_error())
+    
+    with self.assertRaisesRegex(ValueError, "producer error"):
+      async for _ in concat_stream:
+        pass
+
 
 if __name__ == '__main__':
   absltest.main()
