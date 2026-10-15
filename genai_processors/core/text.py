@@ -495,6 +495,82 @@ class HtmlCleaner(processor.PartProcessor):
         raise ValueError(f'Unsupported cleaning mode: {self._cleaning_mode}')
 
 
+class LowercaseTextProcessor(processor.PartProcessor):
+  """PartProcessor that lowercases text parts."""
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return content_api.is_text(part.mimetype)
+
+  async def call(
+      self, part: content_api.ProcessorPart
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    yield content_api.ProcessorPart(
+        part.text.lower(),
+        mimetype=part.mimetype,
+        role=part.role,
+        substream_name=part.substream_name,
+        metadata=part.metadata,
+    )
+
+
+class TrimWhitespaceProcessor(processor.PartProcessor):
+  """PartProcessor that trims leading and trailing whitespace from text parts."""
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return content_api.is_text(part.mimetype)
+
+  async def call(
+      self, part: content_api.ProcessorPart
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    yield content_api.ProcessorPart(
+        part.text.strip(),
+        mimetype=part.mimetype,
+        role=part.role,
+        substream_name=part.substream_name,
+        metadata=part.metadata,
+    )
+
+
+class LanguageDetectProcessor(processor.PartProcessor):
+  """PartProcessor that automatically detects language of text parts and adds it to metadata.
+
+  Uses the `langdetect` library to detect the language.
+  """
+
+  def __init__(
+      self, *, metadata_key: str = 'language', fallback_lang: str | None = None
+  ):
+    self._metadata_key = metadata_key
+    self._fallback_lang = fallback_lang
+
+  def match(self, part: content_api.ProcessorPart) -> bool:
+    return content_api.is_text(part.mimetype)
+
+  async def call(
+      self, part: content_api.ProcessorPart
+  ) -> AsyncIterable[content_api.ProcessorPartTypes]:
+    import langdetect
+
+    lang = self._fallback_lang
+    if part.text:
+      try:
+        lang = langdetect.detect(part.text)
+      except Exception:
+        pass
+
+    meta = dict(part.metadata or {})
+    if lang:
+      meta[self._metadata_key] = lang
+
+    yield content_api.ProcessorPart(
+        part.text,
+        mimetype=part.mimetype,
+        role=part.role,
+        substream_name=part.substream_name,
+        metadata=meta,
+    )
+
+
 @processor.source()
 async def terminal_input(
     prompt: str = '',

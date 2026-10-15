@@ -719,5 +719,68 @@ class HtmlCleanerTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     )
 
 
+class LowercaseTextProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
+
+  async def test_lowercase_text(self):
+    processor = text.LowercaseTextProcessor()
+    input_part = content_api.ProcessorPart(
+        'HELLO World!', mimetype='text/plain', role='user'
+    )
+    self.assertSequenceEqual(
+        await processor(input_part).gather(),
+        [
+            content_api.ProcessorPart(
+                'hello world!', mimetype='text/plain', role='user'
+            )
+        ],
+    )
+
+
+class TrimWhitespaceProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
+
+  async def test_trim_whitespace(self):
+    processor = text.TrimWhitespaceProcessor()
+    input_part = content_api.ProcessorPart(
+        '  \n  hello \t  ', mimetype='text/plain', role='user'
+    )
+    self.assertSequenceEqual(
+        await processor(input_part).gather(),
+        [
+            content_api.ProcessorPart(
+                'hello', mimetype='text/plain', role='user'
+            )
+        ],
+    )
+
+
+class LanguageDetectProcessorTest(
+    parameterized.TestCase, unittest.IsolatedAsyncioTestCase
+):
+
+  async def test_detect_english(self):
+    processor = text.LanguageDetectProcessor()
+    input_part = content_api.ProcessorPart(
+        'This is a simple english text to detect language.',
+        mimetype='text/plain',
+    )
+    results = await processor(input_part).gather()
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].metadata.get('language'), 'en')
+
+  async def test_detect_spanish(self):
+    processor = text.LanguageDetectProcessor()
+    input_part = content_api.ProcessorPart(
+        'Hola, esto es un texto simple en español para detectar el idioma.',
+        mimetype='text/plain',
+    )
+    results = await processor(input_part).gather()
+    self.assertEqual(len(results), 1)
+    self.assertEqual(results[0].metadata.get('language'), 'es')
+
+
 if __name__ == '__main__':
   absltest.main()
