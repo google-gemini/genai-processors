@@ -160,8 +160,49 @@ class StreamsTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
     self.assertEqual(await q.get(), 2)
     self.assertEqual(await q.get(), 3)
     self.assertIsNone(await q.get())
-    await t
+  async def test_concat_bounded_queue_backpressure(self):
+    produced_stream2 = []
+
+    async def tracking_stream(label: str, items: list[str], log: list[str]):
+      for item in items:
+        log.append(f'{label}:{item}')
+        yield content_api.ProcessorPart(genai_types.Part(text=item))
+
+    stream1 = _parts('a', 'b', 'c')
+    stream2 = tracking_stream('s2', ['x', 'y', 'z'], produced_stream2)
+
+    concat_stream = streams.concat(stream1, stream2, queue_maxsize=1)
+    it = concat_stream.__aiter__()
+    first = await it.__anext__()
+    self.assertEqual(first.text, 'a')
+    await asyncio.sleep(0.05)
+    self.assertLessEqual(len(produced_stream2), 2)
+    await it.aclose()
+
+  async def test_concat_early_cancellation(self):
+    cancelled = False
+
+    async def infinite_stream():
+      nonlocal cancelled
+      try:
+        while True:
+          yield content_api.ProcessorPart(genai_types.Part(text='inf'))
+          await asyncio.sleep(0.01)
+      except asyncio.CancelledError:
+        cancelled = True
+        raise
+
+    concat_stream = streams.concat(
+        _parts('first'), infinite_stream(), queue_maxsize=1
+    )
+    it = concat_stream.__aiter__()
+    first = await it.__anext__()
+    self.assertEqual(first.text, 'first')
+    await it.aclose()
+    await asyncio.sleep(0.05)
+    self.assertTrue(cancelled)
 
 
 if __name__ == '__main__':
   absltest.main()
+
