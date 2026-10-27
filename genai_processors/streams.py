@@ -49,23 +49,25 @@ def split(
     n streams of content.
 
   Raises:
-    ValueError if n=0
+    ValueError if n<=0
   """
-  if n == 0:
-    raise ValueError('Cannot split a stream in n=0 streams.')
+  if n <= 0:
+    raise ValueError(f'Cannot split a stream into n={n} streams. n must be at least 1.')
   if n == 1:
     return (content,)
   queues = [asyncio.Queue() for _ in range(n)]
 
   async def enqueue_parts() -> None:
-    async for part in content:
+    try:
+      async for part in content:
+        for queue in queues:
+          if with_copy:
+            queue.put_nowait(copy.deepcopy(part))
+          else:
+            queue.put_nowait(part)
+    finally:
       for queue in queues:
-        if with_copy:
-          queue.put_nowait(copy.deepcopy(part))
-        else:
-          queue.put_nowait(part)
-    for queue in queues:
-      queue.put_nowait(None)
+        queue.put_nowait(None)
 
   async def dequeue_parts(
       queue: asyncio.Queue[_T],
@@ -78,36 +80,72 @@ def split(
   return tuple(dequeue_parts(queue) for queue in queues)
 
 
-async def concat(*contents: AsyncIterable[_T]) -> AsyncIterable[_T]:
+# 1. Overload for the *args style
+@overload
+def concat(
+    *contents: AsyncIterable[_T],
+) -> AsyncIterable[_T]:
+  ...
+
+
+# 2. Overload for the single Iterable (list/tuple) style
+@overload
+def concat(
+    contents: Iterable[AsyncIterable[_T]],
+    /,
+) -> AsyncIterable[_T]:
+  ...
+
+
+async def concat(
+    *contents: Union[Iterable[AsyncIterable[_T]], AsyncIterable[_T]],
+) -> AsyncIterable[_T]:
   """Concatenate multiple streams into one.
 
   The streams are looped over concurrently before being assembled into a single
   output stream.
 
   Args:
-    *contents: each stream to concat as a separate argument.
+    *contents: each stream to concat as a separate argument, or a single
+      iterable of streams.
 
   Yields:
     The concatenation of all streams.
   """
-  output_queues = [asyncio.Queue() for _ in contents]
+  if len(contents) == 1 and not isinstance(contents[0], AsyncIterable) and isinstance(contents[0], Iterable):
+    streams_list = list(contents[0])
+  else:
+    streams_list = list(contents)
+  streams_list = cast(list[AsyncIterable[_T]], streams_list)
+
+  if not streams_list:
+    return
+
+  output_queues = [asyncio.Queue() for _ in streams_list]
 
   async def _stream_outputs(
       idx: int,
   ):
-    async for c in contents[idx]:
-      output_queues[idx].put_nowait(c)
-    # Adds None to indicate end of output.
-    output_queues[idx].put_nowait(None)
+    try:
+      async for c in streams_list[idx]:
+        output_queues[idx].put_nowait(c)
+    finally:
+      # Adds None to indicate end of output.
+      output_queues[idx].put_nowait(None)
 
   tasks = []
-  for idx, _ in enumerate(contents):
-    tasks.append(context.create_task(_stream_outputs(idx)))
+  try:
+    for idx, _ in enumerate(streams_list):
+      tasks.append(context.create_task(_stream_outputs(idx)))
 
-  for q in output_queues:
-    while (part := await q.get()) is not None:
+    for q in output_queues:
+      while (part := await q.get()) is not None:
+        q.task_done()
+        yield part
       q.task_done()
-      yield part
+  finally:
+    for t in tasks:
+      t.cancel()
 
 
 # 1. Overload for the *args style

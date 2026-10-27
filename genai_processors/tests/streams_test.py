@@ -61,6 +61,40 @@ class StreamsTest(parameterized.TestCase, unittest.IsolatedAsyncioTestCase):
 
     self.assertEqual(output, ['foo 0', 'foo 1', 'foo 2'])
 
+  def test_split_invalid_n_raises(self):
+    with self.assertRaises(ValueError):
+      streams.split(_parts('foo'), n=0)
+    with self.assertRaises(ValueError):
+      streams.split(_parts('foo'), n=-1)
+
+  async def test_split_handles_upstream_error_gracefully(self):
+    async def _failing_stream():
+      yield content_api.ProcessorPart(genai_types.Part(text='first'))
+      raise RuntimeError('upstream failure')
+
+    s1, _ = streams.split(_failing_stream(), n=2)
+    out1 = []
+    async for p in s1:
+      out1.append(p.text)
+    self.assertEqual(out1, ['first'])
+
+  async def test_concat_accepts_list_and_tuple(self):
+    s_list = [_parts('a'), _parts('b')]
+    self.assertEqual(await text(streams.concat(s_list)), ['a', 'b'])
+    s_tuple = (_parts('c'), _parts('d'))
+    self.assertEqual(await text(streams.concat(s_tuple)), ['c', 'd'])
+
+  async def test_concat_handles_upstream_error_without_deadlock(self):
+    async def _failing():
+      yield content_api.ProcessorPart(genai_types.Part(text='error-part'))
+      raise RuntimeError('failed mid-stream')
+
+    s = streams.concat(_failing(), _parts('after'))
+    out = []
+    async for p in s:
+      out.append(p.text)
+    self.assertIn('error-part', out)
+
   async def test_merge_empty(self):
     merged = streams.merge([])
     self.assertEqual(await streams.gather_stream(merged), [])
