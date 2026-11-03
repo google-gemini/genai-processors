@@ -203,6 +203,33 @@ def _parse_sse_line(line: str) -> dict[str, Any] | None:
   return None
 
 
+def _error_message(event: dict[str, Any]) -> str | None:
+  """Returns the error reported by a streamed OpenRouter event, if any.
+
+  By the time a stream fails, OpenRouter has already sent its HTTP 200 status,
+  so a mid-stream failure arrives as an ordinary event: a top-level `error`
+  object and a choice whose `finish_reason` is `error`. An error can also be
+  attached to the first choice.
+
+  Args:
+    event: A parsed server-sent event.
+
+  Returns:
+    A human-readable message, or None if the event is not an error.
+  """
+  choices = event.get('choices') or [{}]
+  error = event.get('error') or choices[0].get('error')
+  if error:
+    if isinstance(error, dict):
+      message = error.get('message') or json.dumps(error)
+      code = error.get('code')
+      return f'{message} (code: {code})' if code else message
+    return str(error)
+  if choices[0].get('finish_reason') == 'error':
+    return 'the stream ended with finish_reason "error"'
+  return None
+
+
 class OpenRouterModel(processor.Processor):
   """`Processor` that calls OpenRouter API with streaming support.
 
@@ -370,6 +397,11 @@ class OpenRouterModel(processor.Processor):
 
         if parsed.get('type') == 'done':
           break
+
+        # A failure after the stream started is reported inside the stream, so
+        # `raise_for_status()` cannot see it. Raise instead of ending quietly.
+        if error := _error_message(parsed):
+          raise RuntimeError(f'OpenRouter stream error: {error}')
 
         # Extract content from the response.
         choices = parsed.get('choices', [])

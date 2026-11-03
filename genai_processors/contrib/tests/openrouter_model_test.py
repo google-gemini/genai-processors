@@ -18,6 +18,7 @@
 import enum
 import http
 import json
+import re
 import unittest
 from unittest import mock
 
@@ -402,6 +403,105 @@ class OpenRouterModelTest(parameterized.TestCase):
         processor.apply_sync(model, ['test'])
 
       self.assertIn('Invalid API key', str(context.exception))
+
+  def _apply_stream(self, lines: list[str]):
+    """Runs the model against a canned server-sent event stream."""
+
+    def request_handler(request: httpx.Request):
+      del request  # Unused.
+      return httpx.Response(
+          http.HTTPStatus.OK, content='\n'.join(lines).encode('utf-8')
+      )
+
+    mock_client = httpx.AsyncClient(
+        transport=httpx.MockTransport(request_handler),
+        base_url='https://openrouter.ai/api/v1',
+        headers={
+            'Authorization': 'Bearer test-api-key',
+            'Content-Type': 'application/json',
+            'User-Agent': 'genai-processors',
+        },
+    )
+
+    with mock.patch.object(httpx, 'AsyncClient', return_value=mock_client):
+      model = openrouter_model.OpenRouterModel(
+          api_key='test-api-key',
+          model_name='openai/gpt-4o',
+      )
+      return processor.apply_sync(model, ['Explain the result'])
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='error_after_some_text',
+          lines=[
+              (
+                  'data: {"choices": [{"delta": {"content": "The answer'
+                  ' starts"}, "finish_reason": null}]}'
+              ),
+              (
+                  'data: {"error": {"code": "server_error", "message":'
+                  ' "Provider disconnected unexpectedly"}, "choices":'
+                  ' [{"index": 0, "delta": {"content": ""}, "finish_reason":'
+                  ' "error"}]}'
+              ),
+              'data: [DONE]',
+          ],
+          expected='Provider disconnected unexpectedly (code: server_error)',
+      ),
+      dict(
+          testcase_name='error_before_any_text',
+          lines=[
+              (
+                  'data: {"error": {"code": "server_error", "message":'
+                  ' "Provider disconnected unexpectedly"}, "choices":'
+                  ' [{"index": 0, "delta": {"content": ""}, "finish_reason":'
+                  ' "error"}]}'
+              ),
+              'data: [DONE]',
+          ],
+          expected='Provider disconnected unexpectedly (code: server_error)',
+      ),
+      dict(
+          testcase_name='error_on_first_choice',
+          lines=[
+              (
+                  'data: {"choices": [{"delta": {"content": ""}, "error":'
+                  ' {"code": 429, "message": "Rate limit exceeded"},'
+                  ' "finish_reason": "error"}]}'
+              ),
+          ],
+          expected='Rate limit exceeded (code: 429)',
+      ),
+      dict(
+          testcase_name='error_finish_reason_without_details',
+          lines=[
+              'data: {"choices": [{"delta": {}, "finish_reason": "error"}]}',
+          ],
+          expected='finish_reason "error"',
+      ),
+  )
+  def test_mid_stream_error_raises(self, lines, expected):
+    # The HTTP status is already 200 when the provider fails, so the error is
+    # only visible inside the stream. It must not be reported as a normal
+    # (possibly truncated) answer.
+    with self.assertRaisesRegex(RuntimeError, re.escape(expected)):
+      self._apply_stream(lines)
+
+  def test_stream_without_error_is_unchanged(self):
+    # A healthy chunk may carry `"error": null`. That is not a failure.
+    lines = [
+        (
+            'data: {"error": null, "choices": [{"delta": {"content": "Done"},'
+            ' "finish_reason": null}]}'
+        ),
+        'data: {"choices": [{"delta": {}, "finish_reason": "stop"}]}',
+        'data: [DONE]',
+    ]
+    output = self._apply_stream(lines)
+
+    self.assertEqual(content_api.as_text(output), 'Done')
+    self.assertEqual(output[-1].metadata['finish_reason'], 'stop')
+    self.assertEqual(output[-1].metadata['turn_complete'], True)
 
 
 if __name__ == '__main__':
