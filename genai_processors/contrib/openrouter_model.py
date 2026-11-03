@@ -217,15 +217,18 @@ def _error_message(event: dict[str, Any]) -> str | None:
   Returns:
     A human-readable message, or None if the event is not an error.
   """
-  choices = event.get('choices') or [{}]
-  error = event.get('error') or choices[0].get('error')
+  choices = event.get('choices')
+  first_choice = choices[0] if isinstance(choices, list) and choices else None
+  if not isinstance(first_choice, dict):
+    first_choice = {}
+  error = event.get('error') or first_choice.get('error')
   if error:
     if isinstance(error, dict):
       message = error.get('message') or json.dumps(error)
       code = error.get('code')
       return f'{message} (code: {code})' if code else message
     return str(error)
-  if choices[0].get('finish_reason') == 'error':
+  if first_choice.get('finish_reason') == 'error':
     return 'the stream ended with finish_reason "error"'
   return None
 

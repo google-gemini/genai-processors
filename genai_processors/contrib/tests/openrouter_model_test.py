@@ -503,6 +503,24 @@ class OpenRouterModelTest(parameterized.TestCase):
     self.assertEqual(output[-1].metadata['finish_reason'], 'stop')
     self.assertEqual(output[-1].metadata['turn_complete'], True)
 
+  @parameterized.parameters(
+      ({},),
+      ({'choices': None},),
+      ({'choices': []},),
+      ({'choices': [None]},),
+      ({'choices': ['not a dict']},),
+      ({'choices': [{'delta': {}}]},),
+  )
+  def test_error_message_ignores_malformed_choices(self, event):
+    # An event without a usable first choice is not an error, and must not
+    # crash the helper.
+    self.assertIsNone(openrouter_model._error_message(event))
+
+  def test_error_message_still_reports_error_with_malformed_choices(self):
+    event = {'error': {'message': 'Boom'}, 'choices': [None]}
+
+    self.assertEqual(openrouter_model._error_message(event), 'Boom')
+
 
 if __name__ == '__main__':
   unittest.main()
