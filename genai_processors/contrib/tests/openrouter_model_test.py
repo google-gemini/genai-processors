@@ -521,6 +521,18 @@ class OpenRouterModelTest(parameterized.TestCase):
 
     self.assertEqual(openrouter_model._error_message(event), 'Boom')
 
+  @parameterized.parameters(
+      (0, 'x (code: 0)'),
+      (429, 'x (code: 429)'),
+      ('rate_limited', 'x (code: rate_limited)'),
+      (None, 'x'),
+      ('', 'x'),
+  )
+  def test_error_message_keeps_falsy_but_present_codes(self, code, expected):
+    event = {'error': {'message': 'x', 'code': code}}
+
+    self.assertEqual(openrouter_model._error_message(event), expected)
+
 
 if __name__ == '__main__':
   unittest.main()

@@ -226,7 +226,8 @@ def _error_message(event: dict[str, Any]) -> str | None:
     if isinstance(error, dict):
       message = error.get('message') or json.dumps(error)
       code = error.get('code')
-      return f'{message} (code: {code})' if code else message
+      has_code = code is not None and code != ''
+      return f'{message} (code: {code})' if has_code else message
     return str(error)
   if first_choice.get('finish_reason') == 'error':
     return 'the stream ended with finish_reason "error"'
